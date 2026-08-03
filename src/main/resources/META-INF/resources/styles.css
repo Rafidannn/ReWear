@@ -1,29 +1,1051 @@
-/* Add your styles here */
+/* =========================================================
+   REWEAR MARKETPLACE — DESIGN SYSTEM (Figma Frame 1 Exact)
+   ========================================================= */
 
-.app-logo {
-    border-radius: min(40%, var(--vaadin-radius-m));
-    margin-inline-start: var(--vaadin-padding-inline-container);
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    /* === Warna Exact dari Figma Frame 1 === */
+    --figma-navy:         #001934;   /* Primary dark navy background */
+    --figma-navy-header:  rgba(0, 25, 52, 0.95); /* Header bg */
+    --figma-navy-mid:     #0B1C30;   /* Heading text */
+    --figma-gold-btn:     #FFDEA2;   /* Tombol Mulai Belanja / Beli pill */
+    --figma-gold-badge:   #F5C45E;   /* Badge Warga SMKN 24 */
+    --figma-gold-accent:  #F0BF5A;   /* Ikon Pasar header */
+    --figma-badge-brown:  #944A07;   /* Badge Sustainable Fashion */
+    --figma-text-sub:     #7C96BE;   /* Subtitle hero */
+    --figma-text-muted:   #43474E;   /* Teks deskripsi section */
+    --figma-text-rating:  #74777F;   /* Teks rating count */
+    --figma-cat-bg:       #DCE9FF;   /* Background kartu kategori */
+    --figma-pasar-bg:     #EFF4FF;   /* Background section Pasar */
+    --figma-star:         #F0BF5A;   /* Warna bintang rating */
+    --figma-toggle-bg:    #102E50;   /* Background Beli/Jual toggle */
+
+    --rewear-font:        'Inter', -apple-system, Roboto, Helvetica, sans-serif;
+    --rewear-border:      #E2E8F0;
+    --navbar-height:      68px;
 }
 
-.app-name {
-    font-weight: var(--aura-font-weight-semibold);
-    font-size: var(--aura-font-size-l);
-}
-
-.app-footer {
-    color: var(--vaadin-text-color-secondary);
-    font-size: var(--aura-font-size-s);
-}
-
-/* TODO: This is only for demo purposes. You can delete it. */
-vaadin-side-nav:has(vaadin-side-nav-item:only-child)::after {
-    display: block;
-    content: "More menu items will appear here when you add more views.";
-    font-size: var(--aura-font-size-s);
-    color: var(--vaadin-text-color-secondary);
+* {
     box-sizing: border-box;
-    padding: 1em;
-    max-width: 14em;
-    min-width: 100%;
-    white-space: normal;
+}
+
+html, body, vaadin-app-layout {
+    font-family: var(--rewear-font) !important;
+    color: var(--figma-navy-mid);
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+    background-color: var(--figma-navy) !important;
+}
+
+/* ================================================================
+   VAADIN LAYOUT OVERRIDES (Removes top/left/right gaps & drawer)
+   ================================================================ */
+
+vaadin-app-layout::part(drawer) {
+    display: none !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+vaadin-app-layout::part(navbar) {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: var(--figma-navy) !important;
+}
+
+vaadin-app-layout::part(content) {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background-color: #F8F9FF;
+}
+
+vaadin-vertical-layout {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* ================================================================
+   TOP NAVBAR — Professional Fixed Layout
+   ================================================================ */
+
+/* Outer: Full-width navy background band */
+.rw-main-navbar {
+    width: 100% !important;
+    background: rgba(0, 25, 52, 0.97) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.25) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 999 !important;
+    box-sizing: border-box !important;
+}
+
+/* Inner: 1280px centered flex row — Logo | Search | NavLinks | RightIcons */
+.rw-main-navbar-inner {
+    max-width: 1280px !important;
+    width: 100% !important;
+    height: 64px !important;
+    margin: 0 auto !important;
+    padding: 0 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    font-family: var(--rewear-font) !important;
+}
+
+/* Logo — far left, no shrink */
+.rw-logo {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+    margin-right: 28px !important;
+}
+
+.rw-logo-text {
+    font-family: var(--rewear-font) !important;
+    font-weight: 800 !important;
+    font-size: 22px !important;
+    color: #FFFFFF !important;
+    letter-spacing: -0.5px !important;
+    line-height: 1 !important;
+}
+
+/* Search bar — grows to fill available space */
+.rw-nav-searchbar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: rgba(255,255,255,0.10) !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    flex: 1 1 0 !important;
+    min-width: 160px !important;
+    max-width: 380px !important;
+    margin-right: 28px !important;
+    transition: background 0.2s, border 0.2s !important;
+}
+
+.rw-nav-searchbar:focus-within {
+    background: rgba(255,255,255,0.15) !important;
+    border-color: rgba(255,222,162,0.5) !important;
+}
+
+.rw-nav-search-input {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    font-family: var(--rewear-font) !important;
+    font-size: 14px !important;
+    color: #FFFFFF !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.rw-nav-search-input::placeholder {
+    color: rgba(255,255,255,0.45) !important;
+}
+
+.rw-nav-search-icon {
+    color: rgba(255,255,255,0.5) !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Nav links — Kategori | Pasar SMKN 24 | Jual Barang */
+.rw-nav-links-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    margin-right: auto !important;
+}
+
+.rw-nav-link {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: rgba(255,255,255,0.80) !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    font-family: var(--rewear-font) !important;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    transition: all 0.15s ease !important;
+    letter-spacing: 0.1px !important;
+}
+
+.rw-nav-link:hover {
+    color: #FFFFFF !important;
+    background: rgba(255,255,255,0.08) !important;
+}
+
+.rw-nav-link-active {
+    color: var(--figma-gold-btn) !important;
+    background: rgba(255,222,162,0.10) !important;
+    font-weight: 600 !important;
+}
+
+/* Right side icons — far right */
+.rw-nav-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    margin-left: 16px !important;
+}
+
+.rw-nav-icon-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    color: rgba(255,255,255,0.75) !important;
+    transition: all 0.15s ease !important;
+}
+
+.rw-nav-icon-btn:hover {
+    background: rgba(255,255,255,0.10) !important;
+    color: #FFFFFF !important;
+}
+
+
+/* --- Beli / Jual Toggle Pill --- */
+.rw-mode-toggle {
+    display: flex;
+    align-items: center;
+    padding: 3px;
+    border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: var(--figma-toggle-bg);
+}
+
+.rw-toggle-btn-active {
+    background: var(--figma-gold-btn);
+    color: #261900;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 14px;
+    border-radius: 9999px;
+    cursor: pointer;
+    font-family: var(--rewear-font);
+}
+
+.rw-toggle-btn {
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 14px;
+    border-radius: 9999px;
+    cursor: pointer;
+    opacity: 0.65;
+    font-family: var(--rewear-font);
+}
+
+/* Avatar dengan Gold Ring */
+.rw-nav-avatar {
+    cursor: pointer;
+    border: 2px solid var(--figma-gold-btn) !important;
+    border-radius: 9999px;
+}
+
+/* ================================================================
+   HERO BANNER — 100% Full Width, Square Rectangular, Figma Exact
+   ================================================================ */
+
+/* Nuclear Rule: No rounded corners on Hero Banner under ANY circumstances */
+.hero-banner-section,
+.hero-banner,
+div.hero-banner-section,
+div.hero-banner,
+[class*="hero-banner"] {
+    width: 100% !important;
+    height: 500px !important;
+    background-color: var(--figma-navy) !important;
+    background-image: linear-gradient(90deg, #001934 0%, rgba(0, 25, 52, 0.85) 45%, rgba(0, 25, 52, 0.15) 100%), url('images/hero-banner.jpg') !important;
+    background-size: cover !important;
+    background-position: right center !important;
+    background-repeat: no-repeat !important;
+    border-radius: 0 !important;
+    -webkit-border-radius: 0 !important;
+    -moz-border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    position: relative !important;
+}
+
+/* Container terpusat untuk teks di dalam Hero */
+.hero-inner-container {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.hero-banner-section h1,
+.hero-banner-section p,
+.hero-banner-section span {
+    color: #FFFFFF !important;
+}
+
+/* Badge 'Sustainable Fashion' */
+.hero-badge {
+    background: var(--figma-badge-brown);
+    color: #FFFFFF !important;
+    padding: 4px 16px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.24px;
+    display: inline-block;
+    line-height: 16px;
+}
+
+/* Headline */
+.hero-title {
+    font-size: 56px !important;
+    font-weight: 700 !important;
+    line-height: 60px !important;
+    letter-spacing: -0.6px !important;
+    margin: 0 !important;
+    color: #FFFFFF !important;
+    max-width: 672px;
+}
+
+/* Deskripsi */
+.hero-desc {
+    font-size: 18px !important;
+    font-weight: 400 !important;
+    color: #7C96BE !important;
+    line-height: 28px !important;
+    max-width: 560px;
+    margin: 0 !important;
+    opacity: 0.95;
+}
+
+/* Group Tombol */
+.hero-btns {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 24px;
+}
+
+/* Tombol Mulai Belanja */
+.btn-gold {
+    background: var(--figma-gold-btn) !important;
+    color: #261900 !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+    padding: 16px 48px !important;
+    border: none !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.14px;
+    font-family: var(--rewear-font) !important;
+    line-height: 20px !important;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -4px rgba(0,0,0,0.10);
+}
+
+.btn-gold:hover {
+    background: #f0c070 !important;
+    transform: translateY(-2px);
+}
+
+/* Tombol Pelajari Selengkapnya */
+.btn-outline-light {
+    background: transparent !important;
+    color: #FFFFFF !important;
+    border: 2px solid #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+    padding: 16px 48px !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.14px;
+    font-family: var(--rewear-font) !important;
+    line-height: 20px !important;
+}
+
+.btn-outline-light:hover {
+    background: rgba(255,255,255,0.12) !important;
+    transform: translateY(-2px);
+}
+
+/* ================================================================
+   CATEGORY SECTION
+   ================================================================ */
+.category-section-wrapper {
+    width: 100%;
+    padding: 48px 0;
+    background: #FFFFFF;
+}
+
+.category-inner-container {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 48px;
+}
+
+.category-card {
+    background: var(--figma-cat-bg);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.22s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.category-card:hover {
+    background: #c8d9f7;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px -5px rgba(0,25,52,0.12);
+}
+
+.category-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 9999px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+}
+
+.category-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--figma-navy-mid);
+    margin-top: 4px;
+    letter-spacing: 0.14px;
+    line-height: 20px;
+    font-family: var(--rewear-font);
+}
+
+/* ================================================================
+   SCHOOL MARKETPLACE (Pasar SMKN 24)
+   ================================================================ */
+.pasar-sekolah-container {
+    background-color: var(--figma-pasar-bg);
+    padding: 48px 0;
+    width: 100%;
+    margin: 0;
+}
+
+.pasar-sekolah-inner {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 48px;
+}
+
+.pasar-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.pasar-icon-wrapper {
+    display: flex;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--figma-gold-accent);
+    align-items: center;
+    justify-content: center;
+}
+
+.pasar-title-main {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--figma-navy);
+    margin: 0;
+    line-height: 32px;
+    font-family: var(--rewear-font);
+}
+
+.pasar-title-sub {
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--figma-text-muted);
+    margin: 0;
+    line-height: 24px;
+}
+
+/* ================================================================
+   PRODUCT GRID & CARDS
+   ================================================================ */
+.products-grid-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media (max-width: 992px) {
+    .products-grid-container { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 576px) {
+    .products-grid-container { grid-template-columns: 1fr; }
+}
+
+.product-card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    transition: all 0.22s ease;
+    box-shadow: 0 2px 8px rgba(0,25,52,0.06);
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 28px -8px rgba(0,25,52,0.14);
+}
+
+.product-img-wrapper {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    overflow: hidden;
+    background: #F8FAFC;
+}
+
+.product-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.product-card:hover .product-img { transform: scale(1.05); }
+
+.verified-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: var(--figma-gold-badge);
+    color: var(--figma-navy);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    letter-spacing: 0.24px;
+    line-height: 16px;
+    z-index: 2;
+    font-family: var(--rewear-font);
+}
+
+.product-info-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.product-title {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: var(--figma-navy-mid) !important;
+    margin: 0 0 4px 0 !important;
+    letter-spacing: 0.14px;
+    line-height: 20px !important;
+    font-family: var(--rewear-font);
+}
+
+.product-price {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--figma-navy);
+    margin: 0 0 8px 0;
+    line-height: 28px;
+    font-family: var(--rewear-font);
+}
+
+.product-rating {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--figma-star);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 16px;
+}
+
+.product-rating-count {
+    color: var(--figma-text-rating);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.btn-lihat-detail {
+    display: block;
+    width: 100%;
+    padding: 8px 0;
+    text-align: center;
+    border-radius: 8px;
+    border: 2px solid var(--figma-navy);
+    color: var(--figma-navy);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    font-family: var(--rewear-font);
+    box-sizing: border-box;
+}
+
+.btn-lihat-detail:hover {
+    background: var(--figma-navy);
+    color: #FFFFFF;
+}
+
+/* ================================================================
+   RECOMMENDATIONS SECTION
+   ================================================================ */
+.recommend-section-wrapper {
+    width: 100%;
+    padding: 48px 0;
+    background: #FFFFFF;
+}
+
+.recommend-inner-container {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 48px;
+}
+
+/* ================================================================
+   FOOTER CTA BANNER (Rounded Box 24px - Figma Exact)
+   ================================================================ */
+.cta-banner-wrapper {
+    width: 100% !important;
+    padding: 48px 0 !important;
+    background: #FFFFFF !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.cta-banner-inner {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 48px;
+    box-sizing: border-box;
+}
+
+.cta-banner {
+    background-color: var(--figma-navy) !important;
+    color: #FFFFFF !important;
+    border-radius: 24px !important;
+    padding: 40px 48px !important;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 12px 32px -8px rgba(0, 25, 52, 0.25);
+}
+
+.cta-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    pointer-events: none;
+}
+
+.cta-banner h2, .cta-banner p { color: #FFFFFF !important; }
+
+/* ================================================================
+   SCROLL REVEAL ANIMATIONS (driven by rewear-animations.js)
+   ================================================================ */
+.rw-hidden {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.rw-revealed {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+/* ================================================================
+   HERO STATS ROW
+   ================================================================ */
+.hero-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-top: 32px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 16px 24px;
+    width: fit-content;
+}
+
+.hero-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 28px;
+}
+
+.hero-stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: #FFDEA2;
+    line-height: 1;
+    font-family: var(--rewear-font);
+}
+
+.hero-stat-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.65);
+    margin-top: 4px;
+    font-weight: 500;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+}
+
+.hero-stat-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+}
+
+/* ================================================================
+   STATS BAR (di bawah hero)
+   ================================================================ */
+.rw-stats-bar {
+    width: 100% !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    background: var(--figma-navy) !important;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 16px 0;
+}
+
+.rw-stats-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 48px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    justify-content: center;
+}
+
+.rw-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+    padding: 0 32px;
+    font-family: var(--rewear-font);
+    white-space: nowrap;
+}
+
+.rw-stat-sep {
+    width: 1px;
+    height: 20px;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+}
+
+/* ================================================================
+   SECTION HEADERS (rw-section-header, rw-section-title, etc.)
+   ================================================================ */
+.rw-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.rw-section-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--figma-navy-mid);
+    margin: 0 0 4px 0;
+    line-height: 1.3;
+    font-family: var(--rewear-font);
+}
+
+.rw-section-sub {
+    font-size: 14px;
+    color: #64748B;
+    margin: 0;
+    line-height: 1.5;
+    font-family: var(--rewear-font);
+}
+
+.rw-link-more {
+    font-size: 14px;
+    font-weight: 700;
+    color: #944A07;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+    font-family: var(--rewear-font);
+}
+
+.rw-link-more:hover { opacity: 0.75; }
+
+/* ================================================================
+   CATEGORY GRID (6 kolom di desktop, inline HTML)
+   ================================================================ */
+.rw-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 1024px) { .rw-cat-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 576px)  { .rw-cat-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.rw-cat-active {
+    background: #c8d9f7 !important;
+    border: 2px solid #2563EB !important;
+    transform: translateY(-3px);
+}
+
+/* ================================================================
+   AVATAR (Navbar custom)
+   ================================================================ */
+.rw-nav-avatar-wrap {
+    cursor: pointer;
+}
+
+.rw-avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--figma-navy-mid);
+    border: 2px solid var(--figma-gold-btn);
+    color: #FFF;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--rewear-font);
+    transition: box-shadow 0.2s;
+}
+
+.rw-avatar-circle:hover {
+    box-shadow: 0 0 0 3px rgba(255,222,162,0.35);
+}
+
+/* ================================================================
+   FOOTER (Light Blue #EFF4FF - Figma Exact)
+   ================================================================ */
+.rw-footer {
+    background: #EFF4FF !important;
+    padding: 56px 0 0 0 !important;
+    width: 100% !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    border-top: 1px solid #DCE9FF;
+}
+
+.rw-footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 48px 48px 48px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+}
+
+.rw-footer-brand {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--figma-navy);
+    display: block;
+    margin-bottom: 12px;
+    font-family: var(--rewear-font);
+}
+
+.rw-footer-desc {
+    font-size: 13px;
+    color: #43474E;
+    line-height: 1.7;
+    margin: 0 0 20px 0;
+    font-family: var(--rewear-font);
+    max-width: 320px;
+}
+
+.rw-footer-heading {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--figma-navy);
+    margin: 0 0 16px 0;
+    font-family: var(--rewear-font);
+}
+
+.rw-footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rw-footer-links a {
+    font-size: 13px;
+    color: #43474E;
+    text-decoration: none;
+    transition: color 0.15s;
+    font-family: var(--rewear-font);
+}
+
+.rw-footer-links a:hover { color: var(--figma-navy); font-weight: 600; }
+
+.rw-footer-bottom-bar {
+    border-top: 1px solid #DCE9FF;
+    padding: 20px 0;
+    background: #EFF4FF;
+}
+
+.rw-footer-bottom-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #74777F;
+    font-family: var(--rewear-font);
+}
+
+/* ================================================================
+   RECOMMENDATION 5-COLUMN GRID (Figma Exact)
+   ================================================================ */
+.recommend-grid-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+    width: 100%;
+}
+
+@media (max-width: 1100px) { .recommend-grid-5 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .recommend-grid-5 { grid-template-columns: repeat(2, 1fr); } }
+
+.recommend-card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease;
+}
+
+.recommend-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -6px rgba(0,25,52,0.12);
+}
+
+.rw-footer-socials {
+    display: flex;
+    gap: 10px;
+}
+
+.rw-social-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.rw-social-btn:hover {
+    background: rgba(255,222,162,0.15);
+    color: var(--figma-gold-btn);
+    border-color: rgba(255,222,162,0.3);
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+@media (max-width: 1024px) {
+    .rw-footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
+    .rw-stats-inner { flex-wrap: wrap; justify-content: flex-start; }
+}
+
+@media (max-width: 768px) {
+    .rw-main-navbar { padding: 0 16px; gap: 10px; }
+    .rw-nav-links-group { display: none !important; }
+    .hero-title { font-size: 32px !important; line-height: 38px !important; }
+    .hero-inner-container { padding: 0 24px; }
+    .hero-stats-row { flex-direction: column; gap: 12px; padding: 16px; }
+    .hero-stat-divider { width: 80px; height: 1px; }
+    .hero-stat { padding: 0; }
+    .category-inner-container, .pasar-sekolah-inner, .recommend-inner-container,
+    .cta-banner-inner, .rw-footer-inner, .rw-stats-inner { padding: 0 24px; }
+    .products-grid-container { grid-template-columns: 1fr 1fr; gap: 14px; }
+    .rw-footer-inner { grid-template-columns: 1fr; gap: 24px; }
 }
