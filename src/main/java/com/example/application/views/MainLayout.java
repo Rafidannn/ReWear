@@ -1,5 +1,6 @@
 package com.example.application.views;
 
+import com.example.application.model.user.User;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -9,7 +10,9 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.contextmenu.ContextMenu;
 import com.vaadin.flow.router.Layout;
+import com.vaadin.flow.server.VaadinSession;
 
 /**
  * MainLayout — Top Navbar Navy (Figma Frame 1 Exact) + Navigasi Berfungsi
@@ -85,12 +88,7 @@ public final class MainLayout extends AppLayout {
             );
         });
 
-        // "Jual Barang" → navigate ke halaman seller
-        Span linkJual = new Span("Jual Barang");
-        linkJual.addClassName("rw-nav-link");
-        linkJual.addClickListener(e -> UI.getCurrent().navigate("seller"));
-
-        HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar, linkJual);
+        HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar);
         navLinks.setSpacing(false);
         navLinks.addClassName("rw-nav-links-group");
 
@@ -99,31 +97,47 @@ public final class MainLayout extends AppLayout {
         Span chatIcon = buildNavIconBtn(VaadinIcon.COMMENT, "Pesan masuk");
         Span bellIcon = buildNavIconBtn(VaadinIcon.BELL, "Notifikasi");
 
-        // ---- Beli / Jual Toggle Pill (visual + JS toggle) ----
-        Div toggleGroup = new Div();
-        toggleGroup.addClassName("rw-mode-toggle");
-        toggleGroup.setId("rw-mode-toggle");
-        toggleGroup.getElement().setProperty("innerHTML",
-            "<span id='pill-beli' class='rw-toggle-btn-active' onclick=\"" +
-            "document.getElementById('pill-beli').className='rw-toggle-btn-active';" +
-            "document.getElementById('pill-jual').className='rw-toggle-btn';\">Beli</span>" +
-            "<span id='pill-jual' class='rw-toggle-btn' onclick=\"" +
-            "document.getElementById('pill-jual').className='rw-toggle-btn-active';" +
-            "document.getElementById('pill-beli').className='rw-toggle-btn';" +
-            "window.location.href='/seller';\">Jual</span>"
-        );
+        // ---- Avatar / Profile Button (Conditional on login state) ----
+        User currentUser = VaadinSession.getCurrent() != null ? VaadinSession.getCurrent().getAttribute(User.class) : null;
+        Component rightSideItem;
 
-        // ---- Avatar ----
-        Div avatar = new Div();
-        avatar.addClassName("rw-nav-avatar-wrap");
-        avatar.getElement().setProperty("innerHTML",
-            "<div class='rw-avatar-circle' title='Profil saya'>R</div>"
-        );
-        avatar.addClickListener(e ->
-            Notification.show("Login diperlukan untuk mengakses profil.", 2000, Notification.Position.TOP_CENTER)
-        );
+        if (currentUser == null) {
+            Span masukLink = new Span("Masuk");
+            masukLink.getElement().getStyle()
+                .set("color", "#F5C45E")
+                .set("font-weight", "700")
+                .set("font-size", "14px")
+                .set("cursor", "pointer")
+                .set("padding", "6px 12px")
+                .set("transition", "opacity 0.2s");
+            masukLink.getElement().addEventListener("mouseover", e -> masukLink.getElement().getStyle().set("opacity", "0.85"));
+            masukLink.getElement().addEventListener("mouseout", e -> masukLink.getElement().getStyle().set("opacity", "1.0"));
+            masukLink.addClickListener(e -> UI.getCurrent().navigate("login"));
+            rightSideItem = masukLink;
+        } else {
+            String initial = (currentUser.getFullName() != null && !currentUser.getFullName().isEmpty())
+                ? String.valueOf(currentUser.getFullName().charAt(0)).toUpperCase()
+                : "R";
 
-        HorizontalLayout rightSide = new HorizontalLayout(cartIcon, chatIcon, bellIcon, toggleGroup, avatar);
+            Div avatar = new Div();
+            avatar.addClassName("rw-nav-avatar-wrap");
+            avatar.getElement().setProperty("innerHTML",
+                "<div class='rw-avatar-circle' title='" + currentUser.getFullName() + "'>" + initial + "</div>"
+            );
+
+            ContextMenu menu = new ContextMenu(avatar);
+            menu.setOpenOnClick(true);
+            menu.addItem("Profil Saya", e -> Notification.show("Profil: " + currentUser.getFullName()));
+            menu.addItem("Keluar", e -> {
+                VaadinSession.getCurrent().setAttribute(User.class, null);
+                Notification.show("Berhasil keluar.");
+                UI.getCurrent().navigate("");
+                UI.getCurrent().getPage().reload();
+            });
+            rightSideItem = avatar;
+        }
+
+        HorizontalLayout rightSide = new HorizontalLayout(cartIcon, chatIcon, bellIcon, rightSideItem);
         rightSide.setAlignItems(FlexComponent.Alignment.CENTER);
         rightSide.setSpacing(false);
         rightSide.addClassName("rw-nav-right");

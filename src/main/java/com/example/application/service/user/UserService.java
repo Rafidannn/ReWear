@@ -16,15 +16,22 @@ public class UserService {
     private final AddressRepository addressRepository;
     private final UserSchoolVerificationRepository verificationRepository;
     private final BankAccountRepository bankAccountRepository;
+    private final SchoolRepository schoolRepository;
 
     public UserService(UserRepository userRepository,
                        AddressRepository addressRepository,
                        UserSchoolVerificationRepository verificationRepository,
-                       BankAccountRepository bankAccountRepository) {
+                       BankAccountRepository bankAccountRepository,
+                       SchoolRepository schoolRepository) {
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
         this.verificationRepository = verificationRepository;
         this.bankAccountRepository = bankAccountRepository;
+        this.schoolRepository = schoolRepository;
+    }
+
+    public List<School> findAllSchools() {
+        return schoolRepository.findAll();
     }
 
     public List<User> findAllUsers() {
@@ -37,6 +44,20 @@ public class UserService {
 
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
+    }
+
+    public Optional<User> authenticate(String email, String rawPassword) {
+        if (email == null || rawPassword == null) {
+            return Optional.empty();
+        }
+        Optional<User> userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (rawPassword.equals(user.getPasswordHash())) {
+                return Optional.of(user);
+            }
+        }
+        return Optional.empty();
     }
 
     public User saveUser(User user) {
@@ -66,5 +87,17 @@ public class UserService {
 
     public BankAccount saveBankAccount(BankAccount bankAccount) {
         return bankAccountRepository.save(bankAccount);
+    }
+
+    public User registerUser(String fullName, String email, String phone, String password, School school) {
+        User user = new User();
+        user.setFullName(fullName);
+        user.setEmail(email.trim().toLowerCase());
+        user.setPhone(phone);
+        user.setPasswordHash(password);
+        user.setRole(Role.BUYER_SELLER);
+        user.setSchool(school);
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        return userRepository.save(user);
     }
 }

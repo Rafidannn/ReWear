@@ -3,6 +3,7 @@
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://unpkg.com/aos@2.3.1/dist/aos.css');
 
 :root {
     /* === Warna Exact dari Figma Frame 1 === */
@@ -60,10 +61,14 @@ vaadin-app-layout::part(navbar) {
     border: none !important;
     box-shadow: none !important;
     background: var(--figma-navy) !important;
+    z-index: 1000 !important; /* Ensure navbar container is above the content stacking context */
 }
 
 vaadin-app-layout::part(content) {
-    padding: 0 !important;
+    padding-top: 64px !important; /* Offset for the sticky 64px navbar */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -280,7 +285,7 @@ div.hero-banner-section,
 div.hero-banner,
 [class*="hero-banner"] {
     width: 100% !important;
-    height: 500px !important;
+    height: 700px !important;
     background-color: var(--figma-navy) !important;
     background-image: linear-gradient(90deg, #001934 0%, rgba(0, 25, 52, 0.85) 45%, rgba(0, 25, 52, 0.15) 100%), url('images/hero-banner.jpg') !important;
     background-size: cover !important;

@@ -4,13 +4,17 @@ import com.vaadin.flow.theme.aura.Aura;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.component.page.Push;
+import com.vaadin.flow.server.AppShellSettings;
 
 @SpringBootApplication
 @StyleSheet(Aura.STYLESHEET)
 @StyleSheet("styles.css") // Your custom styles
+@StyleSheet("https://unpkg.com/aos@2.3.1/dist/aos.css")
+@JavaScript("https://unpkg.com/aos@2.3.1/dist/aos.js")
 @Push
 public class Application implements AppShellConfigurator {
 

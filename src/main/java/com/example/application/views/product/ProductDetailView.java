@@ -16,7 +16,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.*;
 
-import java.math.BigDecimal;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -79,13 +79,10 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         Anchor b2 = new Anchor("#", getCategoryName(product));
         b2.getElement().getStyle().set("color", "#64748B").set("text-decoration", "none");
         Span s2 = new Span(" › ");
-        Anchor b3 = new Anchor("#", "Jaket & Outerwear");
-        b3.getElement().getStyle().set("color", "#64748B").set("text-decoration", "none");
-        Span s3 = new Span(" › ");
         Span currentName = new Span(product.getName());
         currentName.getElement().getStyle().set("color", "#001934").set("font-weight", "600");
 
-        breadcrumb.add(b1, s1, b2, s2, b3, s3, currentName);
+        breadcrumb.add(b1, s1, b2, s2, currentName);
 
         // ---- 2. Main Grid (Left Gallery 48% | Right Actions 52%) ----
         HorizontalLayout mainGrid = new HorizontalLayout();
@@ -356,7 +353,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         tDesc.getElement().getStyle().set("font-size", "16px").set("font-weight", "700").set("color", "#001934").set("border-bottom", "3px solid #001934").set("padding-bottom", "8px").set("cursor", "pointer");
         Span tSpec = new Span("Spesifikasi");
         tSpec.getElement().getStyle().set("font-size", "16px").set("font-weight", "600").set("color", "#64748B").set("padding-bottom", "8px").set("cursor", "pointer");
-        Span tReview = new Span("Ulasan Pembeli (42)");
+        Span tReview = new Span("Ulasan Pembeli");
         tReview.getElement().getStyle().set("font-size", "16px").set("font-weight", "600").set("color", "#64748B").set("padding-bottom", "8px").set("cursor", "pointer");
 
         tabHeader.add(tDesc, tSpec, tReview);
@@ -368,22 +365,11 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         Div descTextCol = new Div();
         descTextCol.setWidth("62%");
-        Paragraph pDesc = new Paragraph(product.getDescription() != null ? product.getDescription() :
-            "Jaket Bomber Vintage edisi spesial dari SMKN 24 Jakarta. Barang ini merupakan bagian dari inisiatif ReWear untuk mendukung ekonomi sirkular di lingkungan sekolah. Dibuat dengan bahan berkualitas tinggi yang tahan lama dan memiliki detail bordir yang masih sangat terjaga.");
-        pDesc.getElement().getStyle().set("color", "#475569").set("line-height", "1.7").set("font-size", "14px").set("margin-bottom", "16px");
-
-        Paragraph pCond = new Paragraph("Kondisi barang 95% masih sangat bagus, hanya dipakai beberapa kali untuk acara sekolah. Tidak ada cacat atau noda permanen. Sudah dicuci bersih dan siap pakai. Keuntungan dari penjualan ini akan masuk ke kas Koperasi Siswa untuk pengembangan program kewirausahaan.");
-        pCond.getElement().getStyle().set("color", "#475569").set("line-height", "1.7").set("font-size", "14px").set("margin-bottom", "20px");
-
-        UnorderedList bulletList = new UnorderedList(
-            new ListItem("Bahan: Polyester Premium dengan lapisan dalam satin."),
-            new ListItem("Warna: Navy Blue dengan aksen Golden Yellow."),
-            new ListItem("Ukuran dalam foto: M (Model Tinggi 175cm)."),
-            new ListItem("Fitur: 2 kantong samping, 1 kantong dalam, ritsleting YKK original.")
-        );
-        bulletList.getElement().getStyle().set("color", "#475569").set("font-size", "14px").set("line-height", "1.8");
-
-        descTextCol.add(pDesc, pCond, bulletList);
+        if (product.getDescription() != null && !product.getDescription().isBlank()) {
+            Paragraph pDesc = new Paragraph(product.getDescription());
+            pDesc.getElement().getStyle().set("color", "#475569").set("line-height", "1.7").set("font-size", "14px").set("margin-bottom", "16px");
+            descTextCol.add(pDesc);
+        }
 
         // Right Blue Box "Kenapa Beli Ini?"
         Div whyBuyBox = new Div();
@@ -412,35 +398,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         tabContentGrid.add(descTextCol, whyBuyBox);
         tabsSection.add(tabHeader, tabContentGrid);
 
-        // ---- 4. Related Products Section ("Produk Serupa Lainnya") ----
-        Div relatedSection = new Div();
-        relatedSection.getElement().getStyle().set("margin-top", "56px");
-
-        HorizontalLayout relatedHeader = new HorizontalLayout();
-        relatedHeader.setWidthFull();
-        relatedHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        relatedHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-
-        H2 relTitle = new H2("Produk Serupa Lainnya");
-        relTitle.getElement().getStyle().set("font-size", "22px").set("font-weight", "800").set("color", "#0F172A").set("margin", "0");
-
-        Anchor seeAllRel = new Anchor("#", "Lihat Semua →");
-        seeAllRel.getElement().getStyle().set("color", "#944A07").set("font-weight", "700").set("text-decoration", "none");
-
-        relatedHeader.add(relTitle, seeAllRel);
-
-        Div relatedGrid = new Div();
-        relatedGrid.addClassName("products-grid-container");
-        relatedGrid.getElement().getStyle().set("margin-top", "24px");
-
-        relatedGrid.add(createRelatedCard("Varsity Jacket Yellow Edition", "images/buku.jpeg", "Rp 185.000", "Kondisi: 9/10", "4.8", "WARGA 24"));
-        relatedGrid.add(createRelatedCard("Classic Denim Jacket Black", "images/colokan.webp", "Rp 150.000", "Kondisi: 8/10", "4.5", "PUBLIK"));
-        relatedGrid.add(createRelatedCard("Green Vintage Parka", "images/kipas.jpg", "Rp 210.000", "Kondisi: Like New", "5.0", "WARGA 24"));
-        relatedGrid.add(createRelatedCard("Urban Tech Windbreaker Grey", "images/pulpen.webp", "Rp 125.000", "Kondisi: 7/10", "4.2", "PUBLIK"));
-
-        relatedSection.add(relatedHeader, relatedGrid);
-
-        containerWrapper.add(breadcrumb, mainGrid, tabsSection, relatedSection);
+        containerWrapper.add(breadcrumb, mainGrid, tabsSection);
         return containerWrapper;
     }
 
@@ -454,64 +412,37 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         return feat;
     }
 
-    private Component createRelatedCard(String name, String imgUrl, String priceStr, String condStr, String starStr, String badgeLabel) {
-        Div card = new Div();
-        card.addClassName("product-card");
-        card.getElement().getStyle().set("cursor", "pointer");
-
-        Div imgWrapper = new Div();
-        imgWrapper.addClassName("product-img-wrapper");
-
-        Image img = new Image(imgUrl, name);
-        img.addClassName("product-img");
-        imgWrapper.add(img);
-
-        Span badge = new Span(badgeLabel);
-        badge.getElement().getStyle()
-            .set("position", "absolute").set("top", "8px").set("left", "8px")
-            .set("background", badgeLabel.equals("WARGA 24") ? "#F5C45E" : "#DCE9FF")
-            .set("color", "#001934").set("font-size", "10px").set("font-weight", "700")
-            .set("padding", "3px 8px").set("border-radius", "4px");
-        imgWrapper.add(badge);
-
-        H4 title = new H4(name);
-        title.addClassName("product-title");
-
-        Div price = new Div(new Text(priceStr));
-        price.addClassName("product-price");
-
-        HorizontalLayout footerRow = new HorizontalLayout();
-        footerRow.setWidthFull();
-        footerRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        footerRow.setAlignItems(FlexComponent.Alignment.CENTER);
-
-        Span cond = new Span(condStr);
-        cond.getElement().getStyle().set("font-size", "11px").set("color", "#64748B");
-
-        Div star = new Div();
-        star.getElement().setProperty("innerHTML",
-            "<span style='display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#F0BF5A;font-weight:700;'>" +
-            "<svg width='11' height='11' viewBox='0 0 24 24' fill='#F0BF5A' xmlns='http://www.w3.org/2000/svg'>" +
-            "<polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/>" +
-            "</svg>" + starStr + "</span>");
-
-        footerRow.add(cond, star);
-
-        card.add(imgWrapper, title, price, footerRow);
-        card.addClickListener(e -> UI.getCurrent().navigate("product/1"));
-        return card;
-    }
+    /* createRelatedCard dihapus — section Produk Serupa akan dibuat ulang dengan data real dari DB */
 
     private Component buildFallbackUI(Long productId) {
-        Product p = new Product();
-        p.setName("Vintage Bomber Jacket SMKN 24");
-        p.setDescription("Jaket Bomber Vintage edisi spesial dari SMKN 24 Jakarta. Barang ini merupakan bagian dari inisiatif ReWear untuk mendukung ekonomi sirkular di lingkungan sekolah.");
-        p.setPrice(new BigDecimal("245000"));
-        p.setImages("[\"images/buku.jpeg\"]");
-        p.setStock(3);
-        p.setSchoolMarket(true);
+        Div wrapper = new Div();
+        wrapper.getElement().getStyle()
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("padding", "80px 24px")
+            .set("text-align", "center");
 
-        return buildProductDetailUI(p);
+        Paragraph title = new Paragraph("🔍 Produk tidak ditemukan");
+        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "700").set("color", "#001934").set("margin", "0 0 12px");
+
+        Paragraph subtitle = new Paragraph("Produk dengan ID " + productId + " tidak ada atau sudah tidak tersedia.");
+        subtitle.getElement().getStyle().set("font-size", "15px").set("color", "#64748B").set("margin", "0 0 24px");
+
+        Button btnBack = new Button("Kembali ke Beranda");
+        btnBack.getElement().getStyle()
+            .set("background", "#001934")
+            .set("color", "#FFFFFF")
+            .set("border", "none")
+            .set("padding", "12px 24px")
+            .set("border-radius", "8px")
+            .set("font-weight", "600")
+            .set("cursor", "pointer");
+        btnBack.addClickListener(e -> UI.getCurrent().navigate(""));
+
+        wrapper.add(title, subtitle, btnBack);
+        return wrapper;
     }
 
     private String getCategoryName(Product product) {
@@ -520,7 +451,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
                 return product.getCategory().getName();
             }
         } catch (Exception ignored) {}
-        return "Pakaian Pria";
+        return "";
     }
 
     private String getSellerName(Product product) {
@@ -529,7 +460,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
                 return product.getSeller().getFullName();
             }
         } catch (Exception ignored) {}
-        return "Koperasi Siswa 24";
+        return "";
     }
 
     private String extractImgUrl(String imagesJson, String fallback) {
