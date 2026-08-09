@@ -97,41 +97,32 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         // Thumbnails (Vertical Column)
         VerticalLayout thumbsCol = new VerticalLayout();
-        thumbsCol.setWidth("80px");
-        thumbsCol.setPadding(false);
-        thumbsCol.setSpacing(true);
+        // Parse image list
+        String imagesJson = product.getImages();
+        String mainImgUrl = extractImgUrl(imagesJson, "images/buku.jpeg");
 
-        String mainImgUrl = extractImgUrl(product.getImages(), "images/buku.jpeg");
-        for (int i = 0; i < 3; i++) {
-            Div thumb = new Div();
-            thumb.getElement().getStyle()
-                .set("width", "72px")
-                .set("height", "72px")
-                .set("border-radius", "8px")
-                .set("overflow", "hidden")
-                .set("border", i == 0 ? "2px solid #001934" : "1px solid #E2E8F0")
-                .set("cursor", "pointer");
-            Image tImg = new Image(mainImgUrl, "Thumb");
-            tImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
-            thumb.add(tImg);
-            thumbsCol.add(thumb);
+        // Only add thumbnail gallery sidebar if there are multiple images
+        if (imagesJson != null && imagesJson.contains("\",\"")) {
+            String[] imgList = imagesJson.replace("[\"", "").replace("\"]", "").split("\",\"");
+            if (imgList.length > 1) {
+                for (int i = 0; i < imgList.length && i < 4; i++) {
+                    String url = imgList[i].trim();
+                    Div thumb = new Div();
+                    thumb.getElement().getStyle()
+                        .set("width", "72px")
+                        .set("height", "72px")
+                        .set("border-radius", "8px")
+                        .set("overflow", "hidden")
+                        .set("border", i == 0 ? "2px solid #001934" : "1px solid #E2E8F0")
+                        .set("cursor", "pointer");
+                    Image tImg = new Image(url, "Thumb");
+                    tImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
+                    thumb.add(tImg);
+                    thumbsCol.add(thumb);
+                }
+                leftGallery.add(thumbsCol);
+            }
         }
-
-        // Plus 2 Badge Box
-        Div plusTwoThumb = new Div(new Text("+2"));
-        plusTwoThumb.getElement().getStyle()
-            .set("width", "72px")
-            .set("height", "72px")
-            .set("border-radius", "8px")
-            .set("background", "#DCE9FF")
-            .set("color", "#001934")
-            .set("font-weight", "700")
-            .set("font-size", "14px")
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("justify-content", "center")
-            .set("cursor", "pointer");
-        thumbsCol.add(plusTwoThumb);
 
         // Main Image Display
         Div mainImgBox = new Div();
@@ -158,7 +149,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             "</svg>Warga SMKN 24</div>");
         mainImgBox.add(verBadge);
 
-        leftGallery.add(thumbsCol, mainImgBox);
+        leftGallery.add(mainImgBox);
 
         // --- RIGHT PRODUCT DETAILS & ACTIONS ---
         Div rightCol = new Div();
@@ -170,7 +161,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("padding-left", "16px");
 
         // Title
-        H1 productTitle = new H1(product.getName() + " - Limited Edition");
+        H1 productTitle = new H1(product.getName());
         productTitle.getElement().getStyle()
             .set("font-size", "26px")
             .set("font-weight", "800")
@@ -247,6 +238,11 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         sActive.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block");
         sellerMeta.add(sellerNameRow, sActive);
         sellerLeft.add(sellerAvatar, sellerMeta);
+        if (product.getSeller() != null) {
+            Long sellerId = product.getSeller().getId();
+            sellerLeft.getElement().getStyle().set("cursor", "pointer");
+            sellerLeft.addClickListener(e -> UI.getCurrent().navigate("profile/" + sellerId));
+        }
 
         Button btnChatSeller = new Button("Chat Penjual");
         btnChatSeller.setIcon(VaadinIcon.COMMENT.create());
@@ -337,7 +333,15 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             "<circle cx='18.5' cy='18.5' r='2.5' stroke='#64748B' stroke-width='1.8'/>" +
             "</svg>COD SMKN 24</span></div>");
 
-        rightCol.add(productTitle, priceRow, ratingRow, sellerCard, sizeBox, secondaryBtns, btnBuyNow, guaranteeRow);
+        rightCol.add(productTitle, priceRow, ratingRow, sellerCard);
+        
+        // Show Size selector ONLY for Pakaian category
+        boolean isPakaian = product.getCategory() != null && "pakaian".equalsIgnoreCase(product.getCategory().getSlug());
+        if (isPakaian) {
+            rightCol.add(sizeBox);
+        }
+
+        rightCol.add(secondaryBtns, btnBuyNow, guaranteeRow);
 
         mainGrid.add(leftGallery, rightCol);
 
@@ -351,12 +355,10 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         Span tDesc = new Span("Deskripsi");
         tDesc.getElement().getStyle().set("font-size", "16px").set("font-weight", "700").set("color", "#001934").set("border-bottom", "3px solid #001934").set("padding-bottom", "8px").set("cursor", "pointer");
-        Span tSpec = new Span("Spesifikasi");
-        tSpec.getElement().getStyle().set("font-size", "16px").set("font-weight", "600").set("color", "#64748B").set("padding-bottom", "8px").set("cursor", "pointer");
         Span tReview = new Span("Ulasan Pembeli");
         tReview.getElement().getStyle().set("font-size", "16px").set("font-weight", "600").set("color", "#64748B").set("padding-bottom", "8px").set("cursor", "pointer");
 
-        tabHeader.add(tDesc, tSpec, tReview);
+        tabHeader.add(tDesc, tReview);
 
         // Tab Content Grid (Left Text 60% | Right Blue Box "Kenapa Beli Ini?" 40%)
         HorizontalLayout tabContentGrid = new HorizontalLayout();

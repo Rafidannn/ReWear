@@ -18,10 +18,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByCategoryAndStatusAndDeletedAtIsNull(Category category, ProductStatus status);
     List<Product> findByIsSchoolMarketTrueAndStatusAndDeletedAtIsNull(ProductStatus status);
 
-    // Eager-load category & seller dalam satu query (hindari LazyInitializationException)
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.seller WHERE p.status = :status AND p.deletedAt IS NULL")
+    // Eager-load category & seller dalam satu query (hindari LazyInitializationException), urutkan produk terbaru paling atas
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.seller WHERE p.status = :status AND p.deletedAt IS NULL ORDER BY p.id DESC")
     List<Product> findActiveWithCategory(@Param("status") ProductStatus status);
 
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.seller WHERE p.isSchoolMarket = true AND p.status = :status AND p.deletedAt IS NULL")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.seller WHERE p.isSchoolMarket = true AND p.status = :status AND p.deletedAt IS NULL ORDER BY p.id DESC")
     List<Product> findSchoolMarketWithCategory(@Param("status") ProductStatus status);
 }

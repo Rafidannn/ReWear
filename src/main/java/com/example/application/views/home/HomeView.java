@@ -220,8 +220,8 @@ public class HomeView extends VerticalLayout {
             "<div style='padding:8px;border-radius:10px;background:#F5C45E;display:flex;'>" +
             "<svg width='20' height='20' viewBox='0 0 24 24' fill='none'><path d='M22 10v1a10 10 0 11-5.93-9.14' stroke='#001934' stroke-width='1.8' stroke-linecap='round'/><polyline points='22 4 12 14.01 9 11.01' stroke='#001934' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>" +
             "</div>" +
-            "<div><h2 class='rw-section-title' style='margin:0;'>Pasar SMKN 24</h2>" +
-            "<p class='rw-section-sub' style='margin:0;'>Produk eksklusif dari warga sekolah terverifikasi</p></div>" +
+            "<div><h2 class='rw-section-title' style='margin:0;'>Produk Terbaru</h2>" +
+            "<p class='rw-section-sub' style='margin:0;'>Jelajahi barang preloved dan kebutuhan sekolah terkini</p></div>" +
             "</div>" +
             "</div>"
         );
@@ -229,12 +229,9 @@ public class HomeView extends VerticalLayout {
         Div cardsGrid = new Div();
         cardsGrid.addClassName("products-grid-container");
 
-        // Load produk dari database — pakai JOIN FETCH agar category tidak lazy
-        List<Product> schoolProducts = productService.findSchoolMarketWithCategory();
-        if (schoolProducts.isEmpty()) {
-            schoolProducts = productService.findActiveWithCategory();
-        }
-        schoolProducts.stream().limit(4).forEach(p -> {
+        // Load seluruh produk aktif dari database (baik Warga SMKN 24 maupun Publik, urut terbaru)
+        List<Product> allProducts = productService.findActiveWithCategory();
+        allProducts.forEach(p -> {
             String imgUrl = extractImgUrl(p.getImages(), "images/buku.jpeg");
             
             // Ambil review secara dinamis dari database
@@ -252,7 +249,7 @@ public class HomeView extends VerticalLayout {
             ));
         });
 
-        if (schoolProducts.isEmpty()) {
+        if (allProducts.isEmpty()) {
             Paragraph empty = new Paragraph("Belum ada produk tersedia.");
             empty.getElement().getStyle().set("color", "#94A3B8").set("padding", "24px 0");
             cardsGrid.add(empty);

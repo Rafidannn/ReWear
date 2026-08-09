@@ -7,10 +7,13 @@ import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.contextmenu.ContextMenu;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.server.VaadinSession;
 
@@ -18,11 +21,30 @@ import com.vaadin.flow.server.VaadinSession;
  * MainLayout — Top Navbar Navy (Figma Frame 1 Exact) + Navigasi Berfungsi
  */
 @Layout
-public final class MainLayout extends AppLayout {
+public final class MainLayout extends AppLayout implements BeforeEnterObserver {
+
+    private Span linkKategori;
+    private Span linkPasar;
 
     public MainLayout() {
         setPrimarySection(Section.NAVBAR);
         addToNavbar(true, createTopNavbar());
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        String path = event.getLocation().getPath();
+        if (linkKategori != null && linkPasar != null) {
+            if ("pasar-smkn24".equalsIgnoreCase(path)) {
+                linkPasar.addClassNames("rw-nav-link", "rw-nav-link-active");
+                linkKategori.removeClassName("rw-nav-link-active");
+                linkKategori.addClassName("rw-nav-link");
+            } else {
+                linkKategori.addClassNames("rw-nav-link", "rw-nav-link-active");
+                linkPasar.removeClassName("rw-nav-link-active");
+                linkPasar.addClassName("rw-nav-link");
+            }
+        }
     }
 
     private Component createTopNavbar() {
@@ -69,7 +91,7 @@ public final class MainLayout extends AppLayout {
         searchBar.add(searchInput, searchIcoDiv);
 
         // "Kategori" → scroll ke section kategori di home
-        Span linkKategori = new Span("Kategori");
+        linkKategori = new Span("Kategori");
         linkKategori.addClassNames("rw-nav-link", "rw-nav-link-active");
         linkKategori.addClickListener(e -> {
             UI.getCurrent().navigate("");
@@ -78,15 +100,10 @@ public final class MainLayout extends AppLayout {
             );
         });
 
-        // "Pasar SMKN 24" → scroll ke section pasar di home
-        Span linkPasar = new Span("Pasar SMKN 24");
+        // "Pasar SMKN 24" → navigate ke halaman khusus marketplace Pasar SMKN 24
+        linkPasar = new Span("Pasar SMKN 24");
         linkPasar.addClassName("rw-nav-link");
-        linkPasar.addClickListener(e -> {
-            UI.getCurrent().navigate("");
-            UI.getCurrent().getPage().executeJs(
-                "setTimeout(function(){ var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 300)"
-            );
-        });
+        linkPasar.addClickListener(e -> UI.getCurrent().navigate("pasar-smkn24"));
 
         HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar);
         navLinks.setSpacing(false);
@@ -127,7 +144,7 @@ public final class MainLayout extends AppLayout {
 
             ContextMenu menu = new ContextMenu(avatar);
             menu.setOpenOnClick(true);
-            menu.addItem("Profil Saya", e -> Notification.show("Profil: " + currentUser.getFullName()));
+            menu.addItem("Profil Saya", e -> UI.getCurrent().navigate("profile"));
             menu.addItem("Keluar", e -> {
                 VaadinSession.getCurrent().setAttribute(User.class, null);
                 Notification.show("Berhasil keluar.");
@@ -137,7 +154,22 @@ public final class MainLayout extends AppLayout {
             rightSideItem = avatar;
         }
 
-        HorizontalLayout rightSide = new HorizontalLayout(cartIcon, chatIcon, bellIcon, rightSideItem);
+        // ---- Tombol "Jual" (Gold Pill Button) ----
+        Button btnJualNav = new Button("Jual", VaadinIcon.PLUS_CIRCLE.create());
+        btnJualNav.getElement().getStyle()
+            .set("background", "#F5C45E")
+            .set("color", "#001934")
+            .set("font-weight", "800")
+            .set("font-size", "13px")
+            .set("border-radius", "9999px")
+            .set("border", "none")
+            .set("padding", "6px 16px")
+            .set("cursor", "pointer")
+            .set("margin-right", "8px")
+            .set("box-shadow", "0 2px 8px rgba(245, 196, 94, 0.3)");
+        btnJualNav.addClickListener(e -> UI.getCurrent().navigate("sell"));
+
+        HorizontalLayout rightSide = new HorizontalLayout(cartIcon, chatIcon, bellIcon, btnJualNav, rightSideItem);
         rightSide.setAlignItems(FlexComponent.Alignment.CENTER);
         rightSide.setSpacing(false);
         rightSide.addClassName("rw-nav-right");

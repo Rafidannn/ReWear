@@ -40,6 +40,7 @@ public class SellerDashboardView extends VerticalLayout {
 
         Button addProductBtn = new Button("Tambah Produk Baru", VaadinIcon.PLUS.create());
         addProductBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addProductBtn.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("sell")));
 
         HorizontalLayout topLayout = new HorizontalLayout(title, addProductBtn);
         topLayout.setWidthFull();

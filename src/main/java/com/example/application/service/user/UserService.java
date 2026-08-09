@@ -42,8 +42,16 @@ public class UserService {
         return userRepository.findById(id);
     }
 
+    public Optional<User> findByIdWithSchool(Long id) {
+        return userRepository.findByIdWithSchool(id);
+    }
+
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
+    }
+
+    public Optional<User> findByEmailWithSchool(String email) {
+        return userRepository.findByEmailWithSchool(email);
     }
 
     public Optional<User> authenticate(String email, String rawPassword) {
