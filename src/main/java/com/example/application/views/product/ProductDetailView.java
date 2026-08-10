@@ -254,7 +254,14 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("border-radius", "8px")
             .set("padding", "10px 18px")
             .set("cursor", "pointer");
-        btnChatSeller.addClickListener(e -> Notification.show("Membuka chat dengan penjual..."));
+        btnChatSeller.addClickListener(e -> {
+            String sellerNameStr = getSellerName(product);
+            if (sellerNameStr.isEmpty()) sellerNameStr = "Rafidan Athariz";
+            String pName = product.getName();
+            String priceStr = "Rp " + String.format("%,.0f", product.getPrice());
+            String imgUrl = extractImgUrl(product.getImages(), "images/buku.jpeg");
+            UI.getCurrent().navigate("chat?seller=" + sellerNameStr + "&product=" + pName + "&price=" + priceStr + "&img=" + imgUrl);
+        });
 
         sellerCard.add(sellerLeft, btnChatSeller);
 

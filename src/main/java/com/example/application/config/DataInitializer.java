@@ -55,60 +55,64 @@ public class DataInitializer implements CommandLineRunner {
                     categoryRepository.save(new Category("Buku", "buku", "book", 2)));
             Category elektronik = categoryRepository.findBySlug("elektronik").orElseGet(() ->
                     categoryRepository.save(new Category("Elektronik", "elektronik", "laptop", 3)));
+            Category hobi = categoryRepository.findBySlug("hobi").orElseGet(() ->
+                    categoryRepository.save(new Category("Hobi", "hobi", "gamepad", 4)));
             Category peralatan = categoryRepository.findBySlug("peralatan").orElseGet(() ->
-                    categoryRepository.save(new Category("Peralatan", "peralatan", "tools", 4)));
+                    categoryRepository.save(new Category("Peralatan", "peralatan", "tools", 5)));
+            Category lainnya = categoryRepository.findBySlug("lainnya").orElseGet(() ->
+                    categoryRepository.save(new Category("Lainnya", "lainnya", "grid", 6)));
 
-            // Products matching the design
+            // Products matching the reference design
             Product p1 = new Product();
-            p1.setName("Buku Resep & Alat Pastry Set");
-            p1.setDescription("Set lengkap buku resep kue & alat pastry terawat.");
-            p1.setPrice(new BigDecimal("85000"));
+            p1.setName("Jaket Denim Custom SMKN 24");
+            p1.setDescription("Jaket denim bahan tebal kualitas premium custom SMKN 24.");
+            p1.setPrice(new BigDecimal("150000"));
             p1.setImages("[\"images/buku.jpeg\"]");
-            p1.setCategory(buku);
+            p1.setCategory(pakaian);
             p1.setSeller(seller);
             p1.setConditionType(ConditionType.BEKAS);
             p1.setSchoolMarket(true);
             p1.setStatus(ProductStatus.ACTIVE);
-            p1.setStock(5);
+            p1.setStock(3);
             productRepository.save(p1);
 
             Product p2 = new Product();
-            p2.setName("Colokan Multi-Plug Portable");
-            p2.setDescription("Colokan listrik serbaguna cocok untuk lab dan kegiatan belajar.");
-            p2.setPrice(new BigDecimal("45000"));
+            p2.setName("Buku Resep & Alat Pastry Set");
+            p2.setDescription("Set lengkap buku resep kue & alat pastry terawat.");
+            p2.setPrice(new BigDecimal("85000"));
             p2.setImages("[\"images/colokan.webp\"]");
-            p2.setCategory(elektronik);
+            p2.setCategory(buku);
             p2.setSeller(seller);
             p2.setConditionType(ConditionType.BEKAS);
             p2.setSchoolMarket(true);
             p2.setStatus(ProductStatus.ACTIVE);
-            p2.setStock(3);
+            p2.setStock(5);
             productRepository.save(p2);
 
             Product p3 = new Product();
-            p3.setName("Kipas Angin Meja Belajar");
-            p3.setDescription("Kipas angin portable hemat energi angin kencang untuk meja belajar.");
-            p3.setPrice(new BigDecimal("65000"));
+            p3.setName("Kamera Analog Canon Vintage");
+            p3.setDescription("Kamera analog langka kondisi fisik mulus dan siap pakai.");
+            p3.setPrice(new BigDecimal("450000"));
             p3.setImages("[\"images/kipas.jpg\"]");
-            p3.setCategory(elektronik);
+            p3.setCategory(hobi);
             p3.setSeller(seller);
             p3.setConditionType(ConditionType.BEKAS);
             p3.setSchoolMarket(true);
             p3.setStatus(ProductStatus.ACTIVE);
-            p3.setStock(2);
+            p3.setStock(1);
             productRepository.save(p3);
 
             Product p4 = new Product();
-            p4.setName("Set Pulpen Belajar High Quality");
-            p4.setDescription("Set pulpen tinta halus cocok untuk ujian dan catatan sekolah.");
-            p4.setPrice(new BigDecimal("15000"));
+            p4.setName("Backpack Laptop Ergonomis");
+            p4.setDescription("Tas laptop tahan air dengan banyak kompartemen dan bantalan empuk.");
+            p4.setPrice(new BigDecimal("120000"));
             p4.setImages("[\"images/pulpen.webp\"]");
             p4.setCategory(peralatan);
             p4.setSeller(seller);
             p4.setConditionType(ConditionType.BARU);
-            p4.setSchoolMarket(false);
+            p4.setSchoolMarket(true);
             p4.setStatus(ProductStatus.ACTIVE);
-            p4.setStock(10);
+            p4.setStock(8);
             productRepository.save(p4);
         }
     }

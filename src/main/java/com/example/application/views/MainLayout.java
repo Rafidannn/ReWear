@@ -18,7 +18,7 @@ import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.server.VaadinSession;
 
 /**
- * MainLayout — Top Navbar Navy (Figma Frame 1 Exact) + Navigasi Berfungsi
+ * MainLayout — Top Navbar Navy (Figma Frame 1 Exact) + Navigasi Keranjang
  */
 @Layout
 public final class MainLayout extends AppLayout implements BeforeEnterObserver {
@@ -105,13 +105,31 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         linkPasar.addClassName("rw-nav-link");
         linkPasar.addClickListener(e -> UI.getCurrent().navigate("pasar-smkn24"));
 
-        HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar);
+        // "Dashboard Penjual" → navigate ke dashboard toko penjual
+        Span linkSeller = new Span("Dashboard Penjual");
+        linkSeller.addClassName("rw-nav-link");
+        linkSeller.addClickListener(e -> UI.getCurrent().navigate("seller"));
+
+        HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar, linkSeller);
         navLinks.setSpacing(false);
         navLinks.addClassName("rw-nav-links-group");
 
         // ---- Right Side Icons ----
-        Span cartIcon = buildNavIconBtn(VaadinIcon.CART, "Keranjang belanjamu");
+        Span cartIcon = new Span();
+        Icon cartSvgIcon = VaadinIcon.CART.create();
+        cartSvgIcon.setSize("20px");
+        cartIcon.add(cartSvgIcon);
+        cartIcon.addClassNames("rw-nav-icon-btn", "rw-cart-icon-wrap");
+        cartIcon.getElement().setAttribute("title", "Keranjang Belanja");
+
+        Span cartBadge = new Span("3");
+        cartBadge.addClassName("rw-cart-badge-count");
+        cartIcon.add(cartBadge);
+
+        cartIcon.addClickListener(e -> UI.getCurrent().navigate("cart"));
+
         Span chatIcon = buildNavIconBtn(VaadinIcon.COMMENT, "Pesan masuk");
+        chatIcon.addClickListener(e -> UI.getCurrent().navigate("chat"));
         Span bellIcon = buildNavIconBtn(VaadinIcon.BELL, "Notifikasi");
 
         // ---- Avatar / Profile Button (Conditional on login state) ----
@@ -145,6 +163,8 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             ContextMenu menu = new ContextMenu(avatar);
             menu.setOpenOnClick(true);
             menu.addItem("Profil Saya", e -> UI.getCurrent().navigate("profile"));
+            menu.addItem("Dashboard Penjual", e -> UI.getCurrent().navigate("seller"));
+            menu.addItem("Pesanan Saya", e -> UI.getCurrent().navigate("profile?tab=orders"));
             menu.addItem("Keluar", e -> {
                 VaadinSession.getCurrent().setAttribute(User.class, null);
                 Notification.show("Berhasil keluar.");

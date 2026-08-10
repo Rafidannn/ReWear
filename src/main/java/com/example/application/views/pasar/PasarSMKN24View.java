@@ -116,26 +116,12 @@ public class PasarSMKN24View extends VerticalLayout {
     }
 
     private Component createMainContent() {
-        HorizontalLayout mainLayout = new HorizontalLayout();
-        mainLayout.setWidthFull();
-        mainLayout.setSpacing(true);
-        mainLayout.getElement().getStyle()
-            .set("max-width", "1280px")
-            .set("margin", "32px auto")
-            .set("padding", "0 48px")
-            .set("box-sizing", "border-box");
+        Div mainLayout = new Div();
+        mainLayout.addClassName("rw-catalog-container");
 
-        // ---- LEFT SIDEBAR FILTER (250px) ----
+        // ---- LEFT SIDEBAR FILTER (260px) ----
         Div sidebar = new Div();
-        sidebar.getElement().getStyle()
-            .set("width", "260px")
-            .set("min-width", "260px")
-            .set("background", "#FFFFFF")
-            .set("border-radius", "16px")
-            .set("padding", "24px")
-            .set("box-shadow", "0 4px 20px rgba(0, 25, 52, 0.04)")
-            .set("box-sizing", "border-box")
-            .set("height", "fit-content");
+        sidebar.addClassName("rw-catalog-sidebar");
 
         H3 filterHeading = new H3("🔍 Filter Produk");
         filterHeading.getElement().getStyle()
@@ -199,6 +185,7 @@ public class PasarSMKN24View extends VerticalLayout {
         Div rightSide = new Div();
         rightSide.getElement().getStyle()
             .set("flex", "1")
+            .set("min-width", "0")
             .set("display", "flex")
             .set("flex-direction", "column")
             .set("gap", "16px");
@@ -227,6 +214,7 @@ public class PasarSMKN24View extends VerticalLayout {
         gridHeader.add(gridTitle, totalCountBadge);
 
         cardsGrid.addClassName("products-grid-container");
+        cardsGrid.setWidthFull();
 
         rightSide.add(gridHeader, cardsGrid);
 
@@ -336,6 +324,9 @@ public class PasarSMKN24View extends VerticalLayout {
             + badgeHtml
         );
 
+        Div infoArea = new Div();
+        infoArea.addClassName("product-info-area");
+
         H4 title = new H4(name);
         title.addClassName("product-title");
 
@@ -359,11 +350,14 @@ public class PasarSMKN24View extends VerticalLayout {
         btnDetail.addClickListener(e -> UI.getCurrent().navigate("product/" + id));
 
         card.addClickListener(e -> UI.getCurrent().navigate("product/" + id));
-        card.add(imgWrapper, title, price);
+        
+        infoArea.add(title, price);
         if (rating != null) {
-            card.add(ratingRow);
+            infoArea.add(ratingRow);
         }
-        card.add(btnDetail);
+        infoArea.add(btnDetail);
+
+        card.add(imgWrapper, infoArea);
         return card;
     }
 

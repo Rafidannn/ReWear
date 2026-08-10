@@ -215,19 +215,18 @@ public class HomeView extends VerticalLayout {
 
         Div sectionHeader = new Div();
         sectionHeader.getElement().setProperty("innerHTML",
-            "<div class='rw-section-header'>" +
-            "<div style='display:flex;align-items:center;gap:12px;'>" +
-            "<div style='padding:8px;border-radius:10px;background:#F5C45E;display:flex;'>" +
-            "<svg width='20' height='20' viewBox='0 0 24 24' fill='none'><path d='M22 10v1a10 10 0 11-5.93-9.14' stroke='#001934' stroke-width='1.8' stroke-linecap='round'/><polyline points='22 4 12 14.01 9 11.01' stroke='#001934' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>" +
+            "<div class='pasar-header'>" +
+            "<div class='pasar-icon-wrapper'>" +
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>" +
             "</div>" +
-            "<div><h2 class='rw-section-title' style='margin:0;'>Produk Terbaru</h2>" +
-            "<p class='rw-section-sub' style='margin:0;'>Jelajahi barang preloved dan kebutuhan sekolah terkini</p></div>" +
-            "</div>" +
+            "<div><h2 class='pasar-title-main'>Pasar SMKN 24</h2>" +
+            "<p class='pasar-title-sub'>Produk eksklusif dari warga sekolah terverifikasi</p></div>" +
             "</div>"
         );
 
         Div cardsGrid = new Div();
         cardsGrid.addClassName("products-grid-container");
+        cardsGrid.setWidthFull();
 
         // Load seluruh produk aktif dari database (baik Warga SMKN 24 maupun Publik, urut terbaru)
         List<Product> allProducts = productService.findActiveWithCategory();
@@ -282,6 +281,9 @@ public class HomeView extends VerticalLayout {
             + badgeHtml
         );
 
+        Div infoArea = new Div();
+        infoArea.addClassName("product-info-area");
+
         H4 title = new H4(name);
         title.addClassName("product-title");
 
@@ -305,11 +307,14 @@ public class HomeView extends VerticalLayout {
         btnDetail.addClickListener(e -> UI.getCurrent().navigate("product/" + id));
 
         card.addClickListener(e -> UI.getCurrent().navigate("product/" + id));
-        card.add(imgWrapper, title, price);
+
+        infoArea.add(title, price);
         if (rating != null) {
-            card.add(ratingRow);
+            infoArea.add(ratingRow);
         }
-        card.add(btnDetail);
+        infoArea.add(btnDetail);
+
+        card.add(imgWrapper, infoArea);
         return card;
     }
 

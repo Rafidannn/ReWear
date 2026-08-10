@@ -11,7 +11,7 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-@Route(value = "orders", layout = MainLayout.class)
+@Route(value = "orders-old", layout = MainLayout.class)
 @PageTitle("Riwayat Pesanan | Rewear")
 @Menu(order = 3, icon = "line-awesome/svg/receipt-solid.svg", title = "Pesanan Saya")
 public class OrderHistoryView extends VerticalLayout {
