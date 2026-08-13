@@ -358,7 +358,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         secondaryBtns.add(btnCart, btnWish);
 
         // Action Button Row 2: Beli Sekarang
-        Button btnBuyNow = new Button(isOutOfStock ? "Stok Habis (0)" : "Beli Sekarang", VaadinIcon.SHOPPING_BAG.create());
+        Button btnBuyNow = new Button(isOutOfStock ? "Stok Habis (0)" : "Beli Sekarang", VaadinIcon.PACKAGE.create());
         btnBuyNow.setWidthFull();
         if (isOutOfStock) {
             btnBuyNow.setEnabled(false);

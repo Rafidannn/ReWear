@@ -221,12 +221,30 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             .set("flex-direction", "column")
             .set("gap", "6px");
 
+        // Always visible tabs
         navList.add(createNavItem("Profil", "profile", VaadinIcon.USER));
         navList.add(createNavItem("Barang Dijual", "products", VaadinIcon.SHOP));
-        navList.add(createNavItem("Pesanan Saya", "orders", VaadinIcon.CART));
-        navList.add(createNavItem("Wishlist", "wishlist", VaadinIcon.HEART));
-        navList.add(createNavItem("ReWear Pay", "rewearpay", VaadinIcon.CREDIT_CARD));
-        navList.add(createNavItem("Pengaturan", "settings", VaadinIcon.COG));
+
+        // Only show private tabs if viewing own profile
+        if (isOwnProfile) {
+            navList.add(createNavItem("Pesanan Saya", "orders", VaadinIcon.CART));
+            navList.add(createNavItem("Wishlist", "wishlist", VaadinIcon.HEART));
+            navList.add(createNavItem("ReWear Pay", "rewearpay", VaadinIcon.CREDIT_CARD));
+            navList.add(createNavItem("Pengaturan", "settings", VaadinIcon.COG));
+        } else {
+            // For other's profile: show Chat button instead
+            Button btnChatSeller = new Button("💬 Chat Penjual");
+            btnChatSeller.getElement().getStyle()
+                .set("background", "#001934").set("color", "#F5C45E")
+                .set("font-weight", "700").set("border", "none")
+                .set("border-radius", "10px").set("padding", "10px 16px")
+                .set("cursor", "pointer").set("width", "100%")
+                .set("margin-top", "8px").set("font-size", "14px");
+            btnChatSeller.addClickListener(e ->
+                UI.getCurrent().navigate("chat")
+            );
+            navList.add(btnChatSeller);
+        }
 
         sidebar.add(userCard, navList);
         return sidebar;
@@ -286,18 +304,22 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
                 mainCard.add(renderProductsTab());
                 break;
             case "orders":
+                if (!isOwnProfile) { mainCard.add(renderProfileInfoTab()); break; }
                 mainCard.add(renderOrdersTab());
                 break;
             case "profile":
                 mainCard.add(renderProfileInfoTab());
                 break;
             case "wishlist":
+                if (!isOwnProfile) { mainCard.add(renderProfileInfoTab()); break; }
                 mainCard.add(renderWishlistTab());
                 break;
             case "rewearpay":
+                if (!isOwnProfile) { mainCard.add(renderProfileInfoTab()); break; }
                 mainCard.add(renderReWearPayTab());
                 break;
             case "settings":
+                if (!isOwnProfile) { mainCard.add(renderProfileInfoTab()); break; }
                 mainCard.add(renderSettingsTab());
                 break;
             default:

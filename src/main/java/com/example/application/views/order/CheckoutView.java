@@ -976,9 +976,6 @@ public class CheckoutView extends Div {
                 oi.setProductNameSnapshot(cartItem.getTitle());
                 oi.setPriceSnapshot(BigDecimal.valueOf(cartItem.getPrice()));
                 oi.setQuantity(cartItem.getQuantity());
-                if (cartItem.getProduct() != null) {
-                    oi.setProduct(cartItem.getProduct());
-                }
                 orderItems.add(oi);
             }
 

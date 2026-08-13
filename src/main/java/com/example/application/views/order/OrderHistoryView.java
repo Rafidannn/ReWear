@@ -12,6 +12,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -176,13 +177,25 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 .set("font-weight", "700")
                 .set("padding", "8px 16px")
                 .set("cursor", "pointer");
-            btnBayar.addClickListener(e ->
-                Notification.show("Fitur pembayaran online akan segera tersedia.", 2500, Notification.Position.TOP_CENTER)
-            );
+            btnBayar.addClickListener(e -> {
+                orderService.updateOrderStatus(order, OrderStatus.DIBAYAR, "Pembayaran berhasil dikonfirmasi oleh pembeli.", user);
+                Notification.show("✅ Pembayaran Berhasil! Pesanan Anda kini sedang diproses penjual.", 3000, Notification.Position.TOP_CENTER);
+                buildView();
+            });
             actionsSection.add(btnBayar);
+
+            Button btnBatal = new Button("Batalkan");
+            btnBatal.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+            btnBatal.getStyle().set("font-size", "13px");
+            btnBatal.addClickListener(e -> {
+                orderService.updateOrderStatus(order, OrderStatus.DIBATALKAN, "Pesanan dibatalkan oleh pembeli.", user);
+                Notification.show("Pesanan #" + order.getOrderNumber() + " telah dibatalkan.", 2500, Notification.Position.TOP_CENTER);
+                buildView();
+            });
+            actionsSection.add(btnBatal);
         }
 
-        if (order.getStatus() == OrderStatus.DIKIRIM) {
+        if (order.getStatus() == OrderStatus.DIKIRIM || order.getStatus() == OrderStatus.DITERIMA) {
             Button btnTerima = new Button("Konfirmasi Diterima", VaadinIcon.CHECK.create());
             btnTerima.addClassName("rw-btn-terima");
             btnTerima.getStyle()
@@ -194,28 +207,17 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 .set("padding", "8px 16px")
                 .set("cursor", "pointer");
             btnTerima.addClickListener(e -> {
-                Notification.show("Pesanan #" + order.getOrderNumber() + " dikonfirmasi diterima!", 2500, Notification.Position.TOP_CENTER);
-                buildView(); // refresh
+                orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Dikonfirmasi diterima oleh pembeli.", user);
+                Notification.show("🎉 Pesanan #" + order.getOrderNumber() + " selesai! Dana telah diteruskan ke penjual.", 3000, Notification.Position.TOP_CENTER);
+                buildView();
             });
             actionsSection.add(btnTerima);
-        }
-
-        if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN) {
-            Button btnBatal = new Button("Batalkan");
-            btnBatal.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
-            btnBatal.getStyle().set("font-size", "13px");
-            btnBatal.addClickListener(e ->
-                Notification.show("Fitur pembatalan akan segera tersedia.", 2000, Notification.Position.TOP_CENTER)
-            );
-            actionsSection.add(btnBatal);
         }
 
         Button btnDetail = new Button("Lihat Detail", VaadinIcon.EYE.create());
         btnDetail.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         btnDetail.getStyle().set("font-size", "13px");
-        btnDetail.addClickListener(e ->
-            Notification.show("Halaman detail pesanan akan segera tersedia.", 2000, Notification.Position.TOP_CENTER)
-        );
+        btnDetail.addClickListener(e -> openOrderDetailModal(order));
         actionsSection.add(btnDetail);
 
         cardFooter.add(totalSection, actionsSection);
@@ -306,5 +308,23 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         empty.add(btnShop);
 
         return empty;
+    }
+
+    private void openOrderDetailModal(Order order) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Rincian Pesanan #" + order.getOrderNumber());
+        d.setWidth("480px");
+
+        Div body = new Div();
+        body.getStyle().set("font-size", "13px").set("color", "#334155").set("display", "flex").set("flex-direction", "column").set("gap", "10px");
+
+        body.add(new Div(new Span("📍 Alamat Pengiriman: "), new Span(order.getShippingAddress() != null ? order.getShippingAddress() : "-")));
+        body.add(new Div(new Span("💳 Metode Pembayaran: "), new Span(order.getPaymentMethod() != null ? order.getPaymentMethod() : "-")));
+        body.add(new Div(new Span("🚚 Kurir / Pengiriman: "), new Span(order.getShippingMethod() != null ? order.getShippingMethod().name() : "-")));
+
+        d.add(body);
+        Button btnClose = new Button("Tutup", e -> d.close());
+        d.getFooter().add(btnClose);
+        d.open();
     }
 }

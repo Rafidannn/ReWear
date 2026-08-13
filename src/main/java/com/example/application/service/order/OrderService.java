@@ -65,7 +65,7 @@ public class OrderService {
                 product.setSoldCount(currentSold + requestedQty);
 
                 if (newStock == 0) {
-                    product.setStatus(com.example.application.model.product.ProductStatus.OUT_OF_STOCK);
+                    product.setStatus(com.example.application.model.product.ProductStatus.SOLD_OUT);
                 }
                 productRepository.save(product);
             }
