@@ -1,12 +1,16 @@
 package com.example.application.views.product;
 
 import com.example.application.model.product.Product;
+import com.example.application.model.user.User;
+import com.example.application.service.order.CartService;
 import com.example.application.service.product.ProductService;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -25,10 +29,12 @@ import java.util.Optional;
 public class ProductDetailView extends VerticalLayout implements HasUrlParameter<Long> {
 
     private final ProductService productService;
+    private final CartService cartService;
     private final Div contentArea = new Div();
 
-    public ProductDetailView(ProductService productService) {
+    public ProductDetailView(ProductService productService, CartService cartService) {
         this.productService = productService;
+        this.cartService = cartService;
 
         setSpacing(false);
         setPadding(false);
@@ -191,6 +197,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         // Rating & Sales Count
         Div ratingRow = new Div();
+        int soldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
         ratingRow.getElement().setProperty("innerHTML",
             "<div style='display:flex;align-items:center;gap:8px;'>" +
             "<span style='display:inline-flex;align-items:center;gap:2px;'>" +
@@ -200,12 +207,12 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             "<svg width='13' height='13' viewBox='0 0 24 24' fill='#F0BF5A' xmlns='http://www.w3.org/2000/svg'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/></svg>" +
             "<svg width='13' height='13' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2' stroke='#F0BF5A' stroke-width='1.8'/></svg>" +
             "</span>" +
-            "<span style='color:#64748B;font-size:13px;'>(42 Ulasan)</span>" +
+            "<span style='color:#64748B;font-size:13px;'>(4.9 Rating)</span>" +
             "<span style='color:#CBD5E1;'>•</span>" +
-            "<span style='color:#64748B;font-size:13px;'>Terjual 12</span>" +
+            "<span style='color:#64748B;font-size:13px;'>Terjual " + soldCount + "</span>" +
             "</div>");
 
-        // Seller Card (Koperasi Siswa 24)
+        // Seller Card (Penjual Terverifikasi)
         Div sellerCard = new Div();
         sellerCard.getElement().getStyle()
             .set("background", "#EFF4FF")
@@ -219,29 +226,53 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         sellerLeft.setAlignItems(FlexComponent.Alignment.CENTER);
         sellerLeft.setSpacing(true);
 
-        Image sellerAvatar = new Image("images/buku.jpeg", "Seller");
-        sellerAvatar.getElement().getStyle()
-            .set("width", "44px").set("height", "44px").set("border-radius", "9999px").set("object-fit", "cover");
+        Component sellerAvatar;
+        String avatarUrl = (product.getSeller() != null) ? product.getSeller().getAvatarUrl() : null;
+        if (avatarUrl != null && !avatarUrl.isBlank() && !avatarUrl.contains("buku.jpeg")) {
+            Image img = new Image(avatarUrl, "Seller");
+            img.getElement().getStyle()
+                .set("width", "44px").set("height", "44px").set("border-radius", "9999px").set("object-fit", "cover");
+            sellerAvatar = img;
+        } else {
+            String initials = getInitials(getSellerName(product));
+            Div badge = new Div(new Span(initials));
+            badge.getElement().getStyle()
+                .set("width", "44px").set("height", "44px").set("border-radius", "9999px")
+                .set("background", "#001934").set("color", "#F5C45E").set("font-weight", "800")
+                .set("display", "flex").set("align-items", "center").set("justify-content", "center")
+                .set("font-size", "15px").set("flex-shrink", "0");
+            sellerAvatar = badge;
+        }
 
         Div sellerMeta = new Div();
         HorizontalLayout sellerNameRow = new HorizontalLayout();
         sellerNameRow.setAlignItems(FlexComponent.Alignment.CENTER);
         Span sName = new Span(getSellerName(product));
         sName.getElement().getStyle().set("font-weight", "700").set("color", "#0F172A").set("font-size", "14px");
-        Span offBadge = new Span("OFFICIAL");
+
+        Span offBadge = new Span(product.isSchoolMarket() ? "WARGA SMKN 24" : "PENJUAL REWEAR");
         offBadge.getElement().getStyle()
             .set("background", "#FFDEA2").set("color", "#261900").set("font-size", "9px")
             .set("font-weight", "800").set("padding", "2px 6px").set("border-radius", "4px");
         sellerNameRow.add(sName, offBadge);
 
-        Span sActive = new Span("Aktif 5 menit yang lalu");
+        String sellerSchool = getSellerSchool(product);
+        Span sActive = new Span("Terverifikasi • " + sellerSchool);
         sActive.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block");
         sellerMeta.add(sellerNameRow, sActive);
         sellerLeft.add(sellerAvatar, sellerMeta);
         if (product.getSeller() != null) {
             Long sellerId = product.getSeller().getId();
             sellerLeft.getElement().getStyle().set("cursor", "pointer");
-            sellerLeft.addClickListener(e -> UI.getCurrent().navigate("profile/" + sellerId));
+            sellerLeft.addClickListener(e -> UI.getCurrent().navigate("profile/" + sellerId + "?tab=products"));
+
+            Button btnKunjungiToko = new Button("Lihat Toko", VaadinIcon.SHOP.create());
+            btnKunjungiToko.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnKunjungiToko.getStyle().set("font-size", "12px").set("font-weight", "700");
+            btnKunjungiToko.addClickListener(e -> UI.getCurrent().navigate("profile/" + sellerId + "?tab=products"));
+            sellerCard.add(sellerLeft, btnKunjungiToko);
+        } else {
+            sellerCard.add(sellerLeft);
         }
 
         Button btnChatSeller = new Button("Chat Penjual");
@@ -299,7 +330,23 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         btnCart.getElement().getStyle()
             .set("border", "2px solid #001934").set("color", "#001934").set("background", "#FFFFFF")
             .set("border-radius", "8px").set("font-weight", "700").set("padding", "12px").set("cursor", "pointer");
-        btnCart.addClickListener(e -> Notification.show("Ditambahkan ke Keranjang!"));
+        boolean isOutOfStock = product.getStock() == null || product.getStock() <= 0;
+
+        btnCart.addClickListener(e -> {
+            if (isOutOfStock) {
+                Notification.show("⚠️ Produk ini sudah habis (Stok: 0)", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (!AuthGuard.requireLogin(UI.getCurrent())) return;
+            User user = AuthGuard.getCurrentUser();
+            if (product.getSeller() != null && user != null && user.getId().equals(product.getSeller().getId())) {
+                Notification.show("⚠️ Anda tidak dapat membeli produk yang Anda jual sendiri!", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            cartService.addToCart(user, product, 1);
+            MainLayout.reloadCartBadge(UI.getCurrent());
+            Notification.show("Ditambahkan ke Keranjang!", 2000, Notification.Position.TOP_CENTER);
+        });
 
         Button btnWish = new Button("Wishlist", VaadinIcon.HEART_O.create());
         btnWish.setWidth("50%");
@@ -310,18 +357,33 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         secondaryBtns.add(btnCart, btnWish);
 
-        // Action Button Row 2: Beli Sekarang (Full Width Dark Navy)
-        Div btnBuyNow = new Div();
-        btnBuyNow.getElement().setProperty("innerHTML",
-            "<button onclick=\"this.style.opacity='0.85'\" style='width:100%;background:#001934;color:#FFFFFF;" +
-            "font-weight:800;font-size:16px;border-radius:8px;padding:16px;border:none;cursor:pointer;" +
-            "display:flex;align-items:center;justify-content:center;gap:10px;font-family:Inter,sans-serif;'>" +
-            "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
-            "<path d='M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z' stroke='#FFF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/>" +
-            "<line x1='3' y1='6' x2='21' y2='6' stroke='#FFF' stroke-width='1.8' stroke-linecap='round'/>" +
-            "<path d='M16 10a4 4 0 01-8 0' stroke='#FFF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/>" +
-            "</svg>Beli Sekarang</button>");
-        btnBuyNow.addClickListener(e -> Notification.show("Melanjutkan ke Pembelian COD SMKN 24..."));
+        // Action Button Row 2: Beli Sekarang
+        Button btnBuyNow = new Button(isOutOfStock ? "Stok Habis (0)" : "Beli Sekarang", VaadinIcon.SHOPPING_BAG.create());
+        btnBuyNow.setWidthFull();
+        if (isOutOfStock) {
+            btnBuyNow.setEnabled(false);
+            btnBuyNow.getElement().getStyle()
+                .set("background", "#94A3B8").set("color", "#FFFFFF").set("font-weight", "700")
+                .set("font-size", "15px").set("border-radius", "8px").set("padding", "14px").set("cursor", "not-allowed");
+        } else {
+            btnBuyNow.getElement().getStyle()
+                .set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "800")
+                .set("font-size", "15px").set("border-radius", "8px").set("padding", "14px").set("cursor", "pointer");
+        }
+        btnBuyNow.addClickListener(e -> {
+            if (isOutOfStock) {
+                Notification.show("⚠️ Produk ini sudah habis (Stok: 0)", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (!AuthGuard.requireLogin(UI.getCurrent())) return;
+            User user = AuthGuard.getCurrentUser();
+            if (product.getSeller() != null && user != null && user.getId().equals(product.getSeller().getId())) {
+                Notification.show("⚠️ Anda tidak dapat membeli produk yang Anda jual sendiri!", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            cartService.addToCart(user, product, 1);
+            UI.getCurrent().navigate("checkout");
+        });
 
         // Guarantee Badges Row
         Div guaranteeRow = new Div();
@@ -472,10 +534,26 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         return "";
     }
 
+    private String getInitials(String name) {
+        if (name == null || name.isBlank()) return "RW";
+        String[] parts = name.trim().split("\\s+");
+        if (parts.length == 1) return parts[0].substring(0, Math.min(2, parts[0].length())).toUpperCase();
+        return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+    }
+
     private String extractImgUrl(String imagesJson, String fallback) {
         if (imagesJson == null || !imagesJson.contains("images/")) {
             return fallback;
         }
         return imagesJson.replace("[\"", "").replace("\"]", "").trim();
+    }
+
+    private String getSellerSchool(Product product) {
+        try {
+            if (product != null && product.getSeller() != null && product.getSeller().getSchool() != null) {
+                return product.getSeller().getSchool().getName();
+            }
+        } catch (Exception ignored) {}
+        return "SMKN 24 Jakarta";
     }
 }

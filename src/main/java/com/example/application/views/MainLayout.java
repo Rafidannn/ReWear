@@ -1,6 +1,8 @@
 package com.example.application.views;
 
 import com.example.application.model.user.User;
+import com.example.application.service.order.CartService;
+import com.example.application.util.AuthGuard;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -25,8 +27,11 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
 
     private Span linkKategori;
     private Span linkPasar;
+    private final CartService cartService;
+    private Span cartBadge;
 
-    public MainLayout() {
+    public MainLayout(CartService cartService) {
+        this.cartService = cartService;
         setPrimarySection(Section.NAVBAR);
         addToNavbar(true, createTopNavbar());
     }
@@ -108,7 +113,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         // "Dashboard Penjual" → navigate ke dashboard toko penjual
         Span linkSeller = new Span("Dashboard Penjual");
         linkSeller.addClassName("rw-nav-link");
-        linkSeller.addClickListener(e -> UI.getCurrent().navigate("seller"));
+        linkSeller.addClickListener(e -> UI.getCurrent().navigate("seller/dashboard"));
 
         HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar, linkSeller);
         navLinks.setSpacing(false);
@@ -122,14 +127,23 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         cartIcon.addClassNames("rw-nav-icon-btn", "rw-cart-icon-wrap");
         cartIcon.getElement().setAttribute("title", "Keranjang Belanja");
 
-        Span cartBadge = new Span("3");
-        cartBadge.addClassName("rw-cart-badge-count");
-        cartIcon.add(cartBadge);
+        User navUser = VaadinSession.getCurrent() != null ? VaadinSession.getCurrent().getAttribute(User.class) : null;
+        int cartCount = (navUser != null && cartService != null) ? cartService.getCartCount(navUser) : 0;
+        this.cartBadge = new Span(String.valueOf(cartCount));
+        this.cartBadge.addClassName("rw-cart-badge-count");
+        if (cartCount == 0) {
+            this.cartBadge.getElement().getStyle().set("display", "none");
+        }
+        cartIcon.add(this.cartBadge);
 
-        cartIcon.addClickListener(e -> UI.getCurrent().navigate("cart"));
+        cartIcon.addClickListener(e -> {
+            if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("cart");
+        });
 
         Span chatIcon = buildNavIconBtn(VaadinIcon.COMMENT, "Pesan masuk");
-        chatIcon.addClickListener(e -> UI.getCurrent().navigate("chat"));
+        chatIcon.addClickListener(e -> {
+            if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("chat");
+        });
         Span bellIcon = buildNavIconBtn(VaadinIcon.BELL, "Notifikasi");
 
         // ---- Avatar / Profile Button (Conditional on login state) ----
@@ -187,7 +201,9 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             .set("cursor", "pointer")
             .set("margin-right", "8px")
             .set("box-shadow", "0 2px 8px rgba(245, 196, 94, 0.3)");
-        btnJualNav.addClickListener(e -> UI.getCurrent().navigate("sell"));
+        btnJualNav.addClickListener(e -> {
+            if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("sell");
+        });
 
         HorizontalLayout rightSide = new HorizontalLayout(cartIcon, chatIcon, bellIcon, btnJualNav, rightSideItem);
         rightSide.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -220,4 +236,27 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         );
         return btn;
     }
+
+    public void refreshCartBadge() {
+        User navUser = VaadinSession.getCurrent() != null ? VaadinSession.getCurrent().getAttribute(User.class) : null;
+        int cartCount = (navUser != null && cartService != null) ? cartService.getCartCount(navUser) : 0;
+        if (this.cartBadge != null) {
+            this.cartBadge.setText(String.valueOf(cartCount));
+            if (cartCount == 0) {
+                this.cartBadge.getElement().getStyle().set("display", "none");
+            } else {
+                this.cartBadge.getElement().getStyle().remove("display");
+            }
+        }
+    }
+
+    public static void reloadCartBadge(UI ui) {
+        if (ui == null) return;
+        ui.getChildren().forEach(c -> {
+            if (c instanceof MainLayout mainLayout) {
+                mainLayout.refreshCartBadge();
+            }
+        });
+    }
 }
+

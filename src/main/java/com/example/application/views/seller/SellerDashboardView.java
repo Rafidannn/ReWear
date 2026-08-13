@@ -1,24 +1,32 @@
 package com.example.application.views.seller;
 
+import com.example.application.model.order.Order;
+import com.example.application.model.order.OrderItem;
+import com.example.application.model.order.OrderStatus;
 import com.example.application.model.product.Product;
+import com.example.application.model.user.User;
+import com.example.application.service.order.OrderService;
 import com.example.application.service.product.ProductService;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Route(value = "seller/dashboard", layout = MainLayout.class)
@@ -29,6 +37,7 @@ import java.util.List;
 public class SellerDashboardView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ProductService productService;
+    private final OrderService orderService;
 
     // Active tab state: "ringkasan", "produk", "pesanan", "laporan", "pengaturan"
     private String activeTab = "ringkasan";
@@ -36,8 +45,11 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
     private final Div contentContainer = new Div();
     private final Div rightContentArea = new Div();
 
-    public SellerDashboardView(ProductService productService) {
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
+
+    public SellerDashboardView(ProductService productService, OrderService orderService) {
         this.productService = productService;
+        this.orderService = orderService;
 
         setSpacing(false);
         setPadding(false);
@@ -59,6 +71,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        if (!AuthGuard.requireLogin(UI.getCurrent())) return;
         buildMainLayout();
     }
 
@@ -114,44 +127,31 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             .set("color", "#001934")
             .set("margin", "0 0 4px 0");
 
-        Span statusSpan = new Span("● Mode Jual Aktif");
+        User currentSeller = AuthGuard.getCurrentUser();
+        String sellerName = currentSeller != null && currentSeller.getFullName() != null ? currentSeller.getFullName() : "Penjual ReWear";
+
+        Span statusSpan = new Span("● " + sellerName);
         statusSpan.getElement().getStyle()
             .set("font-size", "12px")
-            .set("color", "#D97706")
-            .set("font-weight", "700");
+            .set("font-weight", "700")
+            .set("color", "#15803D");
 
         headerCard.add(title, statusSpan);
 
-        // Navigation Menu Links
+        // Navigation Links
         Div navList = new Div();
         navList.getElement().getStyle()
             .set("display", "flex")
             .set("flex-direction", "column")
             .set("gap", "6px");
 
-        navList.add(createNavItem("Ringkasan", "ringkasan", VaadinIcon.GRID_SMALL));
-        navList.add(createNavItem("Produk Saya", "produk", VaadinIcon.PACKAGE));
+        navList.add(createNavItem("Ringkasan", "ringkasan", VaadinIcon.CHART));
         navList.add(createNavItem("Pesanan Masuk", "pesanan", VaadinIcon.CART));
-        navList.add(createNavItem("Laporan", "laporan", VaadinIcon.CHART));
+        navList.add(createNavItem("Produk Saya", "produk", VaadinIcon.PACKAGE));
+        navList.add(createNavItem("Laporan Keuangan", "laporan", VaadinIcon.WALLET));
         navList.add(createNavItem("Pengaturan Toko", "pengaturan", VaadinIcon.COG));
 
-        // Bottom Action Button: + Tambah Produk
-        Button btnAddProduct = new Button(" + Tambah Produk");
-        btnAddProduct.getElement().getStyle()
-            .set("background", "#001934")
-            .set("color", "#FFFFFF")
-            .set("font-weight", "700")
-            .set("font-size", "14px")
-            .set("border-radius", "10px")
-            .set("border", "none")
-            .set("padding", "14px")
-            .set("width", "100%")
-            .set("cursor", "pointer")
-            .set("margin-top", "auto")
-            .set("box-shadow", "0 4px 12px rgba(0,25,52,0.15)");
-        btnAddProduct.addClickListener(e -> UI.getCurrent().navigate("sell"));
-
-        sidebar.add(headerCard, navList, btnAddProduct);
+        sidebar.add(headerCard, navList);
         return sidebar;
     }
 
@@ -169,9 +169,8 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             .set("font-size", "14px")
             .set("cursor", "pointer")
             .set("transition", "all 0.2s ease")
-            .set("background", isActive ? "#DBEAFE" : "transparent")
-            .set("color", isActive ? "#001934" : "#475569")
-            .set("border-left", isActive ? "4px solid #001934" : "4px solid transparent");
+            .set("background", isActive ? "#001934" : "transparent")
+            .set("color", isActive ? "#F5C45E" : "#475569");
 
         Icon ic = icon.create();
         ic.getElement().getStyle().set("width", "18px").set("height", "18px");
@@ -188,7 +187,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
     }
 
     // ==========================================
-    // RIGHT CONTENT CONTAINER SWITCHER
+    // RIGHT TAB CONTENT SWITCHER
     // ==========================================
 
     private void renderRightTabContent() {
@@ -217,7 +216,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
     }
 
     // ==========================================
-    // TAB 1: RINGKASAN (DASHBOARD OVERVIEW)
+    // TAB 1: RINGKASAN
     // ==========================================
 
     private Component renderRingkasanTab() {
@@ -227,77 +226,58 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             .set("flex-direction", "column")
             .set("gap", "24px");
 
-        // 1. Top Greeting Header Bar
+        User seller = AuthGuard.getCurrentUser();
+        List<Order> orders = seller != null ? orderService.getSellerOrders(seller) : List.of();
+        List<Product> products = seller != null ? productService.findProductsBySeller(seller) : List.of();
+
+        double totalPenjualan = orders.stream()
+            .filter(o -> o.getStatus() == OrderStatus.DIBAYAR || o.getStatus() == OrderStatus.DIPROSES || o.getStatus() == OrderStatus.DIKIRIM || o.getStatus() == OrderStatus.DITERIMA || o.getStatus() == OrderStatus.SELESAI)
+            .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount().doubleValue() : 0)
+            .sum();
+
+        long totalPesanan = orders.size();
+        long totalProduk = products.size();
+
+        // Greeting Header
         HorizontalLayout greetingRow = new HorizontalLayout();
         greetingRow.setWidthFull();
         greetingRow.setAlignItems(FlexComponent.Alignment.CENTER);
         greetingRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
         Div greetLeft = new Div();
-        H2 greetTitle = new H2("Selamat Datang, Admin ReWear");
+        String sellerName = seller != null && seller.getFullName() != null ? seller.getFullName() : "Penjual ReWear";
+        H2 greetTitle = new H2("Selamat Datang, " + sellerName);
         greetTitle.getElement().getStyle()
-            .set("font-size", "26px")
-            .set("font-weight", "800")
-            .set("color", "#001934")
-            .set("margin", "0 0 4px 0");
+            .set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
 
-        Paragraph greetSub = new Paragraph("Berikut ringkasan performa tokomu hari ini.");
-        greetSub.getElement().getStyle()
-            .set("font-size", "14px")
-            .set("color", "#64748B")
-            .set("margin", "0");
+        Paragraph greetSub = new Paragraph("Berikut ringkasan performa toko dan transaksi pesananmu.");
+        greetSub.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0");
 
         greetLeft.add(greetTitle, greetSub);
-
-        // Date Filter Selector (7 Hari Terakhir)
-        Button btnPeriod = new Button("🗓️ 7 Hari Terakhir");
-        btnPeriod.getElement().getStyle()
-            .set("background", "#EFF6FF")
-            .set("color", "#1E40AF")
-            .set("font-weight", "700")
-            .set("font-size", "13px")
-            .set("border-radius", "8px")
-            .set("border", "1px solid #BFDBFE")
-            .set("padding", "8px 16px")
-            .set("cursor", "pointer");
-
-        greetingRow.add(greetLeft, btnPeriod);
+        greetingRow.add(greetLeft);
         wrapper.add(greetingRow);
 
-        // 2. 4 Metrics Cards Grid (Total Penjualan | Produk Terlaris | Kunjungan | Status Stok)
+        // Metrics Grid
         Div statsGrid = new Div();
         statsGrid.getElement().getStyle()
             .set("display", "grid")
-            .set("grid-template-columns", "repeat(4, 1fr)")
+            .set("grid-template-columns", "repeat(3, 1fr)")
             .set("gap", "16px");
 
-        statsGrid.add(createStatCard("TOTAL PENJUALAN", "Rp 4.250.000", "+12%", "#15803D", "#DCFCE7", "💳"));
-        statsGrid.add(createStatCard("PRODUK TERLARIS", "Jaket Vintage SMKN 24", "Top 1", "#475569", "#F1F5F9", "📈"));
-        statsGrid.add(createStatCard("KUNJUNGAN PRODUK", "12,840", "+5.2k", "#1E40AF", "#DBEAFE", "👁️"));
-        statsGrid.add(createStatCard("STATUS STOK", "42 Tersedia", "3 Kritis", "#B91C1C", "#FEE2E2", "📋"));
+        statsGrid.add(createStatCard("TOTAL OMSET PENJUALAN", "Rp " + String.format("%,.0f", totalPenjualan), "Real DB", "#15803D", "#DCFCE7", "💰"));
+        statsGrid.add(createStatCard("TOTAL PESANAN MASUK", totalPesanan + " Transaksi", orders.isEmpty() ? "Belum ada" : "Aktif", "#1E40AF", "#DBEAFE", "📦"));
+        statsGrid.add(createStatCard("PRODUK DIJUAL", totalProduk + " Barang", "Katalog", "#475569", "#F1F5F9", "🏷️"));
 
         wrapper.add(statsGrid);
 
-        // 3. Middle Performance Section: Grafik Penjualan Mingguan (65%) & Kategori Terlaris (35%)
-        HorizontalLayout middleRow = new HorizontalLayout();
-        middleRow.setWidthFull();
-        middleRow.setSpacing(true);
-        middleRow.getElement().getStyle().set("gap", "20px");
+        // Section Pesanan Terbaru
+        Div sectionTitle = new Div();
+        H3 h3 = new H3("📋 Pesanan Terbaru dari Pembeli");
+        h3.getStyle().set("font-size", "18px").set("font-weight", "800").set("color", "#001934").set("margin", "16px 0 12px 0");
+        sectionTitle.add(h3);
+        wrapper.add(sectionTitle);
 
-        // Left 65%: Sales Chart Card
-        Div chartCard = createSalesChartCard();
-        chartCard.getElement().getStyle().set("flex", "1.8");
-
-        // Right 35%: Category Breakdown Donut Card
-        Div donutCard = createCategoryBreakdownCard();
-        donutCard.getElement().getStyle().set("flex", "1");
-
-        middleRow.add(chartCard, donutCard);
-        wrapper.add(middleRow);
-
-        // 4. Bottom Transactions Table Card (Riwayat Transaksi)
-        Div txCard = createTransactionsTableCard();
-        wrapper.add(txCard);
+        wrapper.add(buildSellerOrdersList(orders));
 
         return wrapper;
     }
@@ -312,10 +292,8 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             .set("box-shadow", "0 2px 8px rgba(0,25,52,0.03)")
             .set("display", "flex")
             .set("flex-direction", "column")
-            .set("justify-content", "space-between")
-            .set("min-height", "110px");
+            .set("justify-content", "space-between");
 
-        // Top Row: Icon + Badge
         HorizontalLayout top = new HorizontalLayout();
         top.setWidthFull();
         top.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -333,7 +311,6 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
         top.add(iconBox, badge);
 
-        // Bottom Meta: Label & Value
         Div meta = new Div();
         meta.getElement().getStyle().set("margin-top", "12px");
 
@@ -341,268 +318,216 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         lbl.getElement().getStyle().set("font-size", "11px").set("font-weight", "700").set("color", "#64748B").set("letter-spacing", "0.5px").set("display", "block").set("margin-bottom", "4px");
 
         Span val = new Span(value);
-        val.getElement().getStyle().set("font-size", value.length() > 18 ? "15px" : "22px").set("font-weight", "800").set("color", "#001934").set("line-height", "1.2");
+        val.getElement().getStyle().set("font-size", "20px").set("font-weight", "800").set("color", "#001934");
 
         meta.add(lbl, val);
         card.add(top, meta);
         return card;
     }
 
-    private Div createSalesChartCard() {
-        Div card = new Div();
-        card.getElement().getStyle()
-            .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "16px")
-            .set("padding", "24px")
-            .set("box-shadow", "0 2px 8px rgba(0,25,52,0.03)");
+    // ==========================================
+    // TAB 2: PESANAN MASUK (SELLER ORDER MANAGEMENT DARI DATABASE REAL)
+    // ==========================================
 
-        HorizontalLayout header = new HorizontalLayout();
-        header.setWidthFull();
-        header.setAlignItems(FlexComponent.Alignment.CENTER);
-        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+    private Component renderPesananMasukTab() {
+        Div wrapper = new Div();
+        H2 title = new H2("🛍️ Kelola Pesanan Masuk");
+        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
 
-        H4 title = new H4("Grafik Penjualan Mingguan");
-        title.getElement().getStyle().set("font-size", "17px").set("font-weight", "800").set("color", "#001934").set("margin", "0");
+        Paragraph sub = new Paragraph("Pantau dan proses semua pesanan dari pembeli secara real-time dari database.");
+        sub.getElement().getStyle().set("color", "#64748B").set("margin", "0 0 24px 0");
 
-        Span dots = new Span("⋮");
-        dots.getElement().getStyle().set("font-size", "18px").set("color", "#94A3B8").set("cursor", "pointer");
+        User seller = AuthGuard.getCurrentUser();
+        List<Order> orders = seller != null ? orderService.getSellerOrders(seller) : List.of();
 
-        header.add(title, dots);
+        wrapper.add(title, sub, buildSellerOrdersList(orders));
+        return wrapper;
+    }
 
-        // Interactive Bar Chart Graphic Visualization
-        Div chartArea = new Div();
-        chartArea.getElement().getStyle()
-            .set("margin-top", "24px")
-            .set("display", "flex")
-            .set("align-items", "flex-end")
-            .set("justify-content", "space-between")
-            .set("height", "180px")
-            .set("padding-top", "20px")
-            .set("border-bottom", "1px solid #E2E8F0");
+    private Div buildSellerOrdersList(List<Order> orders) {
+        Div container = new Div();
+        container.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "16px");
 
-        String[] days = {"Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"};
-        int[] heights = {45, 60, 40, 90, 75, 85, 55};
-        boolean[] isKam = {false, false, false, true, false, false, false};
-
-        for (int i = 0; i < days.length; i++) {
-            Div col = new Div();
-            col.getElement().getStyle()
-                .set("display", "flex")
-                .set("flex-direction", "column")
-                .set("align-items", "center")
-                .set("gap", "8px")
-                .set("flex", "1");
-
-            Div bar = new Div();
-            bar.getElement().getStyle()
-                .set("width", "28px")
-                .set("height", heights[i] + "%")
-                .set("border-radius", "6px 6px 0 0")
-                .set("background", isKam[i] ? "#001934" : "#DBEAFE")
-                .set("transition", "all 0.2s ease");
-
-            Span dayLabel = new Span(days[i]);
-            dayLabel.getElement().getStyle()
-                .set("font-size", "12px")
-                .set("font-weight", isKam[i] ? "800" : "600")
-                .set("color", isKam[i] ? "#001934" : "#64748B");
-
-            col.add(bar, dayLabel);
-            chartArea.add(col);
+        if (orders.isEmpty()) {
+            Div empty = new Div();
+            empty.getElement().setProperty("innerHTML",
+                "<div style='text-align:center;padding:48px 24px;background:#FFFFFF;border-radius:16px;border:1px dashed #CBD5E1;'>" +
+                "<div style='font-size:44px;margin-bottom:12px;'>📬</div>" +
+                "<h3 style='color:#001934;font-size:18px;font-weight:800;margin:0 0 6px 0;'>Belum Ada Pesanan Masuk</h3>" +
+                "<p style='color:#64748B;font-size:14px;margin:0;'>Pesanan dari pembeli yang membeli barangmu akan muncul di sini secara otomatis.</p>" +
+                "</div>"
+            );
+            container.add(empty);
+            return container;
         }
 
-        card.add(header, chartArea);
-        return card;
+        User sellerActor = AuthGuard.getCurrentUser();
+
+        for (Order order : orders) {
+            Div card = new Div();
+            card.getStyle()
+                .set("background", "#FFFFFF")
+                .set("border", "1px solid #E2E8F0")
+                .set("border-radius", "14px")
+                .set("padding", "20px")
+                .set("box-shadow", "0 2px 8px rgba(0,25,52,0.03)");
+
+            // Header Row: Order Number & Date & Status
+            HorizontalLayout header = new HorizontalLayout();
+            header.setWidthFull();
+            header.setAlignItems(FlexComponent.Alignment.CENTER);
+            header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+
+            Div leftHead = new Div();
+            Span orderNum = new Span("Order #" + order.getOrderNumber());
+            orderNum.getStyle().set("font-weight", "800").set("color", "#001934").set("font-size", "15px");
+
+            String dateStr = order.getCreatedAt() != null ? order.getCreatedAt().format(DATE_FMT) : "-";
+            Span orderDate = new Span(" • " + dateStr);
+            orderDate.getStyle().set("color", "#64748B").set("font-size", "13px");
+
+            leftHead.add(orderNum, orderDate);
+
+            Span statusBadge = buildStatusBadge(order.getStatus());
+            header.add(leftHead, statusBadge);
+
+            // Buyer & Address Info
+            Div buyerBox = new Div();
+            buyerBox.getStyle().set("margin", "12px 0").set("padding", "12px 16px").set("background", "#F8FAFC").set("border-radius", "8px").set("font-size", "13px");
+
+            String buyerName = order.getBuyer() != null && order.getBuyer().getFullName() != null ? order.getBuyer().getFullName() : "Pembeli ReWear";
+            Div bRow = new Div(new Span("👤 Pembeli: "), new Span(buyerName));
+            bRow.getStyle().set("font-weight", "700").set("color", "#001934").set("margin-bottom", "4px");
+
+            Div aRow = new Div(new Span("📍 Alamat Tujuan: "), new Span(order.getShippingAddress() != null ? order.getShippingAddress() : "-"));
+            aRow.getStyle().set("color", "#475569");
+
+            buyerBox.add(bRow, aRow);
+
+            // Items list
+            List<OrderItem> items = orderService.getOrderItems(order);
+            Div itemsBox = new Div();
+            itemsBox.getStyle().set("margin-bottom", "14px");
+
+            for (OrderItem item : items) {
+                Div itemRow = new Div();
+                itemRow.getStyle().set("display", "flex").set("justify-content", "space-between").set("font-size", "13px").set("margin-bottom", "4px");
+                Span name = new Span("• " + item.getProductNameSnapshot() + " (x" + item.getQuantity() + ")");
+                name.getStyle().set("color", "#1E293B").set("font-weight", "600");
+                Span price = new Span("Rp " + String.format("%,.0f", item.getPriceSnapshot().doubleValue() * item.getQuantity()));
+                price.getStyle().set("color", "#001934").set("font-weight", "700");
+                itemRow.add(name, price);
+                itemsBox.add(itemRow);
+            }
+
+            // Total + Action Buttons for Seller
+            HorizontalLayout footer = new HorizontalLayout();
+            footer.setWidthFull();
+            footer.setAlignItems(FlexComponent.Alignment.CENTER);
+            footer.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+
+            Div totalBox = new Div();
+            Span tLbl = new Span("Total Pembayaran: ");
+            tLbl.getStyle().set("font-size", "13px").set("color", "#64748B");
+            Span tVal = new Span("Rp " + String.format("%,.0f", order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : 0));
+            tVal.getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934");
+            totalBox.add(tLbl, tVal);
+
+            HorizontalLayout actionBtns = new HorizontalLayout();
+            actionBtns.setSpacing(true);
+
+            // Tombol Penjual berdasarkan Status
+            if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN || order.getStatus() == OrderStatus.DIBAYAR) {
+                Button btnProses = new Button("⚙️ Terima & Diproses", e -> {
+                    orderService.updateOrderStatus(order, OrderStatus.DIPROSES, "Pesanan diterima dan sedang diproses penjual.", sellerActor);
+                    Notification success = Notification.show("✅ Pesanan #" + order.getOrderNumber() + " berhasil diproses!", 2500, Notification.Position.TOP_CENTER);
+                    success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    buildMainLayout();
+                });
+                btnProses.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px");
+                actionBtns.add(btnProses);
+            }
+
+            if (order.getStatus() == OrderStatus.DIPROSES) {
+                Button btnKirim = new Button("🚚 Kirim / Siap COD", e -> {
+                    orderService.updateOrderStatus(order, OrderStatus.DIKIRIM, "Pesanan diserahkan ke pengiriman / titik temui COD.", sellerActor);
+                    Notification success = Notification.show("🚚 Pesanan #" + order.getOrderNumber() + " ditandai dikirim!", 2500, Notification.Position.TOP_CENTER);
+                    success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    buildMainLayout();
+                });
+                btnKirim.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px");
+                actionBtns.add(btnKirim);
+            }
+
+            if (order.getStatus() == OrderStatus.DIKIRIM) {
+                Button btnSelesai = new Button("🎉 Tandai Selesai", e -> {
+                    orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Pesanan dikonfirmasi selesai.", sellerActor);
+                    Notification success = Notification.show("🎉 Pesanan #" + order.getOrderNumber() + " selesai!", 2500, Notification.Position.TOP_CENTER);
+                    success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    buildMainLayout();
+                });
+                btnSelesai.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px");
+                actionBtns.add(btnSelesai);
+            }
+
+            footer.add(totalBox, actionBtns);
+            card.add(header, buyerBox, itemsBox, footer);
+            container.add(card);
+        }
+
+        return container;
     }
 
-    private Div createCategoryBreakdownCard() {
-        Div card = new Div();
-        card.getElement().getStyle()
-            .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "16px")
-            .set("padding", "24px")
-            .set("box-shadow", "0 2px 8px rgba(0,25,52,0.03)");
+    private Span buildStatusBadge(OrderStatus status) {
+        Span badge = new Span();
+        if (status == null) status = OrderStatus.MENUNGGU_PEMBAYARAN;
 
-        H4 title = new H4("Kategori Terlaris");
-        title.getElement().getStyle().set("font-size", "17px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 16px 0");
+        switch (status) {
+            case MENUNGGU_PEMBAYARAN -> {
+                badge.setText("⏳ Menunggu Pembayaran");
+                badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+            }
+            case DIBAYAR -> {
+                badge.setText("✅ Dibayar");
+                badge.getStyle().set("background", "#DCFCE7").set("color", "#166534");
+            }
+            case DIPROSES -> {
+                badge.setText("⚙️ Diproses");
+                badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF");
+            }
+            case DIKIRIM -> {
+                badge.setText("🚚 Dikirim / Siap COD");
+                badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D");
+            }
+            case DITERIMA -> {
+                badge.setText("📬 Diterima");
+                badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D");
+            }
+            case SELESAI -> {
+                badge.setText("🎉 Selesai");
+                badge.getStyle().set("background", "#DCFCE7").set("color", "#166534");
+            }
+            case KOMPLAIN -> {
+                badge.setText("⚠️ Komplain");
+                badge.getStyle().set("background", "#FEF2F2").set("color", "#991B1B");
+            }
+            case DIBATALKAN -> {
+                badge.setText("❌ Dibatalkan");
+                badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B");
+            }
+        }
 
-        // SVG Donut Chart Visual
-        Div donutWrap = new Div();
-        donutWrap.getElement().setProperty("innerHTML",
-            "<div style='display:flex;justify-content:center;align-items:center;margin:12px 0;position:relative;'>" +
-            "<svg width='140' height='140' viewBox='0 0 36 36'>" +
-            "<path d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831' fill='none' stroke='#001934' stroke-width='3.8' stroke-dasharray='60, 100'/>" +
-            "<path d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831' fill='none' stroke='#F5C45E' stroke-width='3.8' stroke-dasharray='25, 100' stroke-dashoffset='-60'/>" +
-            "<path d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831' fill='none' stroke='#FF9E59' stroke-width='3.8' stroke-dasharray='15, 100' stroke-dashoffset='-85'/>" +
-            "</svg>" +
-            "<div style='position:absolute;text-align:center;'>" +
-            "<span style='font-size:18px;font-weight:800;color:#001934;display:block;'>100%</span>" +
-            "<span style='font-size:10px;color:#64748B;'>Total</span>" +
-            "</div></div>"
-        );
-
-        // Legend Breakdown Below
-        Div legend = new Div();
-        legend.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "8px").set("margin-top", "12px");
-
-        legend.add(createLegendRow("● Atasan & Kaos", "60%", "#001934"));
-        legend.add(createLegendRow("● Aksesoris", "25%", "#F5C45E"));
-        legend.add(createLegendRow("● Tas & Sepatu", "15%", "#FF9E59"));
-
-        card.add(title, donutWrap, legend);
-        return card;
-    }
-
-    private Div createLegendRow(String label, String percent, String dotColor) {
-        Div row = new Div();
-        row.getElement().getStyle()
-            .set("display", "flex").set("justify-content", "space-between")
-            .set("font-size", "13px").set("font-weight", "600").set("color", "#475569");
-
-        Span l = new Span(label);
-        l.getElement().getStyle().set("color", dotColor);
-
-        Span p = new Span(percent);
-        p.getElement().getStyle().set("font-weight", "800").set("color", "#001934");
-
-        row.add(l, p);
-        return row;
-    }
-
-    private Div createTransactionsTableCard() {
-        Div card = new Div();
-        card.getElement().getStyle()
-            .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "16px")
-            .set("overflow", "hidden")
-            .set("box-shadow", "0 2px 8px rgba(0,25,52,0.03)");
-
-        // Table Header Bar
-        HorizontalLayout tableHeader = new HorizontalLayout();
-        tableHeader.setWidthFull();
-        tableHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-        tableHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        tableHeader.getElement().getStyle().set("padding", "20px 24px").set("border-bottom", "1px solid #F1F5F9");
-
-        H4 title = new H4("Riwayat Transaksi");
-        title.getElement().getStyle().set("font-size", "18px").set("font-weight", "800").set("color", "#001934").set("margin", "0");
-
-        HorizontalLayout controls = new HorizontalLayout();
-        controls.setSpacing(true);
-
-        Button btnFilter = new Button("Semua Status ∨");
-        btnFilter.getElement().getStyle()
-            .set("background", "#EFF6FF").set("color", "#1E40AF").set("font-weight", "600")
-            .set("font-size", "12px").set("border-radius", "8px").set("border", "none").set("padding", "6px 14px").set("cursor", "pointer");
-
-        Button btnExport = new Button("Ekspor CSV");
-        btnExport.getElement().getStyle()
-            .set("background", "#EFF6FF").set("color", "#1E40AF").set("font-weight", "700")
-            .set("font-size", "12px").set("border-radius", "8px").set("border", "none").set("padding", "6px 14px").set("cursor", "pointer");
-        btnExport.addClickListener(e -> Notification.show("Menyiapkan data transaksi CSV...", 2000, Notification.Position.TOP_CENTER));
-
-        controls.add(btnFilter, btnExport);
-        tableHeader.add(title, controls);
-
-        // Table Grid Container
-        Div tableContainer = new Div();
-        tableContainer.getElement().getStyle().set("width", "100%").set("overflow-x", "auto");
-
-        // Header Columns Row
-        Div headerRow = new Div();
-        headerRow.getElement().getStyle()
-            .set("display", "grid")
-            .set("grid-template-columns", "1.2fr 2.5fr 1.2fr 1.5fr 1.2fr 1fr")
-            .set("background", "#F8FAFC")
-            .set("padding", "12px 24px")
+        badge.getStyle()
             .set("font-size", "12px")
             .set("font-weight", "700")
-            .set("color", "#64748B")
-            .set("border-bottom", "1px solid #E2E8F0");
-
-        headerRow.add(new Span("ID Pesanan"), new Span("Produk"), new Span("Tanggal"), new Span("Pelanggan"), new Span("Total"), new Span("Status"));
-        tableContainer.add(headerRow);
-
-        // Data Rows
-        tableContainer.add(createTxGridRow("#RW-240101", "images/buku.jpeg", "Hoodie SMKN 24 Edition", "12 Mei 2024", "Budi Sudarsono", "Rp 150.000", "Selesai", true));
-        tableContainer.add(createTxGridRow("#RW-240102", "images/colokan.webp", "Tote Bag Eco-Green", "11 Mei 2024", "Siti Rahmawati", "Rp 45.000", "Proses", false));
-        tableContainer.add(createTxGridRow("#RW-240103", "images/kipas.jpg", "Jaket Varsity Premium", "10 Mei 2024", "Andi Wijaya", "Rp 275.000", "Selesai", true));
-
-        // Footer Row: Lihat Semua Transaksi
-        Div footer = new Div();
-        footer.getElement().getStyle()
-            .set("padding", "14px").set("text-align", "center").set("background", "#F8FAFC").set("border-top", "1px solid #F1F5F9");
-
-        Anchor btnAll = new Anchor("#", "Lihat Semua Transaksi");
-        btnAll.getElement().getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934").set("text-decoration", "none");
-        btnAll.getElement().addEventListener("click", e -> activeTab = "pesanan");
-
-        footer.add(btnAll);
-
-        card.add(tableHeader, tableContainer, footer);
-        return card;
-    }
-
-    private Div createTxGridRow(String id, String imgUrl, String pName, String date, String customer, String total, String status, boolean isSuccess) {
-        Div row = new Div();
-        row.getElement().getStyle()
-            .set("display", "grid")
-            .set("grid-template-columns", "1.2fr 2.5fr 1.2fr 1.5fr 1.2fr 1fr")
-            .set("align-items", "center")
-            .set("padding", "14px 24px")
-            .set("font-size", "13px")
-            .set("border-bottom", "1px solid #F1F5F9");
-
-        // ID
-        Span spanId = new Span(id);
-        spanId.getElement().getStyle().set("font-weight", "700").set("color", "#001934");
-
-        // Product Cell
-        HorizontalLayout pCell = new HorizontalLayout();
-        pCell.setAlignItems(FlexComponent.Alignment.CENTER);
-        pCell.setSpacing(true);
-
-        Image img = new Image(imgUrl, pName);
-        img.getElement().getStyle().set("width", "36px").set("height", "36px").set("border-radius", "6px").set("object-fit", "cover");
-
-        Span name = new Span(pName);
-        name.getElement().getStyle().set("font-weight", "700").set("color", "#001934");
-
-        pCell.add(img, name);
-
-        // Date
-        Span spanDate = new Span(date);
-        spanDate.getElement().getStyle().set("color", "#64748B");
-
-        // Customer
-        Span spanCust = new Span(customer);
-        spanCust.getElement().getStyle().set("color", "#334155").set("font-weight", "600");
-
-        // Total
-        Span spanTotal = new Span(total);
-        spanTotal.getElement().getStyle().set("font-weight", "800").set("color", "#001934");
-
-        // Status Badge
-        Span stBadge = new Span(status);
-        stBadge.getElement().getStyle()
-            .set("background", isSuccess ? "#DCFCE7" : "#DBEAFE")
-            .set("color", isSuccess ? "#15803D" : "#1D4ED8")
-            .set("font-weight", "800")
-            .set("font-size", "11px")
             .set("padding", "4px 10px")
-            .set("border-radius", "9999px")
-            .set("display", "inline-block")
-            .set("text-align", "center");
+            .set("border-radius", "20px");
 
-        row.add(spanId, pCell, spanDate, spanCust, spanTotal, stBadge);
-        return row;
+        return badge;
     }
 
     // ==========================================
-    // OTHER TABS (PRODUK, PESANAN, LAPORAN, PENGATURAN)
+    // OTHER TABS (PRODUK, LAPORAN, PENGATURAN)
     // ==========================================
 
     private Component renderProdukSayaTab() {
@@ -625,42 +550,41 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         top.add(title, btnAdd);
         wrapper.add(top);
 
-        // Product Table Grid
+        User seller = AuthGuard.getCurrentUser();
+        List<Product> products = seller != null ? productService.findProductsBySeller(seller) : List.of();
+
         Grid<Product> grid = new Grid<>(Product.class, false);
         grid.addColumn(Product::getName).setHeader("Nama Produk");
-        grid.addColumn(p -> "Rp " + String.format("%,.0f", p.getPrice())).setHeader("Harga");
-        grid.addColumn(Product::getStock).setHeader("Stok");
-        grid.addColumn(Product::getSoldCount).setHeader("Terjual");
-        grid.setItems(productService.findActiveProducts());
+        grid.addColumn(p -> "Rp " + String.format("%,.0f", p.getPrice() != null ? p.getPrice() : 0)).setHeader("Harga");
+        grid.addColumn(p -> p.getStock() != null ? p.getStock() : 1).setHeader("Stok");
+        grid.addColumn(p -> p.getSoldCount() != null ? p.getSoldCount() : 0).setHeader("Terjual");
+        grid.setItems(products);
 
         wrapper.add(grid);
         return wrapper;
     }
 
-    private Component renderPesananMasukTab() {
-        Div wrapper = new Div();
-        H2 title = new H2("🛍️ Pesanan Masuk");
-        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
-        Paragraph sub = new Paragraph("Kelola pemesanan dari pembeli untuk segera diproses dan dikirim.");
-        sub.getElement().getStyle().set("color", "#64748B").set("margin", "0 0 24px 0");
-
-        wrapper.add(title, sub, createTransactionsTableCard());
-        return wrapper;
-    }
-
     private Component renderLaporanTab() {
         Div wrapper = new Div();
-        H2 title = new H2("📊 Laporan Keuangan");
+        H2 title = new H2("📊 Laporan Keuangan Toko");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
+
+        User seller = AuthGuard.getCurrentUser();
+        List<Order> orders = seller != null ? orderService.getSellerOrders(seller) : List.of();
+
+        double totalOmset = orders.stream()
+            .filter(o -> o.getStatus() == OrderStatus.SELESAI || o.getStatus() == OrderStatus.DITERIMA || o.getStatus() == OrderStatus.DIBAYAR || o.getStatus() == OrderStatus.DIPROSES || o.getStatus() == OrderStatus.DIKIRIM)
+            .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount().doubleValue() : 0)
+            .sum();
 
         Div card = new Div();
         card.getElement().getStyle()
             .set("background", "#FFFFFF").set("border-radius", "16px").set("padding", "24px").set("border", "1px solid #E2E8F0");
 
-        H4 subTitle = new H4("Pendapatan Bersih Bulan Ini");
+        H4 subTitle = new H4("Total Omset Real dari Database");
         subTitle.getElement().getStyle().set("color", "#64748B").set("margin", "0 0 4px 0");
 
-        H3 totalVal = new H3("Rp 4.250.000");
+        H3 totalVal = new H3("Rp " + String.format("%,.0f", totalOmset));
         totalVal.getElement().getStyle().set("font-size", "32px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 16px 0");
 
         card.add(subTitle, totalVal);
@@ -673,13 +597,19 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         H2 title = new H2("⚙️ Pengaturan Toko");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
 
+        User seller = AuthGuard.getCurrentUser();
+        String currentName = seller != null && seller.getFullName() != null ? seller.getFullName() : "Penjual SMKN 24";
+
         Div form = new Div();
         form.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "16px").set("max-width", "500px");
 
-        TextField txtShopName = new TextField("Nama Toko / Penjual", "Toko SMKN 24 Jakarta", "");
-        TextField txtBank = new TextField("Rekening / E-Wallet Pencairan Escrow", "BCA 1234567890 a.n. ReWear Seller", "");
+        TextField txtShopName = new TextField("Nama Penjual", currentName, "");
+        txtShopName.setWidthFull();
 
-        Button btnSave = new Button("Simpan Pengaturan", e -> Notification.show("Pengaturan toko berhasil disimpan!"));
+        TextField txtBank = new TextField("Rekening / E-Wallet Pencairan Escrow", "BCA 1234567890 a.n. " + currentName, "");
+        txtBank.setWidthFull();
+
+        Button btnSave = new Button("Simpan Pengaturan", e -> Notification.show("Pengaturan toko berhasil diperbarui!", 2500, Notification.Position.TOP_CENTER));
         btnSave.getElement().getStyle()
             .set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700")
             .set("border-radius", "8px").set("padding", "12px").set("cursor", "pointer");

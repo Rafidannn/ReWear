@@ -1,5 +1,13 @@
 package com.example.application.views.order;
 
+import com.example.application.model.order.*;
+import com.example.application.model.product.Product;
+import com.example.application.model.user.Address;
+import com.example.application.model.user.User;
+import com.example.application.service.order.CartService;
+import com.example.application.service.order.OrderService;
+import com.example.application.service.user.AddressService;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -9,23 +17,41 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @PageTitle("Checkout / Pembayaran - ReWear")
 @Route(value = "checkout", layout = MainLayout.class)
 public class CheckoutView extends Div {
 
+    private final CartService cartService;
+    private final OrderService orderService;
+    private final AddressService addressService;
+
     // Mode checkout: true = Pasar SMKN 24 (COD Sekolah), false = Reguler/Ekspedisi
     private boolean isPasarSmkn24Mode = true;
 
-    private int selectedAddressIndex = 0; // 0: Rumah Utama, 1: Kos Bambu
-    private int selectedShippingIndex = 0; // 0: Ambil Sendiri (0), 1: Instan (22000), 2: Reguler (9000)
-    private int selectedPaymentIndex = 0; // 0: COD / Escrow, 1: QRIS / Bank Transfer
+    // Address state
+    private Address selectedAddress = null;
+    private boolean showAddressForm = false;
+
+    // Form fields for new address
+    private final TextField fieldNamaPenerima = new TextField("Nama Penerima");
+    private final TextField fieldTelepon = new TextField("No. Telepon");
+    private final TextField fieldAlamat = new TextField("Alamat Lengkap");
+    private final TextField fieldKota = new TextField("Kecamatan / Kota");
+    private final TextField fieldKodePos = new TextField("Kode Pos");
+
+    private int selectedShippingIndex = 0;
+    private int selectedPaymentIndex = 0;
 
     private final Span subtotalSpan = new Span("Rp0");
     private final Span shippingFeeSpan = new Span("Gratis");
@@ -44,25 +70,34 @@ public class CheckoutView extends Div {
 
     private List<CartItem> allCartItems = new ArrayList<>();
 
-    public CheckoutView() {
+    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService) {
+        this.cartService = cartService;
+        this.orderService = orderService;
+        this.addressService = addressService;
+
+        if (!AuthGuard.requireLogin(UI.getCurrent())) return;
+
         addClassName("rw-checkout-page");
 
-        // Load active items from session
-        loadCartFromSession();
+        // Load items dari DB (via CartService)
+        loadCartFromDatabase();
+
+        // Pre-load alamat utama user
+        User user = AuthGuard.getCurrentUser();
+        if (user != null) {
+            addressService.getPrimaryAddress(user).ifPresent(a -> this.selectedAddress = a);
+        }
 
         Div wrapper = new Div();
         wrapper.addClassName("rw-checkout-wrapper");
 
-        // ---- Page Title ----
         H2 pageTitle = new H2("Konfirmasi Pesanan");
         pageTitle.addClassName("rw-checkout-page-title");
         wrapper.add(pageTitle);
 
-        // ---- Mode Toggle Tabs (Pasar SMKN 24 vs Reguler) ----
         Div toggleBar = createModeToggleBar();
         wrapper.add(toggleBar);
 
-        // ---- Main Grid (Left Column 62%, Right Column 38%) ----
         Div mainGrid = new Div();
         mainGrid.addClassName("rw-checkout-grid");
 
@@ -76,23 +111,14 @@ public class CheckoutView extends Div {
         renderView();
     }
 
-    @SuppressWarnings("unchecked")
-    private void loadCartFromSession() {
-        VaadinSession session = VaadinSession.getCurrent();
-        if (session != null) {
-            List<CartItem> items = (List<CartItem>) session.getAttribute(CartView.SESSION_CART_KEY);
-            if (items != null) {
-                this.allCartItems = items;
-            } else {
-                this.allCartItems = createFallbackCartItems();
-                session.setAttribute(CartView.SESSION_CART_KEY, this.allCartItems);
-            }
-        } else {
-            this.allCartItems = createFallbackCartItems();
-        }
-    }
+    private void loadCartFromDatabase() {
+        User user = AuthGuard.getCurrentUser();
+        if (user == null) return;
 
-    private void syncCartToSession() {
+        var entities = cartService.getCartItems(user);
+        this.allCartItems = cartService.convertToUiCartItemList(entities);
+
+        // Sync to session for compatibility
         VaadinSession session = VaadinSession.getCurrent();
         if (session != null) {
             session.setAttribute(CartView.SESSION_CART_KEY, this.allCartItems);
@@ -106,34 +132,12 @@ public class CheckoutView extends Div {
             .toList();
     }
 
-    private List<CartItem> createFallbackCartItems() {
-        List<CartItem> list = new ArrayList<>();
-        list.add(new CartItem(
-            "1", "Butik Siswa SMKN 24", "Warga SMKN 24", "badge-gold",
-            "Jaket Denim Custom SMKN 24", "Size: L | Warna: Biru Indigo",
-            120000, 0, "images/buku.jpeg", null, 1, true, true
-        ));
-        list.add(new CartItem(
-            "2", "Butik Siswa SMKN 24", "Warga SMKN 24", "badge-gold",
-            "Minimalist Graphic Tee", "One Size | Material: Cotton",
-            45000, 0, "images/colokan.webp", null, 1, true, true
-        ));
-        list.add(new CartItem(
-            "3", "Thrift By Alif", "Verifikasi Member", "badge-blue",
-            "Vans Old Skool Classic", "Size: 41 | Kondisi: 9/10",
-            350000, 700000, "images/kipas.jpg", "Pre-Loved", 1, true, false
-        ));
-        return list;
-    }
-
     private Div createModeToggleBar() {
         Div bar = new Div();
         bar.addClassName("rw-checkout-toggle-bar");
 
         btnTabSmkn24.addClassName("rw-toggle-btn");
-        if (isPasarSmkn24Mode) {
-            btnTabSmkn24.addClassName("active");
-        }
+        if (isPasarSmkn24Mode) btnTabSmkn24.addClassName("active");
         btnTabSmkn24.addClickListener(e -> {
             isPasarSmkn24Mode = true;
             selectedShippingIndex = 0;
@@ -142,9 +146,7 @@ public class CheckoutView extends Div {
         });
 
         btnTabRegular.addClassName("rw-toggle-btn");
-        if (!isPasarSmkn24Mode) {
-            btnTabRegular.addClassName("active");
-        }
+        if (!isPasarSmkn24Mode) btnTabRegular.addClassName("active");
         btnTabRegular.addClickListener(e -> {
             isPasarSmkn24Mode = false;
             selectedShippingIndex = 0;
@@ -170,21 +172,18 @@ public class CheckoutView extends Div {
         leftCol.removeAll();
         rightCol.removeAll();
 
-        // Left Column
         leftCol.add(
             createAddressSection(),
             createOrderDetailsSection(),
             createShippingSection()
         );
 
-        // Right Column
         rightCol.add(createRightColumn());
-
         updateCalculations();
     }
 
     // ==========================================
-    // LEFT COLUMN SECTIONS
+    // LEFT COLUMN: ADDRESS SECTION (DYNAMIC)
     // ==========================================
 
     private Component createAddressSection() {
@@ -192,7 +191,7 @@ public class CheckoutView extends Div {
         card.addClassName("rw-checkout-card");
 
         if (isPasarSmkn24Mode) {
-            // COD Sekolah: Tidak perlu alamat rumah
+            // COD Sekolah: tidak perlu alamat rumah
             Div header = new Div();
             header.addClassName("rw-checkout-card-header");
             header.getElement().setProperty("innerHTML",
@@ -215,69 +214,325 @@ public class CheckoutView extends Div {
 
             card.add(header, infoBox);
         } else {
-            // Reguler: Perlu alamat rumah
+            // Reguler: Perlu alamat + fitur GPS
             Div header = new Div();
             header.addClassName("rw-checkout-card-header");
             header.getElement().setProperty("innerHTML",
                 "<div style='display:flex;align-items:center;gap:8px;'>" +
                 "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z'/><circle cx='12' cy='10' r='3'/></svg>" +
                 "<span class='rw-card-header-title'>Alamat Pengiriman</span>" +
-                "</div>" +
-                "<span class='rw-card-header-link'>+ Tambah Alamat Baru</span>"
+                "</div>"
             );
+            card.add(header);
 
-            renderAddressCards();
-            card.add(header, addressSectionContainer);
+            renderAddressSection(card);
         }
 
         return card;
     }
 
-    private void renderAddressCards() {
+    private void renderAddressSection(Div card) {
         addressSectionContainer.removeAll();
-        addressSectionContainer.addClassName("rw-address-list");
 
-        // Address 1: Rumah Utama
-        Div addr1 = new Div();
-        addr1.addClassName("rw-address-card");
-        if (selectedAddressIndex == 0) {
-            addr1.addClassName("selected");
+        User user = AuthGuard.getCurrentUser();
+        List<Address> addresses = user != null ? addressService.getAddressesByUser(user) : List.of();
+
+        if (!addresses.isEmpty() && !showAddressForm) {
+            // Tampilkan daftar alamat yang ada
+            Div addressList = new Div();
+            addressList.addClassName("rw-address-list");
+
+            for (Address addr : addresses) {
+                Div addrCard = new Div();
+                addrCard.addClassName("rw-address-card");
+                if (selectedAddress != null && selectedAddress.getId().equals(addr.getId())) {
+                    addrCard.addClassName("selected");
+                }
+
+                String primaryBadge = addr.isPrimary() ? "<span class='rw-badge-utama'>UTAMA</span>" : "";
+                addrCard.getElement().setProperty("innerHTML",
+                    "<div class='rw-address-header-row'>" +
+                    "<span class='rw-address-name-tag'>" + (addr.getLabel() != null ? addr.getLabel() : "Alamat") + " " + primaryBadge + "</span>" +
+                    "</div>" +
+                    "<div class='rw-address-recipient'>" + addr.getRecipientName() + " (" + addr.getRecipientPhone() + ")</div>" +
+                    "<div class='rw-address-detail'>" + addr.getFullAddress() +
+                    (addr.getKecamatanKotaProvinsi() != null ? ", " + addr.getKecamatanKotaProvinsi() : "") +
+                    (addr.getKodePos() != null ? " " + addr.getKodePos() : "") + "</div>"
+                );
+                addrCard.addClickListener(e -> {
+                    this.selectedAddress = addr;
+                    renderView();
+                });
+                addressList.add(addrCard);
+            }
+
+            // Tombol tambah alamat baru
+            Button btnTambahAlamat = new Button("+ Tambah Alamat Baru");
+            btnTambahAlamat.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnTambahAlamat.getStyle().set("margin-top", "8px").set("font-size", "13px");
+            btnTambahAlamat.addClickListener(e -> {
+                showAddressForm = true;
+                renderView();
+            });
+
+            addressSectionContainer.add(addressList, btnTambahAlamat);
+
+        } else {
+            // Tampilkan form tambah alamat + GPS
+            addressSectionContainer.add(buildAddressForm(user, !addresses.isEmpty()));
         }
-        addr1.getElement().setProperty("innerHTML",
-            "<div class='rw-address-header-row'>" +
-            "<span class='rw-address-name-tag'>Rumah Utama <span class='rw-badge-utama'>UTAMA</span></span>" +
-            "</div>" +
-            "<div class='rw-address-recipient'>Budi Santoso (0812-3456-7890)</div>" +
-            "<div class='rw-address-detail'>Jl. Bambu Apus No. 24, Cipayung, Jakarta Timur, 13890 (Samping SMKN 24 Jakarta)</div>"
-        );
-        addr1.addClickListener(e -> {
-            selectedAddressIndex = 0;
-            renderAddressCards();
+
+        card.add(addressSectionContainer);
+    }
+
+    private Div buildAddressForm(User user, boolean showCancel) {
+        Div formBox = new Div();
+        formBox.addClassName("rw-address-form-box");
+
+        // Tombol GPS
+        Button btnGps = new Button("📡 Gunakan Lokasi GPS Saya");
+        btnGps.addClassName("rw-btn-gps");
+        btnGps.getStyle()
+            .set("background", "linear-gradient(135deg, #001934, #0A3D7A)")
+            .set("color", "#FFFFFF")
+            .set("border", "none")
+            .set("border-radius", "10px")
+            .set("font-weight", "700")
+            .set("font-size", "13px")
+            .set("padding", "10px 16px")
+            .set("cursor", "pointer")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "8px")
+            .set("width", "100%")
+            .set("margin-bottom", "12px");
+
+        Span gpsStatus = new Span();
+        gpsStatus.getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block").set("margin-bottom", "12px");
+
+        btnGps.addClickListener(e -> {
+            gpsStatus.setText("⏳ Mendapatkan lokasi GPS...");
+            // Jalankan Geolocation + Nominatim reverse geocoding
+            UI.getCurrent().getPage().executeJs("""
+                navigator.geolocation.getCurrentPosition(
+                    function(pos) {
+                        var lat = pos.coords.latitude;
+                        var lon = pos.coords.longitude;
+                        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&addressdetails=1', {
+                            headers: { 'Accept-Language': 'id', 'User-Agent': 'ReWear-SMKN24/1.0' }
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            var addr = data.address || {};
+                            var road = addr.road || addr.pedestrian || addr.footway || '';
+                            var houseNum = addr.house_number ? ' No. ' + addr.house_number : '';
+                            var sub = addr.suburb || addr.neighbourhood || addr.village || '';
+                            var city = addr.city || addr.county || addr.town || '';
+                            var province = addr.state || '';
+                            var postcode = addr.postcode || '';
+                            var fullAddr = (road + houseNum + (sub ? ', ' + sub : '')).trim();
+                            var kotaProv = (city + (province ? ', ' + province : '')).trim();
+                            
+                            $0.value = fullAddr;
+                            $1.value = kotaProv;
+                            $2.value = postcode;
+                            
+                            // Trigger native events so Vaadin web components sync back to server
+                            ['input', 'change', 'blur'].forEach(function(evtName) {
+                                $0.dispatchEvent(new Event(evtName, { bubbles: true }));
+                                $1.dispatchEvent(new Event(evtName, { bubbles: true }));
+                                $2.dispatchEvent(new Event(evtName, { bubbles: true }));
+                            });
+                        })
+                        .catch(function(err) { console.error('Nominatim error:', err); });
+                    },
+                    function(err) { console.error('GPS error:', err); },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+                """,
+                fieldAlamat.getElement(),
+                fieldKota.getElement(),
+                fieldKodePos.getElement()
+            );
+            gpsStatus.setText("✅ Lokasi berhasil dideteksi! Periksa dan lengkapi data di bawah.");
         });
 
-        // Address 2: Kos Bambu
-        Div addr2 = new Div();
-        addr2.addClassName("rw-address-card");
-        if (selectedAddressIndex == 1) {
-            addr2.addClassName("selected");
-        }
-        addr2.getElement().setProperty("innerHTML",
-            "<div class='rw-address-header-row'>" +
-            "<span class='rw-address-name-tag'>Kos Bambu</span>" +
-            "</div>" +
-            "<div class='rw-address-recipient'>Budi Santoso</div>" +
-            "<div class='rw-address-detail'>Gg. Haji Naman No. 12, Bambu Apus, Jakarta Timur</div>"
-        );
-        addr2.addClickListener(e -> {
-            selectedAddressIndex = 1;
-            renderAddressCards();
+        // Style input fields
+        styleFormField(fieldNamaPenerima, "Contoh: Budi Santoso");
+        styleFormField(fieldTelepon, "Contoh: 0812-3456-7890");
+        styleFormField(fieldAlamat, "Jl. Contoh No. 1, RT/RW, Kelurahan");
+        styleFormField(fieldKota, "Kecamatan, Kota / Kabupaten, Provinsi");
+        styleFormField(fieldKodePos, "Contoh: 13890");
+
+        // Interactive Draggable Map Container (Leaflet.js)
+        Div mapContainer = new Div();
+        mapContainer.setId("rewear-map-picker");
+        mapContainer.getStyle()
+            .set("width", "100%")
+            .set("height", "220px")
+            .set("border-radius", "12px")
+            .set("border", "2px solid #E2E8F0")
+            .set("margin-bottom", "14px")
+            .set("overflow", "hidden")
+            .set("box-shadow", "0 2px 8px rgba(0,0,0,0.06)");
+
+        // Inject Leaflet CSS & JS dynamically
+        UI.getCurrent().getPage().executeJs("""
+            if (!document.getElementById('leaflet-css')) {
+                var link = document.createElement('link');
+                link.id = 'leaflet-css';
+                link.rel = 'stylesheet';
+                link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                document.head.appendChild(link);
+            }
+            if (!window.L) {
+                var script = document.createElement('script');
+                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                script.onload = function() { window.initReWearMap($0, $1, $2); };
+                document.head.appendChild(script);
+            } else {
+                setTimeout(function() { window.initReWearMap($0, $1, $2); }, 200);
+            }
+
+            window.initReWearMap = function(fieldAlamat, fieldKota, fieldKodePos) {
+                var mapElem = document.getElementById('rewear-map-picker');
+                if (!mapElem || mapElem._leaflet_id) return;
+
+                var defaultLat = -6.3031;
+                var defaultLon = 106.8856;
+                var map = L.map('rewear-map-picker').setView([defaultLat, defaultLon], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+
+                var marker = L.marker([defaultLat, defaultLon], { draggable: true }).addTo(map);
+                marker.bindPopup('<b>📌 Lokasi Pengiriman</b><br/>Geser marker atau klik peta').openPopup();
+
+                function updateAddressFromCoords(lat, lng) {
+                    marker.setLatLng([lat, lng]);
+                    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&addressdetails=1', {
+                        headers: { 'Accept-Language': 'id', 'User-Agent': 'ReWear-SMKN24/1.0' }
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var addr = data.address || {};
+                        var road = addr.road || addr.pedestrian || addr.footway || addr.suburb || '';
+                        var houseNum = addr.house_number ? ' No. ' + addr.house_number : '';
+                        var sub = addr.suburb || addr.neighbourhood || addr.village || '';
+                        var city = addr.city || addr.county || addr.town || '';
+                        var province = addr.state || '';
+                        var postcode = addr.postcode || '';
+                        var fullAddr = (road + houseNum + (sub ? ', ' + sub : '')).trim();
+                        var kotaProv = (city + (province ? ', ' + province : '')).trim();
+
+                        if (fullAddr) fieldAlamat.value = fullAddr;
+                        if (kotaProv) fieldKota.value = kotaProv;
+                        if (postcode) fieldKodePos.value = postcode;
+
+                        ['input', 'change', 'blur'].forEach(function(evt) {
+                            fieldAlamat.dispatchEvent(new Event(evt, { bubbles: true }));
+                            fieldKota.dispatchEvent(new Event(evt, { bubbles: true }));
+                            fieldKodePos.dispatchEvent(new Event(evt, { bubbles: true }));
+                        });
+                    })
+                    .catch(function(e) { console.error(e); });
+                }
+
+                marker.on('dragend', function(e) {
+                    var coord = e.target.getLatLng();
+                    updateAddressFromCoords(coord.lat, coord.lng);
+                });
+
+                map.on('click', function(e) {
+                    updateAddressFromCoords(e.latlng.lat, e.latlng.lng);
+                });
+
+                window._reWearMapRef = { map: map, marker: marker, updateFn: updateAddressFromCoords };
+            };
+        """, fieldAlamat.getElement(), fieldKota.getElement(), fieldKodePos.getElement());
+
+        Div row1 = new Div(fieldNamaPenerima, fieldTelepon);
+        row1.getStyle().set("display", "grid").set("grid-template-columns", "1fr 1fr").set("gap", "12px");
+
+        Div row2 = new Div(fieldAlamat);
+        Div row3 = new Div(fieldKota, fieldKodePos);
+        row3.getStyle().set("display", "grid").set("grid-template-columns", "1fr 120px").set("gap", "12px");
+
+        Button btnSimpanAlamat = new Button("💾 Simpan Alamat & Lanjutkan");
+        btnSimpanAlamat.addClassName("btn-confirm-pay");
+        btnSimpanAlamat.getStyle().set("width", "100%").set("margin-top", "12px");
+        btnSimpanAlamat.addClickListener(e -> {
+            String valNama = getFieldValue(fieldNamaPenerima);
+            String valTelp = getFieldValue(fieldTelepon);
+            String valAlamat = getFieldValue(fieldAlamat);
+            String valKota = getFieldValue(fieldKota);
+            String valKodePos = getFieldValue(fieldKodePos);
+
+            if (valNama.isEmpty() || valAlamat.isEmpty() || valKota.isEmpty() || valTelp.isEmpty()) {
+                Notification.show("Lengkapi semua field alamat yang wajib diisi.", 2500, Notification.Position.TOP_CENTER);
+                return;
+            }
+            Address newAddr = new Address();
+            newAddr.setUser(user);
+            newAddr.setLabel("Alamat Pengiriman");
+            newAddr.setRecipientName(valNama);
+            newAddr.setRecipientPhone(valTelp);
+            newAddr.setFullAddress(valAlamat);
+            newAddr.setKecamatanKotaProvinsi(valKota);
+            newAddr.setKodePos(valKodePos);
+            // Set sebagai primary jika ini pertama kali
+            List<Address> existing = addressService.getAddressesByUser(user);
+            newAddr.setPrimary(existing.isEmpty());
+
+            Address saved = addressService.saveAddress(newAddr);
+            this.selectedAddress = saved;
+            this.showAddressForm = false;
+
+            // Reset form
+            fieldNamaPenerima.clear(); fieldTelepon.clear();
+            fieldAlamat.clear(); fieldKota.clear(); fieldKodePos.clear();
+
+            Notification notif = Notification.show("✅ Alamat berhasil disimpan!", 2000, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            renderView();
         });
 
-        addressSectionContainer.add(addr1, addr2);
+        formBox.add(btnGps, gpsStatus, mapContainer, row1, row2, row3, btnSimpanAlamat);
+
+        if (showCancel) {
+            Button btnBatal = new Button("Batal");
+            btnBatal.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnBatal.getStyle().set("margin-top", "8px").set("width", "100%");
+            btnBatal.addClickListener(e -> {
+                showAddressForm = false;
+                renderView();
+            });
+            formBox.add(btnBatal);
+        }
+
+        return formBox;
+    }
+
+    private void styleFormField(TextField field, String placeholder) {
+        field.setPlaceholder(placeholder);
+        field.setWidthFull();
+        field.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.EAGER);
+        field.getStyle().set("font-size", "13px");
+    }
+
+    private String getFieldValue(TextField field) {
+        if (field == null) return "";
+        String val = field.getValue();
+        if (val != null && !val.isBlank()) {
+            return val.trim();
+        }
+        String propVal = field.getElement().getProperty("value");
+        return propVal != null ? propVal.trim() : "";
     }
 
     // ==========================================
-    // ORDER DETAILS & CANCEL/REMOVE ITEM FEATURE
+    // ORDER DETAILS
     // ==========================================
 
     private Component createOrderDetailsSection() {
@@ -312,12 +567,10 @@ public class CheckoutView extends Div {
                 "<p style='color:#64748B;font-size:14px;margin-bottom:12px;'>Belum ada barang yang dipilih untuk di-checkout pada kategori ini.</p>" +
                 "</div>"
             );
-
             Button btnBackCart = new Button("Kembali ke Keranjang", VaadinIcon.ARROW_LEFT.create());
             btnBackCart.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             btnBackCart.addClickListener(e -> UI.getCurrent().navigate("cart"));
             emptyNotice.add(btnBackCart);
-
             orderItemsContainer.add(emptyNotice);
             return;
         }
@@ -337,12 +590,10 @@ public class CheckoutView extends Div {
             Div infoCol = new Div();
             infoCol.addClassName("rw-item-info-col");
 
-            Div nameDiv = new Div();
-            nameDiv.setText(item.getTitle());
+            Div nameDiv = new Div(item.getTitle());
             nameDiv.addClassName("rw-item-name");
 
-            Div metaDiv = new Div();
-            metaDiv.setText(item.getVariant() + " | Qty: " + item.getQuantity());
+            Div metaDiv = new Div(item.getVariant() + " | Qty: " + item.getQuantity());
             metaDiv.addClassName("rw-item-meta");
 
             infoCol.add(nameDiv, metaDiv);
@@ -352,17 +603,14 @@ public class CheckoutView extends Div {
                 infoCol.add(badge);
             }
 
-            Div priceCol = new Div();
+            Div priceCol = new Div("Rp" + String.format("%,.0f", item.getPrice() * item.getQuantity()));
             priceCol.addClassName("rw-item-price-col");
-            priceCol.setText("Rp" + String.format("%,.0f", item.getPrice() * item.getQuantity()));
 
-            // Tombol Batalkan / Remove dari checkout
             Button btnCancelItem = new Button("Batalkan", VaadinIcon.CLOSE_SMALL.create());
             btnCancelItem.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
             btnCancelItem.addClassName("rw-btn-cancel-checkout-item");
             btnCancelItem.addClickListener(e -> {
                 item.setSelected(false);
-                syncCartToSession();
                 renderView();
                 Notification.show("Item " + item.getTitle() + " dibatalkan dari checkout.", 2000, Notification.Position.TOP_CENTER);
             });
@@ -378,6 +626,10 @@ public class CheckoutView extends Div {
         }
     }
 
+    // ==========================================
+    // SHIPPING SECTION
+    // ==========================================
+
     private Component createShippingSection() {
         Div card = new Div();
         card.addClassName("rw-checkout-card");
@@ -387,7 +639,7 @@ public class CheckoutView extends Div {
         header.getElement().setProperty("innerHTML",
             "<div style='display:flex;align-items:center;gap:8px;'>" +
             "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='1' y='3' width='15' height='13'/><polygon points='16 8 20 8 23 11 23 16 16 16 16 8'/><circle cx='5.5' cy='18.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/></svg>" +
-            "<span class='rw-card-header-title'>Opsi Pengiriman & Biaya Ekspedisi</span>" +
+            "<span class='rw-card-header-title'>Opsi Pengiriman</span>" +
             "</div>"
         );
 
@@ -401,10 +653,8 @@ public class CheckoutView extends Div {
         shippingSectionContainer.addClassName("rw-shipping-grid");
 
         if (isPasarSmkn24Mode) {
-            // Hanya 1 opsi: Ambil Sendiri / COD Sekolah
             Div opt0 = new Div();
-            opt0.addClassName("rw-shipping-card");
-            opt0.addClassName("selected");
+            opt0.addClassNames("rw-shipping-card", "selected");
             opt0.getElement().setProperty("innerHTML",
                 "<div class='rw-shipping-title-row'>" +
                 "<span class='rw-shipping-title'>Ambil Sendiri / COD Sekolah</span>" +
@@ -414,54 +664,32 @@ public class CheckoutView extends Div {
             );
             shippingSectionContainer.add(opt0);
         } else {
-            // 3 opsi pengiriman reguler
             Div opt0 = new Div();
             opt0.addClassName("rw-shipping-card");
             if (selectedShippingIndex == 0) opt0.addClassName("selected");
             opt0.getElement().setProperty("innerHTML",
-                "<div class='rw-shipping-title-row'>" +
-                "<span class='rw-shipping-title'>Ambil Sendiri (Gratis)</span>" +
-                "<span class='rw-shipping-badge-free'>Gratis</span>" +
-                "</div>" +
-                "<div class='rw-shipping-desc'>Ambil barang di lokasi penjual (Bambu Apus, Cipayung).</div>"
+                "<div class='rw-shipping-title-row'><span class='rw-shipping-title'>Ambil Sendiri (Gratis)</span><span class='rw-shipping-badge-free'>Gratis</span></div>" +
+                "<div class='rw-shipping-desc'>Ambil barang di lokasi penjual.</div>"
             );
-            opt0.addClickListener(e -> {
-                selectedShippingIndex = 0;
-                renderShippingOptions();
-                updateCalculations();
-            });
+            opt0.addClickListener(e -> { selectedShippingIndex = 0; renderShippingOptions(); updateCalculations(); });
 
             Div opt1 = new Div();
             opt1.addClassName("rw-shipping-card");
             if (selectedShippingIndex == 1) opt1.addClassName("selected");
             opt1.getElement().setProperty("innerHTML",
-                "<div class='rw-shipping-title-row'>" +
-                "<span class='rw-shipping-title'>Instan (Gojek/Grab - Max 10km)</span>" +
-                "<span class='rw-shipping-price'>Rp22.000</span>" +
-                "</div>" +
-                "<div class='rw-shipping-desc'>Pengiriman kurir instan cepat tiba (1-2 jam). Sesuaikan jarak dari lokasi toko.</div>"
+                "<div class='rw-shipping-title-row'><span class='rw-shipping-title'>Instan (Gojek/Grab - Max 10km)</span><span class='rw-shipping-price'>Rp22.000</span></div>" +
+                "<div class='rw-shipping-desc'>Pengiriman kurir instan cepat tiba (1-2 jam).</div>"
             );
-            opt1.addClickListener(e -> {
-                selectedShippingIndex = 1;
-                renderShippingOptions();
-                updateCalculations();
-            });
+            opt1.addClickListener(e -> { selectedShippingIndex = 1; renderShippingOptions(); updateCalculations(); });
 
             Div opt2 = new Div();
             opt2.addClassName("rw-shipping-card");
             if (selectedShippingIndex == 2) opt2.addClassName("selected");
             opt2.getElement().setProperty("innerHTML",
-                "<div class='rw-shipping-title-row'>" +
-                "<span class='rw-shipping-title'>Reguler (JNE/J&T Ekspedisi Nasional)</span>" +
-                "<span class='rw-shipping-price'>Rp9.000</span>" +
-                "</div>" +
+                "<div class='rw-shipping-title-row'><span class='rw-shipping-title'>Reguler (JNE/J&T Ekspedisi Nasional)</span><span class='rw-shipping-price'>Rp9.000</span></div>" +
                 "<div class='rw-shipping-desc'>Pengiriman ekspedisi ke seluruh Indonesia (2-3 hari kerja).</div>"
             );
-            opt2.addClickListener(e -> {
-                selectedShippingIndex = 2;
-                renderShippingOptions();
-                updateCalculations();
-            });
+            opt2.addClickListener(e -> { selectedShippingIndex = 2; renderShippingOptions(); updateCalculations(); });
 
             shippingSectionContainer.add(opt0, opt1, opt2);
         }
@@ -482,32 +710,23 @@ public class CheckoutView extends Div {
 
         renderPaymentOptions();
 
-        // Note Info Banner
         Div noteBanner = new Div();
         noteBanner.addClassName("rw-payment-note-banner");
-        if (isPasarSmkn24Mode) {
-            noteBanner.getElement().setProperty("innerHTML",
-                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' style='flex-shrink:0;'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>" +
-                "<span><strong>COD Sekolah & QRIS:</strong> Bebas biaya pengiriman & biaya layanan bagi komunitas SMKN 24 Jakarta.</span>"
-            );
-        } else {
-            noteBanner.getElement().setProperty("innerHTML",
-                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' style='flex-shrink:0;'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>" +
-                "<span><strong>ReWear Escrow Protection:</strong> Biaya layanan dan ongkir disesuaikan dengan jarak & nilai produk demi keamanan transaksi 100%.</span>"
-            );
-        }
+        noteBanner.getElement().setProperty("innerHTML",
+            "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' style='flex-shrink:0;'><circle cx='12' cy='12' r='10'/><line x1='12' y1='16' x2='12' y2='12'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>" +
+            (isPasarSmkn24Mode
+                ? "<span><strong>COD Sekolah:</strong> Bebas biaya pengiriman & layanan bagi komunitas SMKN 24.</span>"
+                : "<span><strong>ReWear Escrow Protection:</strong> Dana ditahan sistem hingga barang diterima.</span>")
+        );
 
-        // Price Breakdown
         Div summaryRows = new Div();
         summaryRows.addClassName("rw-checkout-summary-rows");
+        summaryRows.add(
+            createRowSpan("Subtotal Barang", subtotalSpan),
+            createRowSpan("Biaya Pengiriman", shippingFeeSpan),
+            createRowSpan("Biaya Layanan", serviceFeeSpan)
+        );
 
-        Div rowSubtotal = createRowSpan("Subtotal Barang", subtotalSpan);
-        Div rowShipping = createRowSpan("Biaya Pengiriman", shippingFeeSpan);
-        Div rowService = createRowSpan("Biaya Layanan", serviceFeeSpan);
-
-        summaryRows.add(rowSubtotal, rowShipping, rowService);
-
-        // Total Row
         Div rowTotal = new Div();
         rowTotal.addClassName("rw-checkout-total-row");
         Span totalLabel = new Span("Total Tagihan");
@@ -515,16 +734,19 @@ public class CheckoutView extends Div {
         totalTagihanSpan.addClassName("rw-checkout-total-val");
         rowTotal.add(totalLabel, totalTagihanSpan);
 
-        // Confirm Button (Opens Validation Confirmation Dialog)
         Button btnConfirm = new Button("Konfirmasi Bayar");
         btnConfirm.addClassName("btn-confirm-pay");
         btnConfirm.addClickListener(e -> {
             List<CartItem> selected = getSelectedItems();
             if (selected.isEmpty()) {
                 Notification.show("Tidak ada barang yang terpilih untuk di-checkout.", 2500, Notification.Position.TOP_CENTER);
-            } else {
-                openOrderValidationDialog(selected);
+                return;
             }
+            if (!isPasarSmkn24Mode && selectedAddress == null) {
+                Notification.show("Pilih atau tambahkan alamat pengiriman terlebih dahulu.", 2500, Notification.Position.TOP_CENTER);
+                return;
+            }
+            openOrderValidationDialog(selected);
         });
 
         Paragraph finePrint = new Paragraph("Dengan menekan tombol di atas, Anda menyetujui Syarat & Ketentuan transaksi di ReWear.");
@@ -532,23 +754,71 @@ public class CheckoutView extends Div {
 
         payCard.add(payTitle, paymentSectionContainer, noteBanner, summaryRows, rowTotal, btnConfirm, finePrint);
 
-        // Escrow Protected Notice Card below
         Div escrowBox = new Div();
         escrowBox.addClassName("rw-escrow-protected-box");
         escrowBox.getElement().setProperty("innerHTML",
             "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" +
-            "<div>" +
-            "<div style='font-size:12px;font-weight:800;color:#001934;letter-spacing:0.5px;'>ESCROW PROTECTED</div>" +
-            "<div style='font-size:12px;color:#475569;'>Transaksi dilindungi oleh sistem keamanan SMKN 24.</div>" +
-            "</div>"
+            "<div><div style='font-size:12px;font-weight:800;color:#001934;letter-spacing:0.5px;'>ESCROW PROTECTED</div>" +
+            "<div style='font-size:12px;color:#475569;'>Transaksi dilindungi oleh sistem keamanan SMKN 24.</div></div>"
         );
 
         rightDiv.add(payCard, escrowBox);
         return rightDiv;
     }
 
+    private void renderPaymentOptions() {
+        paymentSectionContainer.removeAll();
+        paymentSectionContainer.addClassName("rw-payment-methods-grid");
+
+        if (isPasarSmkn24Mode) {
+            Div pay0 = buildPayCard(0, "gold-wrap",
+                "<path d='M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2'/><rect x='9' y='9' width='12' height='10' rx='2'/><circle cx='15' cy='14' r='1'/>",
+                "#B45309", "COD Sekolah", "rw-pay-badge-gold", "Tunai (Bebas Biaya)",
+                "Bayar cash langsung saat COD di area SMKN 24.", 0);
+
+            Div pay1 = buildPayCard(1, "blue-wrap",
+                "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z'/>",
+                "#3730A3", "QRIS Instan", "rw-pay-badge-blue", "E-Wallet / Bank",
+                "Scan QRIS Gopay/OVO/Dana/BCA tanpa biaya admin.", 1);
+
+            paymentSectionContainer.add(pay0, pay1);
+        } else {
+            Div pay0 = buildPayCard(0, "blue-wrap",
+                "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>",
+                "#3730A3", "Escrow (Rekber)", "rw-pay-badge-blue", "Terjamin 100%",
+                "Dana ditahan sistem hingga barang diterima.", 0);
+
+            Div pay1 = buildPayCard(1, "gold-wrap",
+                "<rect x='2' y='5' width='20' height='14' rx='2'/><line x1='2' y1='10' x2='22' y2='10'/>",
+                "#B45309", "Transfer Bank", "rw-pay-badge-gold", "Virtual Account",
+                "BCA, Mandiri, BRI, BNI Virtual Account.", 1);
+
+            paymentSectionContainer.add(pay0, pay1);
+        }
+    }
+
+    private Div buildPayCard(int index, String wrapClass, String svgPath, String stroke,
+                              String title, String badgeClass, String badgeText, String desc, int cardIndex) {
+        Div card = new Div();
+        card.addClassName("rw-pay-card");
+        if (selectedPaymentIndex == cardIndex) card.addClassName("selected");
+        card.getElement().setProperty("innerHTML",
+            "<div class='rw-pay-icon-wrap " + wrapClass + "'>" +
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='" + stroke + "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" + svgPath + "</svg>" +
+            "</div>" +
+            "<div class='rw-pay-title'>" + title + "</div>" +
+            "<span class='" + badgeClass + "'>" + badgeText + "</span>" +
+            "<div class='rw-pay-subtext'>" + desc + "</div>"
+        );
+        card.addClickListener(e -> {
+            selectedPaymentIndex = cardIndex;
+            renderPaymentOptions();
+        });
+        return card;
+    }
+
     // ==========================================
-    // VALIDATION CONFIRMATION MODAL DIALOG
+    // VALIDATION DIALOG + SAVE TO DB
     // ==========================================
 
     private void openOrderValidationDialog(List<CartItem> itemsToPay) {
@@ -559,18 +829,15 @@ public class CheckoutView extends Div {
         Div body = new Div();
         body.getStyle().set("padding", "8px 0");
 
-        Paragraph subhead = new Paragraph("Mohon pastikan rincian barang, alamat pengiriman, dan metode pembayaran Anda sudah sesuai sebelum melanjutkan:");
+        Paragraph subhead = new Paragraph("Pastikan rincian pesanan, alamat, dan pembayaran sudah sesuai:");
         subhead.getStyle().set("font-size", "14px").set("color", "#64748B").set("margin-bottom", "16px");
         body.add(subhead);
 
-        // Box 1: Items List Summary
+        // Ringkasan item
         Div itemsBox = new Div();
         itemsBox.getStyle()
-            .set("background", "#F8FAFC")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "8px")
-            .set("padding", "12px 16px")
-            .set("margin-bottom", "14px");
+            .set("background", "#F8FAFC").set("border", "1px solid #E2E8F0")
+            .set("border-radius", "8px").set("padding", "12px 16px").set("margin-bottom", "14px");
 
         H5 itemsTitle = new H5("📦 Barang yang Dibeli (" + itemsToPay.size() + " produk):");
         itemsTitle.getStyle().set("margin", "0 0 8px 0").set("color", "#001934").set("font-weight", "700");
@@ -578,7 +845,8 @@ public class CheckoutView extends Div {
 
         for (CartItem item : itemsToPay) {
             Div itemRow = new Div();
-            itemRow.getStyle().set("display", "flex").set("justify-content", "space-between").set("font-size", "13px").set("margin-bottom", "6px");
+            itemRow.getStyle().set("display", "flex").set("justify-content", "space-between")
+                .set("font-size", "13px").set("margin-bottom", "6px");
             Span name = new Span("• " + item.getTitle() + " (x" + item.getQuantity() + ")");
             name.getStyle().set("color", "#1E293B").set("font-weight", "600");
             Span price = new Span("Rp " + String.format("%,.0f", item.getPrice() * item.getQuantity()));
@@ -588,59 +856,48 @@ public class CheckoutView extends Div {
         }
         body.add(itemsBox);
 
-        // Box 2: Fulfillment & Shipping Detail
+        // Alamat & pengiriman
         Div shipBox = new Div();
         shipBox.getStyle()
-            .set("background", "#F8FAFC")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "8px")
-            .set("padding", "12px 16px")
-            .set("margin-bottom", "14px");
+            .set("background", "#F8FAFC").set("border", "1px solid #E2E8F0")
+            .set("border-radius", "8px").set("padding", "12px 16px").set("margin-bottom", "14px");
 
-        String locText = isPasarSmkn24Mode ? "Lobby / Kantin Utama SMKN 24 Jakarta (COD Sekolah)" : (selectedAddressIndex == 0 ? "Rumah Utama - Jl. Bambu Apus No. 24" : "Kos Bambu - Gg. Haji Naman");
-        String shipText = isPasarSmkn24Mode ? "COD Ambil Sendiri (Bebas Ongkir)" : (selectedShippingIndex == 0 ? "Ambil Sendiri (Gratis)" : (selectedShippingIndex == 1 ? "Instan Gojek/Grab (Rp22.000)" : "Reguler JNE/J&T (Rp9.000)"));
+        String locText = isPasarSmkn24Mode
+            ? "Lobby / Kantin Utama SMKN 24 Jakarta (COD Sekolah)"
+            : (selectedAddress != null ? selectedAddress.getRecipientName() + " - " + selectedAddress.getFullAddress() : "Alamat belum dipilih");
+        String shipText = isPasarSmkn24Mode ? "COD Ambil Sendiri (Bebas Ongkir)"
+            : (selectedShippingIndex == 0 ? "Ambil Sendiri (Gratis)" : selectedShippingIndex == 1 ? "Instan Gojek/Grab (Rp22.000)" : "Reguler JNE/J&T (Rp9.000)");
 
-        Div rowLoc = new Div(new Span("📍 Tujuan: "), new Span(locText));
-        rowLoc.getStyle().set("font-size", "13px").set("margin-bottom", "4px").set("color", "#334155");
-        Div rowShip = new Div(new Span("🚚 Pengiriman: "), new Span(shipText));
-        rowShip.getStyle().set("font-size", "13px").set("color", "#334155");
-        shipBox.add(rowLoc, rowShip);
+        shipBox.add(
+            buildDialogRow("📍 Tujuan: ", locText),
+            buildDialogRow("🚚 Pengiriman: ", shipText)
+        );
         body.add(shipBox);
 
-        // Box 3: Payment Method & Total
+        // Pembayaran & total
         Div payBox = new Div();
         payBox.getStyle()
-            .set("background", "#EFF6FF")
-            .set("border", "1px solid #BFDBFE")
-            .set("border-radius", "8px")
-            .set("padding", "12px 16px");
+            .set("background", "#EFF6FF").set("border", "1px solid #BFDBFE")
+            .set("border-radius", "8px").set("padding", "12px 16px");
 
-        String payText = isPasarSmkn24Mode ? (selectedPaymentIndex == 0 ? "COD Sekolah (Bayar Cash saat COD)" : "QRIS Instan SMKN 24") : (selectedPaymentIndex == 0 ? "Escrow Rekber Safety" : "Transfer Bank / Virtual Account");
+        String payText = isPasarSmkn24Mode
+            ? (selectedPaymentIndex == 0 ? "COD Sekolah (Bayar Cash)" : "QRIS Instan SMKN 24")
+            : (selectedPaymentIndex == 0 ? "Escrow Rekber Safety" : "Transfer Bank / Virtual Account");
 
-        Div rowPay = new Div(new Span("💳 Pembayaran: "), new Span(payText));
-        rowPay.getStyle().set("font-size", "13px").set("margin-bottom", "6px").set("color", "#1E40AF").set("font-weight", "600");
-
-        Div rowTotalVal = new Div(new Span("💰 Total Tagihan: "), new Span(totalTagihanSpan.getText()));
-        rowTotalVal.getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934");
-
-        payBox.add(rowPay, rowTotalVal);
+        payBox.add(
+            buildDialogRow("💳 Pembayaran: ", payText),
+            buildDialogRow("💰 Total Tagihan: ", totalTagihanSpan.getText())
+        );
         body.add(payBox);
 
         dialog.add(body);
 
-        // Footer buttons
         Button btnBack = new Button("Periksa Kembali", e -> dialog.close());
         btnBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         Button btnProceed = new Button("Ya, Pesanan Sesuai & Bayar", VaadinIcon.CHECK_CIRCLE.create(), e -> {
             dialog.close();
-
-            // Clear purchased items from session cart
-            allCartItems.removeIf(i -> i.isSelected() && (isPasarSmkn24Mode ? i.isSmkn24Item() : !i.isSmkn24Item()));
-            syncCartToSession();
-
-            Notification.show("Pesanan Berhasil Dikonfirmasi & Diproses!", 3000, Notification.Position.TOP_CENTER);
-            UI.getCurrent().navigate("profile?tab=orders");
+            saveOrderToDatabase(itemsToPay);
         });
         btnProceed.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         btnProceed.getStyle().set("background", "#001934").set("color", "#FFFFFF");
@@ -649,82 +906,124 @@ public class CheckoutView extends Div {
         dialog.open();
     }
 
-    private void renderPaymentOptions() {
-        paymentSectionContainer.removeAll();
-        paymentSectionContainer.addClassName("rw-payment-methods-grid");
+    private Div buildDialogRow(String label, String value) {
+        Div row = new Div(new Span(label), new Span(value));
+        row.getStyle().set("font-size", "13px").set("margin-bottom", "4px").set("color", "#334155");
+        return row;
+    }
 
-        if (isPasarSmkn24Mode) {
-            // Opsi untuk Pasar SMKN 24: COD Sekolah & QRIS
-            Div pay0 = new Div();
-            pay0.addClassName("rw-pay-card");
-            if (selectedPaymentIndex == 0) pay0.addClassName("selected");
-            pay0.getElement().setProperty("innerHTML",
-                "<div class='rw-pay-icon-wrap gold-wrap'>" +
-                "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2'/><rect x='9' y='9' width='12' height='10' rx='2'/><circle cx='15' cy='14' r='1'/></svg>" +
-                "</div>" +
-                "<div class='rw-pay-title'>COD Sekolah</div>" +
-                "<span class='rw-pay-badge-gold'>Tunai (Bebas Biaya)</span>" +
-                "<div class='rw-pay-subtext'>Bayar cash langsung saat COD di area SMKN 24.</div>"
+    // ==========================================
+    // SAVE ORDER TO DATABASE
+    // ==========================================
+
+    private void saveOrderToDatabase(List<CartItem> itemsToPay) {
+        User buyer = AuthGuard.getCurrentUser();
+        if (buyer == null) {
+            Notification.show("Sesi login habis. Silakan login kembali.", 3000, Notification.Position.TOP_CENTER);
+            return;
+        }
+
+        try {
+            // Tentukan alamat pengiriman sebagai string
+            String shippingAddressStr = isPasarSmkn24Mode
+                ? "COD Sekolah - Lobby / Kantin Utama SMKN 24 Jakarta, Jl. Bambu Apus No. 24, Cipayung, Jakarta Timur"
+                : (selectedAddress != null
+                    ? selectedAddress.getRecipientName() + " | " + selectedAddress.getFullAddress()
+                    + (selectedAddress.getKecamatanKotaProvinsi() != null ? ", " + selectedAddress.getKecamatanKotaProvinsi() : "")
+                    + (selectedAddress.getKodePos() != null ? " " + selectedAddress.getKodePos() : "")
+                    : "Alamat tidak tersedia");
+
+            // Kalkulasi nilai
+            double subtotalVal = itemsToPay.stream().mapToDouble(i -> i.getPrice() * i.getQuantity()).sum();
+            double shippingCostVal = isPasarSmkn24Mode ? 0 : (selectedShippingIndex == 0 ? 0 : selectedShippingIndex == 1 ? 22000 : 9000);
+            double serviceFeeVal = isPasarSmkn24Mode ? 0 : Math.max(2500, subtotalVal * 0.01);
+            double totalVal = subtotalVal + shippingCostVal + serviceFeeVal;
+
+            // Metode pembayaran
+            String paymentMethodStr = isPasarSmkn24Mode
+                ? (selectedPaymentIndex == 0 ? "COD_SEKOLAH" : "QRIS")
+                : (selectedPaymentIndex == 0 ? "ESCROW" : "TRANSFER_BANK");
+
+            // Metode pengiriman
+            ShippingMethod shippingMethod = isPasarSmkn24Mode ? ShippingMethod.COD_SEKOLAH
+                : (selectedShippingIndex == 0 ? ShippingMethod.LAINNYA : selectedShippingIndex == 1 ? ShippingMethod.GOSEND : ShippingMethod.EKSPEDISI);
+
+            // Dapatkan seller dari item pertama (ReWear: 1 order per seller)
+            // Untuk multi-seller, perlu dibuat per-seller group — untuk sekarang ambil seller pertama
+            User seller = getSellerFromFirstItem(itemsToPay);
+            if (seller == null) {
+                seller = buyer; // fallback
+            }
+
+            // Buat Order object
+            Order order = new Order();
+            order.setBuyer(buyer);
+            order.setSeller(seller);
+            order.setOrderNumber("RW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+            order.setShippingAddress(shippingAddressStr);
+            order.setSubtotal(BigDecimal.valueOf(subtotalVal));
+            order.setShippingCost(BigDecimal.valueOf(shippingCostVal));
+            order.setAdminFeeAmount(BigDecimal.valueOf(serviceFeeVal));
+            order.setTotalAmount(BigDecimal.valueOf(totalVal));
+            order.setPaymentMethod(paymentMethodStr);
+            order.setShippingMethod(shippingMethod);
+            order.setStatus(OrderStatus.MENUNGGU_PEMBAYARAN);
+
+            // Buat OrderItem list
+            List<OrderItem> orderItems = new ArrayList<>();
+            for (CartItem cartItem : itemsToPay) {
+                OrderItem oi = new OrderItem();
+                oi.setProductNameSnapshot(cartItem.getTitle());
+                oi.setPriceSnapshot(BigDecimal.valueOf(cartItem.getPrice()));
+                oi.setQuantity(cartItem.getQuantity());
+                if (cartItem.getProduct() != null) {
+                    oi.setProduct(cartItem.getProduct());
+                }
+                orderItems.add(oi);
+            }
+
+            // Simpan ke DB
+            orderService.createOrder(order, orderItems, buyer);
+
+            // Hapus item yang sudah di-checkout dari cart DB
+            for (CartItem cartItem : itemsToPay) {
+                try {
+                    cartService.removeFromCart(Long.parseLong(cartItem.getId()));
+                } catch (Exception ignored) {}
+            }
+
+            // Tampilkan sukses dan redirect
+            Notification successNotif = Notification.show(
+                "🎉 Pesanan Berhasil Dibuat! Order #" + order.getOrderNumber(),
+                4000, Notification.Position.TOP_CENTER
             );
-            pay0.addClickListener(e -> {
-                selectedPaymentIndex = 0;
-                renderPaymentOptions();
-            });
+            successNotif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            UI.getCurrent().navigate("orders");
 
-            Div pay1 = new Div();
-            pay1.addClassName("rw-pay-card");
-            if (selectedPaymentIndex == 1) pay1.addClassName("selected");
-            pay1.getElement().setProperty("innerHTML",
-                "<div class='rw-pay-icon-wrap blue-wrap'>" +
-                "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#3730A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z'/></svg>" +
-                "</div>" +
-                "<div class='rw-pay-title'>QRIS Instan</div>" +
-                "<span class='rw-pay-badge-blue'>E-Wallet / Bank</span>" +
-                "<div class='rw-pay-subtext'>Scan QRIS Gopay/OVO/Dana/BCA tanpa biaya admin.</div>"
-            );
-            pay1.addClickListener(e -> {
-                selectedPaymentIndex = 1;
-                renderPaymentOptions();
-            });
-
-            paymentSectionContainer.add(pay0, pay1);
-        } else {
-            // Opsi Pembayaran Reguler: Escrow & Transfer Bank
-            Div pay0 = new Div();
-            pay0.addClassName("rw-pay-card");
-            if (selectedPaymentIndex == 0) pay0.addClassName("selected");
-            pay0.getElement().setProperty("innerHTML",
-                "<div class='rw-pay-icon-wrap blue-wrap'>" +
-                "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#3730A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" +
-                "</div>" +
-                "<div class='rw-pay-title'>Escrow (Rekber)</div>" +
-                "<span class='rw-pay-badge-blue'>Terjamin 100%</span>" +
-                "<div class='rw-pay-subtext'>Dana ditahan sistem hingga barang diterima.</div>"
-            );
-            pay0.addClickListener(e -> {
-                selectedPaymentIndex = 0;
-                renderPaymentOptions();
-            });
-
-            Div pay1 = new Div();
-            pay1.addClassName("rw-pay-card");
-            if (selectedPaymentIndex == 1) pay1.addClassName("selected");
-            pay1.getElement().setProperty("innerHTML",
-                "<div class='rw-pay-icon-wrap gold-wrap'>" +
-                "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='5' width='20' height='14' rx='2'/><line x1='2' y1='10' x2='22' y2='10'/></svg>" +
-                "</div>" +
-                "<div class='rw-pay-title'>Transfer Bank</div>" +
-                "<span class='rw-pay-badge-gold'>Virtual Account</span>" +
-                "<div class='rw-pay-subtext'>BCA, Mandiri, BRI, BNI Virtual Account.</div>"
-            );
-            pay1.addClickListener(e -> {
-                selectedPaymentIndex = 1;
-                renderPaymentOptions();
-            });
-
-            paymentSectionContainer.add(pay0, pay1);
+        } catch (Exception ex) {
+            Notification.show("Gagal membuat pesanan: " + ex.getMessage(), 4000, Notification.Position.TOP_CENTER);
         }
     }
+
+    private User getSellerFromFirstItem(List<CartItem> items) {
+        // Ambil seller dari product via cart item id
+        for (CartItem cartItem : items) {
+            try {
+                long cartItemId = Long.parseLong(cartItem.getId());
+                var entities = cartService.getCartItems(AuthGuard.getCurrentUser());
+                for (var entity : entities) {
+                    if (entity.getId().equals(cartItemId) && entity.getProduct() != null) {
+                        return entity.getProduct().getSeller();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
+
+    // ==========================================
+    // UTILITY
+    // ==========================================
 
     private Div createRowSpan(String label, Span valSpan) {
         Span lSpan = new Span(label);
@@ -745,22 +1044,14 @@ public class CheckoutView extends Div {
         double currentServiceFee = 0;
 
         if (currentSubtotal == 0) {
-            currentShippingFee = 0;
-            currentServiceFee = 0;
             shippingFeeSpan.setText("Rp0");
             serviceFeeSpan.setText("Rp0");
         } else if (isPasarSmkn24Mode) {
-            // Pasar SMKN 24: Gratis Ongkir & Layanan
-            currentShippingFee = 0;
-            currentServiceFee = 0;
-
             shippingFeeSpan.setText("Gratis");
             shippingFeeSpan.getElement().getStyle().set("color", "#16A34A").set("font-weight", "700");
-
             serviceFeeSpan.setText("Gratis (SMKN 24)");
             serviceFeeSpan.getElement().getStyle().set("color", "#16A34A").set("font-weight", "700");
         } else {
-            // Reguler: Disesuaikan dengan opsi pengiriman & nilai produk
             if (selectedShippingIndex == 0) {
                 currentShippingFee = 0;
                 shippingFeeSpan.setText("Gratis");
@@ -774,8 +1065,6 @@ public class CheckoutView extends Div {
                 shippingFeeSpan.setText("Rp9.000");
                 shippingFeeSpan.getElement().getStyle().set("color", "#001934").set("font-weight", "700");
             }
-
-            // Biaya Layanan Disesuaikan dengan harga produk
             currentServiceFee = Math.max(2500, currentSubtotal * 0.01);
             serviceFeeSpan.setText("Rp" + String.format("%,.0f", currentServiceFee));
             serviceFeeSpan.getElement().getStyle().set("color", "#001934").set("font-weight", "700");

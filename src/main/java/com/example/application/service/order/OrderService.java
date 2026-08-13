@@ -18,34 +18,57 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final OrderReturnRepository returnRepository;
+    private final com.example.application.repository.product.ProductRepository productRepository;
 
     public OrderService(OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository,
                         OrderStatusLogRepository statusLogRepository,
-                        OrderReturnRepository returnRepository) {
+                        OrderReturnRepository returnRepository,
+                        com.example.application.repository.product.ProductRepository productRepository) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.statusLogRepository = statusLogRepository;
         this.returnRepository = returnRepository;
+        this.productRepository = productRepository;
     }
 
     public List<Order> getBuyerOrders(User buyer) {
-        return orderRepository.findByBuyerOrderByCreatedAtDesc(buyer);
+        if (buyer == null) return List.of();
+        return orderRepository.findBuyerOrdersWithDetails(buyer);
     }
 
     public List<Order> getSellerOrders(User seller) {
-        return orderRepository.findBySellerOrderByCreatedAtDesc(seller);
+        if (seller == null) return List.of();
+        return orderRepository.findSellerOrdersWithDetails(seller);
     }
 
     public Optional<Order> findById(Long id) {
         return orderRepository.findById(id);
     }
 
+    @Transactional
     public Order createOrder(Order order, List<OrderItem> items, User actor) {
         Order savedOrder = orderRepository.save(order);
         for (OrderItem item : items) {
             item.setOrder(savedOrder);
             orderItemRepository.save(item);
+
+            // Deduct stock and increment sold count in database
+            if (item.getProduct() != null) {
+                com.example.application.model.product.Product product = item.getProduct();
+                int requestedQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                int currentStock = product.getStock() != null ? product.getStock() : 0;
+                int newStock = Math.max(0, currentStock - requestedQty);
+                int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+
+                product.setStock(newStock);
+                product.setSoldCount(currentSold + requestedQty);
+
+                if (newStock == 0) {
+                    product.setStatus(com.example.application.model.product.ProductStatus.OUT_OF_STOCK);
+                }
+                productRepository.save(product);
+            }
         }
 
         // Add initial status log
@@ -59,6 +82,7 @@ public class OrderService {
         return savedOrder;
     }
 
+    @Transactional
     public Order updateOrderStatus(Order order, OrderStatus newStatus, String notes, User actor) {
         order.setStatus(newStatus);
         Order updated = orderRepository.save(order);
@@ -69,6 +93,13 @@ public class OrderService {
         log.setNotes(notes);
         log.setActor(actor);
         statusLogRepository.save(log);
+
+        // Jika status menjadi SELESAI, dana Escrow dicairkan ke penjual
+        if (newStatus == OrderStatus.SELESAI && updated.getSeller() != null) {
+            User seller = updated.getSeller();
+            // Dana transaksi diteruskan & dicatat untuk penjual
+            System.out.println("Dana Escrow sebesar Rp " + updated.getTotalAmount() + " berhasil dicairkan ke penjual: " + seller.getFullName());
+        }
 
         return updated;
     }

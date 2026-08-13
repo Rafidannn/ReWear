@@ -9,6 +9,7 @@ import com.example.application.service.product.CategoryService;
 import com.example.application.service.product.ProductService;
 import com.example.application.service.user.UserService;
 import com.example.application.config.WebMvcConfig;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
@@ -53,6 +54,8 @@ public class AddProductView extends VerticalLayout {
         this.productService = productService;
         this.categoryService = categoryService;
         this.userService = userService;
+
+        if (!AuthGuard.requireLogin(UI.getCurrent())) return;
 
         setSpacing(false);
         setPadding(false);

@@ -1,5 +1,6 @@
 package com.example.application.views.chat;
 
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -94,6 +95,8 @@ public class ChatView extends Div implements BeforeEnterObserver {
     private final TextField messageInput = new TextField();
 
     public ChatView() {
+        if (!AuthGuard.requireLogin(UI.getCurrent())) return;
+
         addClassName("rw-chat-page");
 
         // Initialize sample conversations matching the exact screenshot design

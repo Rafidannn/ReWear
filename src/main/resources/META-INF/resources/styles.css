@@ -1997,20 +1997,21 @@ div.hero-banner,
 
 .btn-confirm-pay {
     width: 100%;
-    background: #001934;
-    color: #FFFFFF;
-    font-size: 16px;
-    font-weight: 800;
-    border: none;
-    border-radius: 8px;
-    padding: 14px;
+    background-color: #001934 !important;
+    color: #FFFFFF !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
     cursor: pointer;
-    transition: background 0.2s ease;
-    box-shadow: 0 4px 12px rgba(0,25,52,0.2);
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,25,52,0.2) !important;
 }
 
 .btn-confirm-pay:hover {
-    background: #092C54;
+    background-color: #0A3D7A !important;
+    color: #F5C45E !important;
 }
 
 .rw-checkout-fine-print {

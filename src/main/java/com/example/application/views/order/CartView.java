@@ -1,5 +1,9 @@
 package com.example.application.views.order;
 
+import com.example.application.model.order.CartItemEntity;
+import com.example.application.model.user.User;
+import com.example.application.service.order.CartService;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -24,6 +28,7 @@ public class CartView extends Div {
     public static final String SESSION_CART_KEY = "REWEAR_USER_CART_ITEMS_V2";
     public static final String SESSION_CART_INIT_KEY = "REWEAR_USER_CART_INITIALIZED_V2";
 
+    private final CartService cartService;
     private List<CartItem> cartItems;
     private final Div leftContainer = new Div();
     private final Span totalHargaSpan = new Span("Rp 0");
@@ -36,11 +41,14 @@ public class CartView extends Div {
     private double discountAmount = 0;
     private double dynamicServiceFee = 0;
 
-    public CartView() {
+    public CartView(CartService cartService) {
+        this.cartService = cartService;
+        if (!AuthGuard.requireLogin(UI.getCurrent())) return;
+
         addClassName("rw-cart-page");
 
-        // Load cart items from VaadinSession (Persistent across refreshes)
-        this.cartItems = loadCartFromSession();
+        // Load cart items from DB via CartService
+        this.cartItems = loadCartFromDatabase();
 
         Div wrapper = new Div();
         wrapper.addClassName("rw-cart-wrapper");
@@ -74,54 +82,6 @@ public class CartView extends Div {
         recalculateTotal();
     }
 
-    @SuppressWarnings("unchecked")
-    private List<CartItem> loadCartFromSession() {
-        VaadinSession session = VaadinSession.getCurrent();
-        if (session == null) {
-            return createInitialSampleData();
-        }
-
-        Boolean isInitialized = (Boolean) session.getAttribute(SESSION_CART_INIT_KEY);
-        List<CartItem> items = (List<CartItem>) session.getAttribute(SESSION_CART_KEY);
-
-        if (isInitialized == null || !isInitialized || items == null) {
-            items = createInitialSampleData();
-            session.setAttribute(SESSION_CART_KEY, items);
-            session.setAttribute(SESSION_CART_INIT_KEY, true);
-        }
-
-        return items;
-    }
-
-    private void syncCartToSession() {
-        VaadinSession session = VaadinSession.getCurrent();
-        if (session != null) {
-            session.setAttribute(SESSION_CART_KEY, cartItems);
-        }
-    }
-
-    private List<CartItem> createInitialSampleData() {
-        List<CartItem> list = new ArrayList<>();
-        // Toko 1: Butik Siswa SMKN 24 (Pasar SMKN 24)
-        list.add(new CartItem(
-            "1", "Butik Siswa SMKN 24", "Warga SMKN 24", "badge-gold",
-            "Jaket Denim Custom SMKN 24", "Size: L | Warna: Biru Indigo",
-            120000, 0, "images/buku.jpeg", null, 1, true, true
-        ));
-        list.add(new CartItem(
-            "2", "Butik Siswa SMKN 24", "Warga SMKN 24", "badge-gold",
-            "Minimalist Graphic Tee", "One Size | Material: Cotton",
-            45000, 0, "images/colokan.webp", null, 1, true, true
-        ));
-
-        // Toko 2: Thrift By Alif (Pasar Umum / Reguler)
-        list.add(new CartItem(
-            "3", "Thrift By Alif", "Verifikasi Member", "badge-blue",
-            "Vans Old Skool Classic", "Size: 41 | Kondisi: 9/10",
-            350000, 700000, "images/kipas.jpg", "Pre-Loved", 1, false, false
-        ));
-        return list;
-    }
 
     private void renderLeftColumn() {
         leftContainer.removeAll();
@@ -166,8 +126,14 @@ public class CartView extends Div {
         deleteSelectedBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
         deleteSelectedBtn.addClassName("rw-cart-delete-selected");
         deleteSelectedBtn.addClickListener(e -> {
-            boolean removedAny = cartItems.removeIf(CartItem::isSelected);
-            if (removedAny) {
+            List<CartItem> selectedList = cartItems.stream().filter(CartItem::isSelected).toList();
+            if (!selectedList.isEmpty()) {
+                for (CartItem item : selectedList) {
+                    try {
+                        cartService.removeFromCart(Long.parseLong(item.getId()));
+                    } catch (Exception ignored) {}
+                }
+                cartItems.removeAll(selectedList);
                 syncCartToSession();
                 renderLeftColumn();
                 recalculateTotal();
@@ -302,6 +268,9 @@ public class CartView extends Div {
                 trashBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
                 trashBtn.setTooltipText("Hapus barang ini");
                 trashBtn.addClickListener(e -> {
+                    try {
+                        cartService.removeFromCart(Long.parseLong(item.getId()));
+                    } catch (Exception ignored) {}
                     cartItems.remove(item);
                     syncCartToSession();
                     renderLeftColumn();
@@ -317,7 +286,11 @@ public class CartView extends Div {
                 minusBtn.addClassName("rw-qty-btn");
                 minusBtn.addClickListener(e -> {
                     if (item.getQuantity() > 1) {
-                        item.setQuantity(item.getQuantity() - 1);
+                        int newQty = item.getQuantity() - 1;
+                        item.setQuantity(newQty);
+                        try {
+                            cartService.updateQuantity(Long.parseLong(item.getId()), newQty);
+                        } catch (Exception ignored) {}
                         syncCartToSession();
                         renderLeftColumn();
                         recalculateTotal();
@@ -330,7 +303,11 @@ public class CartView extends Div {
                 Span plusBtn = new Span("+");
                 plusBtn.addClassName("rw-qty-btn");
                 plusBtn.addClickListener(e -> {
-                    item.setQuantity(item.getQuantity() + 1);
+                    int newQty = item.getQuantity() + 1;
+                    item.setQuantity(newQty);
+                    try {
+                        cartService.updateQuantity(Long.parseLong(item.getId()), newQty);
+                    } catch (Exception ignored) {}
                     syncCartToSession();
                     renderLeftColumn();
                     recalculateTotal();
@@ -489,5 +466,25 @@ public class CartView extends Div {
 
         double totalTagihan = subtotal > 0 ? Math.max(0, subtotal - discountAmount + dynamicServiceFee) : 0;
         totalTagihanSpan.setText("Rp " + String.format("%,.0f", totalTagihan));
+    }
+
+    private List<CartItem> loadCartFromDatabase() {
+        User user = AuthGuard.getCurrentUser();
+        if (user == null) return new ArrayList<>();
+        List<CartItemEntity> entities = cartService.getCartItems(user);
+        List<CartItem> list = cartService.convertToUiCartItemList(entities);
+        syncCartToSession(list);
+        return list;
+    }
+
+    private void syncCartToSession() {
+        syncCartToSession(this.cartItems);
+    }
+
+    private void syncCartToSession(List<CartItem> items) {
+        if (VaadinSession.getCurrent() != null) {
+            VaadinSession.getCurrent().setAttribute(SESSION_CART_KEY, items);
+        }
+        MainLayout.reloadCartBadge(UI.getCurrent());
     }
 }
