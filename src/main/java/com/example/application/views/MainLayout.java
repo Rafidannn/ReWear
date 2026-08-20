@@ -181,10 +181,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
                 .set("font-weight", "700")
                 .set("font-size", "14px")
                 .set("cursor", "pointer")
-                .set("padding", "6px 12px")
-                .set("transition", "opacity 0.2s");
-            masukLink.getElement().addEventListener("mouseover", e -> masukLink.getElement().getStyle().set("opacity", "0.85"));
-            masukLink.getElement().addEventListener("mouseout", e -> masukLink.getElement().getStyle().set("opacity", "1.0"));
+                .set("padding", "6px 12px");
             masukLink.addClickListener(e -> UI.getCurrent().navigate("login"));
             rightSideItem = masukLink;
         } else {

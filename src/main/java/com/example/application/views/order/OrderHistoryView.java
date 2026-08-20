@@ -17,6 +17,7 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.*;
 
@@ -195,12 +196,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("border", "1px solid #E8EEF8")
             .set("box-shadow", "0 2px 16px rgba(0,25,52,0.05)")
             .set("margin-bottom", "16px")
-            .set("overflow", "hidden")
-            .set("transition", "box-shadow 0.2s ease");
-        card.getElement().addEventListener("mouseover", e ->
-            card.getElement().getStyle().set("box-shadow", "0 8px 32px rgba(0,25,52,0.10)"));
-        card.getElement().addEventListener("mouseout", e ->
-            card.getElement().getStyle().set("box-shadow", "0 2px 16px rgba(0,25,52,0.05)"));
+            .set("overflow", "hidden");
 
         // ── Status stripe at top ─────────────────────────────────
         Div stripe = new Div();

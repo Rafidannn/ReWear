@@ -327,11 +327,6 @@ public class NotificationView extends Div implements BeforeEnterObserver {
             }
         });
 
-        card.getElement().addEventListener("mouseover", e ->
-            card.getElement().getStyle().set("box-shadow", "0 4px 16px rgba(0,25,52,0.08)").set("transform", "translateY(-1px)"));
-        card.getElement().addEventListener("mouseout", e ->
-            card.getElement().getStyle().set("box-shadow", "none").set("transform", "translateY(0)"));
-
         return card;
     }
 

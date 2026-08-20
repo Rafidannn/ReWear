@@ -13,8 +13,6 @@ import com.vaadin.flow.server.AppShellSettings;
 @SpringBootApplication
 @StyleSheet(Aura.STYLESHEET)
 @StyleSheet("styles.css") // Your custom styles
-@StyleSheet("https://unpkg.com/aos@2.3.1/dist/aos.css")
-@JavaScript("https://unpkg.com/aos@2.3.1/dist/aos.js")
 @Push
 public class Application implements AppShellConfigurator {
 

@@ -3,7 +3,6 @@
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import url('https://unpkg.com/aos@2.3.1/dist/aos.css');
 
 :root {
     /* === Warna Exact dari Figma Frame 1 === */
@@ -45,6 +44,12 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: auto !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
 html,
 body,
 vaadin-app-layout {
@@ -56,6 +61,15 @@ vaadin-app-layout {
     max-width: 100% !important;
     overflow-x: hidden;
     background-color: var(--figma-navy) !important;
+}
+
+.hero-banner,
+.category-section-wrapper,
+.pasar-sekolah-container,
+.products-grid-container,
+.rw-catalog-container {
+    transform: translateZ(0);
+    will-change: auto;
 }
 
 /* ================================================================
@@ -106,11 +120,8 @@ vaadin-vertical-layout {
 /* Outer: Full-width navy background band */
 .rw-main-navbar {
     width: 100% !important;
-    background: rgba(0, 25, 52, 0.97) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: #001934 !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.25) !important;
     position: sticky !important;
     top: 0 !important;
     z-index: 999 !important;
@@ -399,7 +410,6 @@ div.hero-banner,
 
 .btn-gold:hover {
     background: #f0c070 !important;
-    transform: translateY(-2px);
 }
 
 /* Tombol Pelajari Selengkapnya */
@@ -412,7 +422,6 @@ div.hero-banner,
     border-radius: 8px !important;
     padding: 16px 48px !important;
     cursor: pointer;
-    transition: all 0.2s ease;
     letter-spacing: 0.14px;
     font-family: var(--rewear-font) !important;
     line-height: 20px !important;
@@ -420,7 +429,6 @@ div.hero-banner,
 
 .btn-outline-light:hover {
     background: rgba(255, 255, 255, 0.12) !important;
-    transform: translateY(-2px);
 }
 
 /* ================================================================
@@ -504,7 +512,6 @@ div.hero-banner,
     border-radius: 12px;
     padding: 24px 16px;
     text-align: center;
-    transition: all 0.22s ease;
     cursor: pointer;
     border: 1px solid transparent;
     display: flex;
@@ -517,8 +524,6 @@ div.hero-banner,
 
 .category-card:hover {
     background: #DCE8FD;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px -5px rgba(0, 25, 52, 0.1);
 }
 
 .category-icon-circle {
@@ -677,14 +682,13 @@ div.hero-banner,
     flex-direction: column;
     height: 100%;
     width: 100%;
-    transition: all 0.22s ease;
-    box-shadow: 0 2px 8px rgba(0, 25, 52, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 25, 52, 0.05);
+    border: 1px solid #E2E8F0;
     box-sizing: border-box;
 }
 
 .product-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 16px 28px -8px rgba(0, 25, 52, 0.14);
+    border-color: #CBD5E1;
 }
 
 .product-img-wrapper {
@@ -700,11 +704,6 @@ div.hero-banner,
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
-.product-card:hover .product-img {
-    transform: scale(1.05);
 }
 
 .verified-badge {
@@ -873,14 +872,11 @@ div.hero-banner,
    SCROLL REVEAL ANIMATIONS (driven by rewear-animations.js)
    ================================================================ */
 .rw-hidden {
-    opacity: 0;
-    transform: translateY(28px);
-    transition: opacity 0.55s ease, transform 0.55s ease;
+    opacity: 1 !important;
 }
 
 .rw-revealed {
     opacity: 1 !important;
-    transform: translateY(0) !important;
 }
 
 /* ================================================================
@@ -1035,7 +1031,6 @@ div.hero-banner,
 .rw-cat-active {
     background: #c8d9f7 !important;
     border: 2px solid #2563EB !important;
-    transform: translateY(-3px);
 }
 
 /* ================================================================
@@ -1181,12 +1176,10 @@ div.hero-banner,
     border: 1px solid #E2E8F0;
     display: flex;
     flex-direction: column;
-    transition: all 0.2s ease;
 }
 
 .recommend-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px -6px rgba(0, 25, 52, 0.12);
+    border-color: #CBD5E1;
 }
 
 .rw-footer-socials {

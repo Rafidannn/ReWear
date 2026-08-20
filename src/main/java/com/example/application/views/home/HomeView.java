@@ -136,7 +136,6 @@ public class HomeView extends VerticalLayout {
         sectionWrapper.setWidthFull();
         sectionWrapper.addClassName("category-section-wrapper");
         sectionWrapper.setId("category-section");
-        sectionWrapper.getElement().setAttribute("data-aos", "fade-up");
 
         Div innerContainer = new Div();
         innerContainer.addClassName("category-inner-container");
@@ -236,7 +235,6 @@ public class HomeView extends VerticalLayout {
         container.setWidthFull();
         container.addClassName("pasar-sekolah-container");
         container.setId("pasar-section");
-        container.getElement().setAttribute("data-aos", "fade-up");
 
         Div innerContainer = new Div();
         innerContainer.addClassName("pasar-sekolah-inner");
@@ -452,7 +450,6 @@ public class HomeView extends VerticalLayout {
         Div wrapper = new Div();
         wrapper.setWidthFull();
         wrapper.addClassName("cta-banner-wrapper");
-        wrapper.getElement().setAttribute("data-aos", "zoom-in");
 
         Div innerContainer = new Div();
         innerContainer.addClassName("cta-banner-inner");
@@ -491,7 +488,6 @@ public class HomeView extends VerticalLayout {
     private Component createFooter() {
         Div footer = new Div();
         footer.setWidthFull();
-        footer.getElement().setAttribute("data-aos", "fade-up");
         footer.getElement().setProperty("innerHTML",
             "<footer class='rw-footer'>" +
             "<div class='rw-footer-inner'>" +
@@ -553,25 +549,5 @@ public class HomeView extends VerticalLayout {
     private String extractImgUrl(String imagesJson, String fallback) {
         if (imagesJson == null || !imagesJson.contains("images/")) return fallback;
         return imagesJson.replace("[\"", "").replace("\"]", "").trim();
-    }
-
-    @Override
-    protected void onAttach(AttachEvent event) {
-        super.onAttach(event);
-        UI.getCurrent().getPage().executeJs(
-            "setTimeout(function() {\n" +
-            "    if (typeof AOS !== 'undefined') {\n" +
-            "        AOS.init({ duration: 800, once: true });\n" +
-            "    } else {\n" +
-            "        console.warn('AOS library not loaded. Revealing hidden sections.');\n" +
-            "        var els = document.querySelectorAll('[data-aos]');\n" +
-            "        for (var i = 0; i < els.length; i++) {\n" +
-            "            els[i].removeAttribute('data-aos');\n" +
-            "            els[i].style.opacity = '1';\n" +
-            "            els[i].style.transform = 'none';\n" +
-            "        }\n" +
-            "    }\n" +
-            "}, 350);"
-        );
     }
 }

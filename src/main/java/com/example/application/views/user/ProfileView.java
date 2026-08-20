@@ -1188,13 +1188,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
                 .set("flex-direction", "column")
                 .set("gap", "10px")
                 .set("position", "relative")
-                .set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)")
-                .set("transition", "all 0.2s ease");
-
-            card.getElement().addEventListener("mouseover", e ->
-                card.getElement().getStyle().set("box-shadow", "0 8px 24px rgba(0,25,52,0.10)").set("transform", "translateY(-2px)"));
-            card.getElement().addEventListener("mouseout", e ->
-                card.getElement().getStyle().set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)").set("transform", "translateY(0)"));
+                .set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)");
 
             String prodName = p != null && p.getName() != null ? p.getName() : "Produk Preloved";
             BigDecimal priceVal = (p != null && p.getPrice() != null) ? p.getPrice() : BigDecimal.ZERO;
@@ -1714,15 +1708,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             .set("overflow", "hidden")
             .set("display", "flex")
             .set("flex-direction", "column")
-            .set("cursor", "pointer")
-            .set("transition", "transform 0.2s ease, box-shadow 0.2s ease");
-
-        card.getElement().addEventListener("mouseenter", e -> {
-            card.getElement().getStyle().set("transform", "translateY(-4px)").set("box-shadow", "0 10px 24px rgba(0,25,52,0.1)");
-        });
-        card.getElement().addEventListener("mouseleave", e -> {
-            card.getElement().getStyle().set("transform", "translateY(0)").set("box-shadow", "none");
-        });
+            .set("cursor", "pointer");
 
         card.addClickListener(e -> UI.getCurrent().navigate("product/" + p.getId()));
 
