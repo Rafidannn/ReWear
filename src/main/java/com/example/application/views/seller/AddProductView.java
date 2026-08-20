@@ -237,8 +237,8 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
                     .set("height", "100%")
                     .set("object-fit", "cover");
 
-                // Tombol ✕ hapus
-                Button btnRemove = new Button("✕");
+                // Tombol hapus
+                Button btnRemove = new Button(VaadinIcon.CLOSE_SMALL.create());
                 btnRemove.getElement().getStyle()
                     .set("position", "absolute")
                     .set("top", "4px")

@@ -903,7 +903,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Div escrowBadge = new Div();
         escrowBadge.getElement().setProperty("innerHTML",
             "<div style='background:#1E3A8A;color:#FFFFFF;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;'>" +
-            "✓ Dana Dicairkan" +
+            "Dana Dicairkan" +
             "<span style='font-weight:400;font-size:10px;opacity:0.85;'>(Telah diteruskan ke penjual)</span></div>"
         );
 
@@ -970,7 +970,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             .set("align-items", "center")
             .set("justify-content", "space-between");
 
-        Span recText = new Span("✓ Diterima oleh Pembeli (20 Mar 2024)");
+        Span recText = new Span("Diterima oleh Pembeli (20 Mar 2024)");
         recText.getElement().getStyle().set("font-size", "13px").set("color", "#16A34A").set("font-weight", "700");
 
         Button btnReview = new Button("Beri Ulasan");

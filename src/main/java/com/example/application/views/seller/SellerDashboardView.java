@@ -971,7 +971,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private Component renderPengaturanTab() {
         Div wrapper = new Div();
-        H2 title = new H2("⚙️ Pengaturan Toko");
+        H2 title = new H2("Pengaturan Toko");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
 
         User seller = AuthGuard.getCurrentUser();

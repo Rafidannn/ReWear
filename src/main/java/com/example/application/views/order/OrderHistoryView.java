@@ -127,10 +127,10 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         statsRow.getElement().getStyle()
             .set("display", "flex").set("gap", "12px").set("margin-top", "20px").set("flex-wrap", "wrap");
         statsRow.add(
-            buildStatChip("📋 " + countSemua, "Total Pesanan", "#EFF6FF", "#1E40AF"),
-            buildStatChip("⚙️ " + countProses, "Diproses", "#FEF3C7", "#92400E"),
-            buildStatChip("🚚 " + countKirim, "Dikirim", "#F0FDF4", "#15803D"),
-            buildStatChip("🎉 " + countSelesai, "Selesai", "#F0FDF4", "#166534")
+            buildStatChip(String.valueOf(countSemua), "Total Pesanan", "#EFF6FF", "#1E40AF"),
+            buildStatChip(String.valueOf(countProses), "Diproses", "#FEF3C7", "#92400E"),
+            buildStatChip(String.valueOf(countKirim), "Dikirim", "#F0FDF4", "#15803D"),
+            buildStatChip(String.valueOf(countSelesai), "Selesai", "#F0FDF4", "#166534")
         );
 
         header.add(titleRow, statsRow);
@@ -500,7 +500,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 .set("color", "#64748B").set("text-transform", "uppercase").set("letter-spacing", "0.5px");
             itemsWrap.add(itemsLabel);
             for (OrderItem it : items) {
-                Span chip = new Span("👕 " + it.getProductNameSnapshot());
+                Span chip = new Span(it.getProductNameSnapshot());
                 chip.getElement().getStyle()
                     .set("background", "#EFF6FF").set("color", "#1E40AF")
                     .set("font-size", "13px").set("font-weight", "700")
@@ -778,15 +778,15 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("padding", "20px 24px").set("display", "flex")
             .set("flex-direction", "column").set("gap", "12px");
 
-        body.add(buildDetailRow("📍", "Alamat Pengiriman",
+        body.add(buildDetailRow("", "Alamat Pengiriman",
             order.getShippingAddress() != null ? order.getShippingAddress() : "-"));
-        body.add(buildDetailRow("💳", "Metode Pembayaran",
+        body.add(buildDetailRow("", "Metode Pembayaran",
             order.getPaymentMethod() != null ? order.getPaymentMethod() : "-"));
-        body.add(buildDetailRow("🚚", "Metode Pengiriman",
+        body.add(buildDetailRow("", "Metode Pengiriman",
             order.getShippingMethod() != null ? order.getShippingMethod().name() : "-"));
-        body.add(buildDetailRow("💰", "Total Pembayaran",
+        body.add(buildDetailRow("", "Total Pembayaran",
             "Rp " + String.format("%,.0f", order.getTotalAmount())));
-        body.add(buildDetailRow("📊", "Status",
+        body.add(buildDetailRow("", "Status",
             order.getStatus().name().replace("_", " ")));
 
         // Footer

@@ -362,9 +362,6 @@ public class ChatView extends Div implements BeforeEnterObserver {
 
         messageInput.setPlaceholder("Ketik pesan di sini...");
         messageInput.addClassName("rw-chat-input-field");
-        Span emojiIcon = new Span("😊");
-        emojiIcon.getElement().getStyle().set("cursor", "pointer").set("font-size", "18px").set("padding-right", "8px");
-        messageInput.setSuffixComponent(emojiIcon);
 
         Button btnSend = new Button(VaadinIcon.PAPERPLANE.create());
         btnSend.addClassName("rw-chat-btn-send");

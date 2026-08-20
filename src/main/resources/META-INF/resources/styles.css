@@ -1471,11 +1471,10 @@ div.hero-banner,
 
 .rw-cart-trash-btn {
     cursor: pointer;
-    transition: transform 0.15s ease;
-}
-
-.rw-cart-trash-btn:hover {
-    transform: scale(1.15);
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 
 .rw-qty-controller {
@@ -1488,9 +1487,14 @@ div.hero-banner,
 }
 
 .rw-qty-btn {
+    min-width: 28px;
     width: 28px;
     height: 28px;
-    display: flex;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;

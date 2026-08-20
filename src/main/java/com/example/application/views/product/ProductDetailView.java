@@ -31,6 +31,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.application.views.order.CartItem;
+import com.vaadin.flow.server.VaadinSession;
+
 @Route(value = "product", layout = MainLayout.class)
 @PageTitle("Detail Produk | ReWear SMKN 24")
 public class ProductDetailView extends VerticalLayout implements HasUrlParameter<Long> {
@@ -595,7 +598,44 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
                 Notification.show("Anda tidak dapat membeli produk yang Anda jual sendiri.", 3000, Notification.Position.TOP_CENTER);
                 return;
             }
-            cartService.addToCart(user, product, selectedQty[0]);
+
+            String mainImg = "images/buku.jpeg";
+            if (product.getImages() != null && !product.getImages().isBlank()) {
+                String trimmed = product.getImages().trim();
+                if (trimmed.startsWith("[")) {
+                    int start = trimmed.indexOf('"');
+                    int end = trimmed.indexOf('"', start + 1);
+                    if (start >= 0 && end > start) mainImg = trimmed.substring(start + 1, end);
+                } else {
+                    mainImg = trimmed;
+                }
+            }
+
+            String sName = (product.getSeller() != null && product.getSeller().getFullName() != null)
+                ? product.getSeller().getFullName() : "Penjual ReWear";
+
+            CartItem directItem = new CartItem(
+                "direct-" + product.getId(),
+                sName,
+                product.isSchoolMarket() ? "Pasar SMKN 24" : "Penjual Umum",
+                product.isSchoolMarket() ? "gold" : "blue",
+                product.getName(),
+                (selectedSize[0] != null ? "Ukuran: " + selectedSize[0] : (product.getCategory() != null ? product.getCategory().getName() : "Standar")),
+                product.getPrice() != null ? product.getPrice().doubleValue() : 0.0,
+                product.getPrice() != null ? product.getPrice().doubleValue() : 0.0,
+                mainImg,
+                product.isSchoolMarket() ? "Eksklusif SMKN 24" : "Preloved",
+                selectedQty[0],
+                true,
+                product.isSchoolMarket(),
+                maxStock
+            );
+            directItem.setProductId(product.getId());
+
+            VaadinSession session = VaadinSession.getCurrent();
+            if (session != null) {
+                session.setAttribute("DIRECT_CHECKOUT_ITEM", directItem);
+            }
             UI.getCurrent().navigate("checkout");
         });
 
@@ -862,13 +902,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
     }
 
     private String renderStars(int rating) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 1; i <= 5; i++) {
-            if (i <= rating) {
-                sb.append("⭐");
-            }
-        }
-        return sb.toString();
+        return rating + " / 5";
     }
 
     private Div createWhyFeature(String svgIcon, String titleText, String descText) {
@@ -891,7 +925,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("padding", "80px 24px")
             .set("text-align", "center");
 
-        Paragraph title = new Paragraph("🔍 Produk tidak ditemukan");
+        Paragraph title = new Paragraph("Produk Tidak Ditemukan");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "700").set("color", "#001934").set("margin", "0 0 12px");
 
         Paragraph subtitle = new Paragraph("Produk dengan ID " + productId + " tidak ada atau sudah tidak tersedia.");
