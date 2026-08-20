@@ -868,16 +868,6 @@ div.hero-banner,
     color: #FFFFFF !important;
 }
 
-/* ================================================================
-   SCROLL REVEAL ANIMATIONS (driven by rewear-animations.js)
-   ================================================================ */
-.rw-hidden {
-    opacity: 1 !important;
-}
-
-.rw-revealed {
-    opacity: 1 !important;
-}
 
 /* ================================================================
    HERO STATS ROW
