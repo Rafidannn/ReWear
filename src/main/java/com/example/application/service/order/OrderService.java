@@ -46,6 +46,10 @@ public class OrderService {
         return orderRepository.findById(id);
     }
 
+    public List<Order> getAllOrders() {
+        return orderRepository.findAllByOrderByCreatedAtDesc();
+    }
+
     @Transactional
     public Order createOrder(Order order, List<OrderItem> items, User actor) {
         Order savedOrder = orderRepository.save(order);
@@ -84,6 +88,7 @@ public class OrderService {
 
     @Transactional
     public Order updateOrderStatus(Order order, OrderStatus newStatus, String notes, User actor) {
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(newStatus);
         Order updated = orderRepository.save(order);
 
@@ -94,12 +99,53 @@ public class OrderService {
         log.setActor(actor);
         statusLogRepository.save(log);
 
+        // Jika status berubah menjadi DIBATALKAN dari status sebelumnya, kembalikan stok produk (restock)
+        if (newStatus == OrderStatus.DIBATALKAN && oldStatus != OrderStatus.DIBATALKAN) {
+            List<OrderItem> items = orderItemRepository.findByOrder(updated);
+            for (OrderItem item : items) {
+                if (item.getProduct() != null) {
+                    com.example.application.model.product.Product product = item.getProduct();
+                    int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+                    int currentStock = product.getStock() != null ? product.getStock() : 0;
+                    int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+
+                    product.setStock(currentStock + qty);
+                    product.setSoldCount(Math.max(0, currentSold - qty));
+
+                    if (product.getStatus() == com.example.application.model.product.ProductStatus.SOLD_OUT) {
+                        product.setStatus(com.example.application.model.product.ProductStatus.ACTIVE);
+                    }
+                    productRepository.save(product);
+                }
+            }
+        }
+
         // Jika status menjadi SELESAI, dana Escrow dicairkan ke penjual
         if (newStatus == OrderStatus.SELESAI && updated.getSeller() != null) {
             User seller = updated.getSeller();
-            // Dana transaksi diteruskan & dicatat untuk penjual
             System.out.println("Dana Escrow sebesar Rp " + updated.getTotalAmount() + " berhasil dicairkan ke penjual: " + seller.getFullName());
         }
+
+        return updated;
+    }
+
+    @Transactional
+    public Order shipOrder(Order order, CourierName courierName, String trackingNumber, String notes, User actor) {
+        if (courierName != null) {
+            order.setCourierName(courierName);
+        }
+        if (trackingNumber != null && !trackingNumber.isBlank()) {
+            order.setTrackingNumber(trackingNumber.trim());
+        }
+        order.setStatus(OrderStatus.DIKIRIM);
+        Order updated = orderRepository.save(order);
+
+        OrderStatusLog log = new OrderStatusLog();
+        log.setOrder(updated);
+        log.setStatus(OrderStatus.DIKIRIM);
+        log.setNotes(notes != null && !notes.isBlank() ? notes : "Pesanan telah dikirim oleh penjual.");
+        log.setActor(actor);
+        statusLogRepository.save(log);
 
         return updated;
     }

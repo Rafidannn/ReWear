@@ -11,5 +11,12 @@ import java.util.List;
 @Repository
 public interface SellerPayoutRepository extends JpaRepository<SellerPayout, Long> {
     List<SellerPayout> findBySeller(User seller);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM SellerPayout p LEFT JOIN FETCH p.bankAccount LEFT JOIN FETCH p.seller WHERE p.seller = :seller ORDER BY p.createdAt DESC")
+    List<SellerPayout> findBySellerOrderByCreatedAtDesc(@org.springframework.data.repository.query.Param("seller") User seller);
+
     List<SellerPayout> findByStatus(PayoutStatus status);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM SellerPayout p LEFT JOIN FETCH p.bankAccount LEFT JOIN FETCH p.seller ORDER BY p.createdAt DESC")
+    List<SellerPayout> findAllByOrderByCreatedAtDesc();
 }

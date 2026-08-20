@@ -23,9 +23,17 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.example.application.model.order.CourierName;
+import com.example.application.model.order.ShippingMethod;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.router.*;
-
+import com.example.application.service.payment.PaymentService;
+import com.example.application.model.payment.SellerPayout;
+import com.example.application.model.payment.PayoutStatus;
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -38,6 +46,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private final ProductService productService;
     private final OrderService orderService;
+    private final PaymentService paymentService;
 
     // Active tab state: "ringkasan", "produk", "pesanan", "laporan", "pengaturan"
     private String activeTab = "ringkasan";
@@ -47,9 +56,10 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
-    public SellerDashboardView(ProductService productService, OrderService orderService) {
+    public SellerDashboardView(ProductService productService, OrderService orderService, PaymentService paymentService) {
         this.productService = productService;
         this.orderService = orderService;
+        this.paymentService = paymentService;
 
         setSpacing(false);
         setPadding(false);
@@ -264,15 +274,15 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             .set("grid-template-columns", "repeat(3, 1fr)")
             .set("gap", "16px");
 
-        statsGrid.add(createStatCard("TOTAL OMSET PENJUALAN", "Rp " + String.format("%,.0f", totalPenjualan), "Real DB", "#15803D", "#DCFCE7", "💰"));
-        statsGrid.add(createStatCard("TOTAL PESANAN MASUK", totalPesanan + " Transaksi", orders.isEmpty() ? "Belum ada" : "Aktif", "#1E40AF", "#DBEAFE", "📦"));
-        statsGrid.add(createStatCard("PRODUK DIJUAL", totalProduk + " Barang", "Katalog", "#475569", "#F1F5F9", "🏷️"));
+        statsGrid.add(createStatCard("TOTAL OMSET PENJUALAN", "Rp " + String.format("%,.0f", totalPenjualan), "Real DB", "#15803D", "#DCFCE7", VaadinIcon.MONEY));
+        statsGrid.add(createStatCard("TOTAL PESANAN MASUK", totalPesanan + " Transaksi", orders.isEmpty() ? "Belum ada" : "Aktif", "#1E40AF", "#DBEAFE", VaadinIcon.PACKAGE));
+        statsGrid.add(createStatCard("PRODUK DIJUAL", totalProduk + " Barang", "Katalog", "#475569", "#F1F5F9", VaadinIcon.TAG));
 
         wrapper.add(statsGrid);
 
         // Section Pesanan Terbaru
         Div sectionTitle = new Div();
-        H3 h3 = new H3("📋 Pesanan Terbaru dari Pembeli");
+        H3 h3 = new H3("Pesanan Terbaru dari Pembeli");
         h3.getStyle().set("font-size", "18px").set("font-weight", "800").set("color", "#001934").set("margin", "16px 0 12px 0");
         sectionTitle.add(h3);
         wrapper.add(sectionTitle);
@@ -282,7 +292,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         return wrapper;
     }
 
-    private Div createStatCard(String label, String value, String badgeText, String badgeColor, String badgeBg, String emojiIcon) {
+    private Div createStatCard(String label, String value, String badgeText, String badgeColor, String badgeBg, VaadinIcon icon) {
         Div card = new Div();
         card.getElement().getStyle()
             .set("background", "#FFFFFF")
@@ -299,9 +309,10 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         top.setAlignItems(FlexComponent.Alignment.CENTER);
         top.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
-        Div iconBox = new Div(new Span(emojiIcon));
+        Div iconBox = new Div(icon.create());
         iconBox.getElement().getStyle()
             .set("width", "36px").set("height", "36px").set("border-radius", "10px").set("background", "#EFF6FF")
+            .set("color", "#0A3D7A")
             .set("display", "flex").set("align-items", "center").set("justify-content", "center").set("font-size", "18px");
 
         Span badge = new Span(badgeText);
@@ -331,7 +342,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private Component renderPesananMasukTab() {
         Div wrapper = new Div();
-        H2 title = new H2("🛍️ Kelola Pesanan Masuk");
+        H2 title = new H2("Kelola Pesanan Masuk");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
 
         Paragraph sub = new Paragraph("Pantau dan proses semua pesanan dari pembeli secara real-time dari database.");
@@ -352,7 +363,9 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             Div empty = new Div();
             empty.getElement().setProperty("innerHTML",
                 "<div style='text-align:center;padding:48px 24px;background:#FFFFFF;border-radius:16px;border:1px dashed #CBD5E1;'>" +
-                "<div style='font-size:44px;margin-bottom:12px;'>📬</div>" +
+                "<div style='width:48px;height:48px;margin:0 auto 12px;border-radius:12px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#64748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'></path><polyline points='3.27 6.96 12 12.01 20.73 6.96'></polyline><line x1='12' y1='22.08' x2='12' y2='12'></line></svg>" +
+                "</div>" +
                 "<h3 style='color:#001934;font-size:18px;font-weight:800;margin:0 0 6px 0;'>Belum Ada Pesanan Masuk</h3>" +
                 "<p style='color:#64748B;font-size:14px;margin:0;'>Pesanan dari pembeli yang membeli barangmu akan muncul di sini secara otomatis.</p>" +
                 "</div>"
@@ -396,10 +409,10 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             buyerBox.getStyle().set("margin", "12px 0").set("padding", "12px 16px").set("background", "#F8FAFC").set("border-radius", "8px").set("font-size", "13px");
 
             String buyerName = order.getBuyer() != null && order.getBuyer().getFullName() != null ? order.getBuyer().getFullName() : "Pembeli ReWear";
-            Div bRow = new Div(new Span("👤 Pembeli: "), new Span(buyerName));
+            Div bRow = new Div(new Span("Pembeli: "), new Span(buyerName));
             bRow.getStyle().set("font-weight", "700").set("color", "#001934").set("margin-bottom", "4px");
 
-            Div aRow = new Div(new Span("📍 Alamat Tujuan: "), new Span(order.getShippingAddress() != null ? order.getShippingAddress() : "-"));
+            Div aRow = new Div(new Span("Alamat Tujuan: "), new Span(order.getShippingAddress() != null ? order.getShippingAddress() : "-"));
             aRow.getStyle().set("color", "#475569");
 
             buyerBox.add(bRow, aRow);
@@ -438,36 +451,31 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
             // Tombol Penjual berdasarkan Status
             if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN || order.getStatus() == OrderStatus.DIBAYAR) {
-                Button btnProses = new Button("⚙️ Terima & Diproses", e -> {
+                Button btnProses = new Button("Proses Pesanan", e -> {
                     orderService.updateOrderStatus(order, OrderStatus.DIPROSES, "Pesanan diterima dan sedang diproses penjual.", sellerActor);
-                    Notification success = Notification.show("✅ Pesanan #" + order.getOrderNumber() + " berhasil diproses!", 2500, Notification.Position.TOP_CENTER);
+                    Notification success = Notification.show("Pesanan #" + order.getOrderNumber() + " sedang diproses.", 2500, Notification.Position.TOP_CENTER);
                     success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                     buildMainLayout();
                 });
-                btnProses.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px");
+                btnProses.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
                 actionBtns.add(btnProses);
             }
 
             if (order.getStatus() == OrderStatus.DIPROSES) {
-                Button btnKirim = new Button("🚚 Kirim / Siap COD", e -> {
-                    orderService.updateOrderStatus(order, OrderStatus.DIKIRIM, "Pesanan diserahkan ke pengiriman / titik temui COD.", sellerActor);
-                    Notification success = Notification.show("🚚 Pesanan #" + order.getOrderNumber() + " ditandai dikirim!", 2500, Notification.Position.TOP_CENTER);
-                    success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    buildMainLayout();
+                Button btnKirim = new Button("Atur Pengiriman", VaadinIcon.TRUCK.create(), e -> {
+                    openShipOrderDialog(order, sellerActor);
                 });
-                btnKirim.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px");
+                btnKirim.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
                 actionBtns.add(btnKirim);
             }
 
             if (order.getStatus() == OrderStatus.DIKIRIM) {
-                Button btnSelesai = new Button("🎉 Tandai Selesai", e -> {
-                    orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Pesanan dikonfirmasi selesai.", sellerActor);
-                    Notification success = Notification.show("🎉 Pesanan #" + order.getOrderNumber() + " selesai!", 2500, Notification.Position.TOP_CENTER);
-                    success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    buildMainLayout();
-                });
-                btnSelesai.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px");
-                actionBtns.add(btnSelesai);
+                Div shipInfo = new Div();
+                shipInfo.getStyle().set("font-size", "12px").set("color", "#475569").set("background", "#F1F5F9").set("padding", "6px 12px").set("border-radius", "6px");
+                String courier = order.getCourierName() != null ? order.getCourierName().name() : "Kurir";
+                String tracking = order.getTrackingNumber() != null ? order.getTrackingNumber() : "-";
+                shipInfo.setText("Pengiriman: " + courier + " (" + tracking + ")");
+                actionBtns.add(shipInfo);
             }
 
             footer.add(totalBox, actionBtns);
@@ -478,41 +486,146 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         return container;
     }
 
+    private void openShipOrderDialog(Order order, User sellerActor) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Atur Pengiriman Pesanan #" + order.getOrderNumber());
+        dialog.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        boolean isCod = order.getShippingMethod() == ShippingMethod.COD_SEKOLAH;
+
+        if (isCod) {
+            Paragraph info = new Paragraph("Pesanan ini menggunakan metode COD Sekolah (Pasar SMKN 24). Tentukan titik pertemuan dan waktu serah terima barang.");
+            info.getStyle().set("font-size", "13px").set("color", "#64748B").set("margin", "0");
+
+            ComboBox<String> locationCombo = new ComboBox<>("Titik Pertemuan di SMKN 24");
+            locationCombo.setItems(
+                "Kantin Utama SMKN 24",
+                "Pos Satpam / Gerbang Depan",
+                "Lobby Gedung Pusat",
+                "Ruang OSIS / Lapangan",
+                "Bengkel / Lab Kejuruan",
+                "Lainnya"
+            );
+            locationCombo.setValue("Kantin Utama SMKN 24");
+            locationCombo.setWidthFull();
+
+            TextField timeField = new TextField("Waktu & Janji Temu");
+            timeField.setPlaceholder("Contoh: Istirahat pertama jam 10.00 di meja kantin barat");
+            timeField.setWidthFull();
+
+            layout.add(info, locationCombo, timeField);
+
+            Button btnCancel = new Button("Batal", e -> dialog.close());
+            btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+            Button btnSubmit = new Button("Konfirmasi Siap COD", e -> {
+                String loc = locationCombo.getValue();
+                String timeNote = timeField.getValue();
+                String fullNotes = "COD di " + loc + (timeNote != null && !timeNote.isBlank() ? " (" + timeNote + ")" : "");
+
+                orderService.shipOrder(order, CourierName.LAINNYA, loc, fullNotes, sellerActor);
+                Notification.show("Pesanan ditandai siap COD di " + loc, 3000, Notification.Position.TOP_CENTER);
+                dialog.close();
+                buildMainLayout();
+            });
+            btnSubmit.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700").set("border-radius", "8px");
+
+            dialog.getFooter().add(btnCancel, btnSubmit);
+        } else {
+            Paragraph info = new Paragraph("Pesanan ini dikirim via jasa ekspedisi reguler. Masukkan kurir dan nomor resi pengiriman.");
+            info.getStyle().set("font-size", "13px").set("color", "#64748B").set("margin", "0");
+
+            ComboBox<CourierName> courierCombo = new ComboBox<>("Jasa Kurir");
+            courierCombo.setItems(CourierName.values());
+            courierCombo.setItemLabelGenerator(Enum::name);
+            courierCombo.setValue(CourierName.JNE);
+            courierCombo.setWidthFull();
+
+            TextField resiField = new TextField("Nomor Resi Pengiriman");
+            resiField.setPlaceholder("Contoh: JP9821049281");
+            resiField.setWidthFull();
+
+            Button btnAutoResi = new Button("Buat Resi Otomatis", VaadinIcon.MAGIC.create());
+            btnAutoResi.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnAutoResi.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB").set("cursor", "pointer");
+            btnAutoResi.addClickListener(e -> {
+                CourierName c = courierCombo.getValue() != null ? courierCombo.getValue() : CourierName.JNE;
+                long rand = (long) (Math.random() * 90000000L) + 10000000L;
+                resiField.setValue("RW-" + c.name() + "-" + rand);
+            });
+
+            TextArea noteField = new TextArea("Catatan Tambahan untuk Pembeli (Opsional)");
+            noteField.setPlaceholder("Paket sudah diserahkan ke kurir...");
+            noteField.setWidthFull();
+
+            layout.add(info, courierCombo, resiField, btnAutoResi, noteField);
+
+            Button btnCancel = new Button("Batal", e -> dialog.close());
+            btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+            Button btnSubmit = new Button("Konfirmasi Pengiriman", e -> {
+                String resi = resiField.getValue();
+                if (resi == null || resi.isBlank()) {
+                    Notification.show("Harap isi nomor resi atau gunakan 'Buat Resi Otomatis'", 3000, Notification.Position.TOP_CENTER);
+                    return;
+                }
+
+                CourierName c = courierCombo.getValue() != null ? courierCombo.getValue() : CourierName.JNE;
+                String note = noteField.getValue();
+                orderService.shipOrder(order, c, resi, note, sellerActor);
+
+                Notification.show("Pengiriman berhasil dikonfirmasi dengan resi: " + resi, 3000, Notification.Position.TOP_CENTER);
+                dialog.close();
+                buildMainLayout();
+            });
+            btnSubmit.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700").set("border-radius", "8px");
+
+            dialog.getFooter().add(btnCancel, btnSubmit);
+        }
+
+        dialog.add(layout);
+        dialog.open();
+    }
+
     private Span buildStatusBadge(OrderStatus status) {
         Span badge = new Span();
         if (status == null) status = OrderStatus.MENUNGGU_PEMBAYARAN;
 
         switch (status) {
             case MENUNGGU_PEMBAYARAN -> {
-                badge.setText("⏳ Menunggu Pembayaran");
+                badge.setText("Menunggu Pembayaran");
                 badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
             }
             case DIBAYAR -> {
-                badge.setText("✅ Dibayar");
+                badge.setText("Sudah Dibayar");
                 badge.getStyle().set("background", "#DCFCE7").set("color", "#166534");
             }
             case DIPROSES -> {
-                badge.setText("⚙️ Diproses");
+                badge.setText("Sedang Diproses");
                 badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF");
             }
             case DIKIRIM -> {
-                badge.setText("🚚 Dikirim / Siap COD");
+                badge.setText("Dalam Pengiriman");
                 badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D");
             }
             case DITERIMA -> {
-                badge.setText("📬 Diterima");
+                badge.setText("Pesanan Diterima");
                 badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D");
             }
             case SELESAI -> {
-                badge.setText("🎉 Selesai");
+                badge.setText("Selesai");
                 badge.getStyle().set("background", "#DCFCE7").set("color", "#166534");
             }
             case KOMPLAIN -> {
-                badge.setText("⚠️ Komplain");
+                badge.setText("Komplain / Retur");
                 badge.getStyle().set("background", "#FEF2F2").set("color", "#991B1B");
             }
             case DIBATALKAN -> {
-                badge.setText("❌ Dibatalkan");
+                badge.setText("Dibatalkan");
                 badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B");
             }
         }
@@ -539,7 +652,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         top.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         top.getElement().getStyle().set("margin-bottom", "20px");
 
-        H2 title = new H2("📦 Daftar Produk Saya");
+        H2 title = new H2("Daftar Produk Saya");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0");
 
         Button btnAdd = new Button("+ Tambah Produk Baru", e -> UI.getCurrent().navigate("sell"));
@@ -566,30 +679,294 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private Component renderLaporanTab() {
         Div wrapper = new Div();
-        H2 title = new H2("📊 Laporan Keuangan Toko");
-        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
+        wrapper.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "28px");
+
+        // 1. Header Section
+        Div header = new Div();
+        H2 title = new H2("Laporan Keuangan & Saldo ReWearPay");
+        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
+
+        Paragraph sub = new Paragraph("Pantau penghasilan toko, dana escrow terikat pesanan, dan ajukan pencairan saldo langsung ke rekening bank atau e-wallet Anda.");
+        sub.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0");
+        header.add(title, sub);
+        wrapper.add(header);
 
         User seller = AuthGuard.getCurrentUser();
-        List<Order> orders = seller != null ? orderService.getSellerOrders(seller) : List.of();
+        BigDecimal availableBalance = seller != null ? paymentService.getAvailableBalance(seller) : BigDecimal.ZERO;
+        BigDecimal escrowBalance = seller != null ? paymentService.getEscrowBalance(seller) : BigDecimal.ZERO;
 
+        List<Order> orders = seller != null ? orderService.getSellerOrders(seller) : List.of();
         double totalOmset = orders.stream()
             .filter(o -> o.getStatus() == OrderStatus.SELESAI || o.getStatus() == OrderStatus.DITERIMA || o.getStatus() == OrderStatus.DIBAYAR || o.getStatus() == OrderStatus.DIPROSES || o.getStatus() == OrderStatus.DIKIRIM)
             .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount().doubleValue() : 0)
             .sum();
 
-        Div card = new Div();
-        card.getElement().getStyle()
-            .set("background", "#FFFFFF").set("border-radius", "16px").set("padding", "24px").set("border", "1px solid #E2E8F0");
+        // 2. Metrics Cards Grid (3 Kolom)
+        Div statsGrid = new Div();
+        statsGrid.getElement().getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(auto-fit, minmax(280px, 1fr))")
+            .set("gap", "20px");
 
-        H4 subTitle = new H4("Total Omset Real dari Database");
-        subTitle.getElement().getStyle().set("color", "#64748B").set("margin", "0 0 4px 0");
+        // Card 1: Saldo Siap Ditarik (Navy Hero Card)
+        Div cardAvailable = new Div();
+        cardAvailable.getElement().getStyle()
+            .set("background", "linear-gradient(135deg, #001934 0%, #0A3D7A 100%)")
+            .set("border-radius", "16px")
+            .set("padding", "24px")
+            .set("color", "#FFFFFF")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("justify-content", "space-between")
+            .set("box-shadow", "0 4px 20px rgba(0, 25, 52, 0.12)");
 
-        H3 totalVal = new H3("Rp " + String.format("%,.0f", totalOmset));
-        totalVal.getElement().getStyle().set("font-size", "32px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 16px 0");
+        Div availTop = new Div();
+        Span availLabel = new Span("SALDO SIAP DITARIK");
+        availLabel.getElement().getStyle().set("font-size", "11px").set("font-weight", "800").set("color", "#F5C45E").set("letter-spacing", "0.5px");
+        H3 availVal = new H3("Rp " + String.format("%,.0f", availableBalance));
+        availVal.getElement().getStyle().set("font-size", "28px").set("font-weight", "900").set("color", "#FFFFFF").set("margin", "6px 0 12px 0");
+        Span availHint = new Span("Dapat langsung dicairkan kapan saja");
+        availHint.getElement().getStyle().set("font-size", "12px").set("color", "rgba(255,255,255,0.75)");
+        availTop.add(availLabel, availVal, availHint);
 
-        card.add(subTitle, totalVal);
-        wrapper.add(title, card);
+        Button btnWithdraw = new Button("Tarik Saldo Sekarang", VaadinIcon.WALLET.create(), e -> {
+            if (seller != null) {
+                openWithdrawDialog(seller, availableBalance);
+            }
+        });
+        btnWithdraw.getElement().getStyle()
+            .set("background", "#F5C45E")
+            .set("color", "#001934")
+            .set("font-weight", "800")
+            .set("font-size", "13px")
+            .set("border-radius", "10px")
+            .set("border", "none")
+            .set("padding", "12px 18px")
+            .set("margin-top", "20px")
+            .set("cursor", "pointer")
+            .set("width", "100%");
+
+        cardAvailable.add(availTop, btnWithdraw);
+
+        // Card 2: Dana Escrow Tertahan (Light Blue Card)
+        Div cardEscrow = new Div();
+        cardEscrow.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("border", "1px solid #BFDBFE")
+            .set("border-radius", "16px")
+            .set("padding", "24px")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("justify-content", "space-between");
+
+        Div escTop = new Div();
+        Span escLabel = new Span("DANA ESCROW TERIKAT PESANAN");
+        escLabel.getElement().getStyle().set("font-size", "11px").set("font-weight", "800").set("color", "#2563EB").set("letter-spacing", "0.5px");
+        H3 escVal = new H3("Rp " + String.format("%,.0f", escrowBalance));
+        escVal.getElement().getStyle().set("font-size", "28px").set("font-weight", "900").set("color", "#001934").set("margin", "6px 0 12px 0");
+        Span escHint = new Span("Dari pesanan yang sedang diproses atau dikirim. Otomatis cair setelah pembeli konfirmasi barang diterima.");
+        escHint.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("line-height", "1.4");
+        escTop.add(escLabel, escVal, escHint);
+        cardEscrow.add(escTop);
+
+        // Card 3: Total Omset Kotor Penjualan
+        Div cardOmset = new Div();
+        cardOmset.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "24px")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("justify-content", "space-between");
+
+        Div omsTop = new Div();
+        Span omsLabel = new Span("TOTAL OMSET PENJUALAN");
+        omsLabel.getElement().getStyle().set("font-size", "11px").set("font-weight", "800").set("color", "#64748B").set("letter-spacing", "0.5px");
+        H3 omsVal = new H3("Rp " + String.format("%,.0f", totalOmset));
+        omsVal.getElement().getStyle().set("font-size", "28px").set("font-weight", "900").set("color", "#001934").set("margin", "6px 0 12px 0");
+        Span omsHint = new Span("Akumulasi transaksi penjualan toko di ReWear SMKN 24.");
+        omsHint.getElement().getStyle().set("font-size", "12px").set("color", "#64748B");
+        omsTop.add(omsLabel, omsVal, omsHint);
+        cardOmset.add(omsTop);
+
+        statsGrid.add(cardAvailable, cardEscrow, cardOmset);
+        wrapper.add(statsGrid);
+
+        // 3. Payout Requests History Section
+        Div payoutSection = new Div();
+        payoutSection.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "24px");
+
+        H3 payoutTitle = new H3("Riwayat Penarikan Saldo (Payout)");
+        payoutTitle.getElement().getStyle().set("font-size", "18px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 16px 0");
+        payoutSection.add(payoutTitle);
+
+        List<SellerPayout> payouts = seller != null ? paymentService.getSellerPayouts(seller) : List.of();
+        if (payouts.isEmpty()) {
+            Div empty = new Div(new Paragraph("Belum ada riwayat penarikan dana. Klik tombol 'Tarik Saldo Sekarang' di atas untuk mencairkan hasil penjualan Anda."));
+            empty.getElement().getStyle().set("color", "#64748B").set("font-size", "13px").set("text-align", "center").set("padding", "24px 0");
+            payoutSection.add(empty);
+        } else {
+            Grid<SellerPayout> payoutGrid = new Grid<>(SellerPayout.class, false);
+            payoutGrid.addColumn(SellerPayout::getReferenceNumber).setHeader("No. Tiket").setAutoWidth(true);
+            payoutGrid.addColumn(p -> p.getCreatedAt() != null ? p.getCreatedAt().format(DATE_FMT) : "-").setHeader("Tanggal").setAutoWidth(true);
+            payoutGrid.addColumn(p -> {
+                if (p.getBankAccount() != null) {
+                    return p.getBankAccount().getBankName() + " (" + p.getBankAccount().getAccountNumber() + ")";
+                }
+                return "-";
+            }).setHeader("Tujuan Transfer").setAutoWidth(true);
+            payoutGrid.addColumn(p -> "Rp " + String.format("%,.0f", p.getAmount() != null ? p.getAmount() : BigDecimal.ZERO)).setHeader("Nominal").setAutoWidth(true);
+            payoutGrid.addComponentColumn(this::buildPayoutStatusBadge).setHeader("Status").setAutoWidth(true);
+            payoutGrid.addColumn(p -> p.getAdminNotes() != null ? p.getAdminNotes() : "-").setHeader("Catatan Admin").setAutoWidth(true);
+
+            payoutGrid.setItems(payouts);
+            payoutSection.add(payoutGrid);
+        }
+
+        wrapper.add(payoutSection);
         return wrapper;
+    }
+
+    private void openWithdrawDialog(User seller, BigDecimal availableBalance) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Pencairan Saldo ReWearPay Penjual");
+        dialog.setWidth("480px");
+
+        VerticalLayout formLayout = new VerticalLayout();
+        formLayout.setPadding(false);
+        formLayout.setSpacing(true);
+
+        Div saldoInfo = new Div();
+        saldoInfo.getElement().getStyle()
+            .set("background", "#F0FDF4")
+            .set("border", "1px solid #BBF7D0")
+            .set("padding", "12px 16px")
+            .set("border-radius", "8px")
+            .set("font-size", "13px")
+            .set("color", "#166534")
+            .set("margin-bottom", "12px");
+        saldoInfo.setText("Saldo Anda yang siap dicairkan: Rp " + String.format("%,.0f", availableBalance));
+
+        ComboBox<String> bankCombo = new ComboBox<>("Bank atau E-Wallet Tujuan");
+        bankCombo.setItems("Bank BCA", "Bank Mandiri", "Bank BRI", "Bank BNI", "GoPay", "OVO", "DANA", "ShopeePay");
+        bankCombo.setValue("Bank BCA");
+        bankCombo.setWidthFull();
+
+        TextField accNumField = new TextField("Nomor Rekening / No. HP E-Wallet");
+        accNumField.setPlaceholder("Contoh: 1234567890");
+        accNumField.setWidthFull();
+
+        TextField holderField = new TextField("Nama Pemilik Rekening / Akun");
+        holderField.setValue(seller.getFullName() != null ? seller.getFullName() : "");
+        holderField.setWidthFull();
+
+        NumberField amountField = new NumberField("Nominal Penarikan (Rp)");
+        amountField.setPlaceholder("Min. Rp 10.000");
+        amountField.setMin(10000);
+        amountField.setMax(availableBalance.doubleValue());
+        amountField.setValue(availableBalance.compareTo(BigDecimal.valueOf(10000)) >= 0 ? availableBalance.doubleValue() : 10000.0);
+        amountField.setWidthFull();
+
+        // Quick nominal chips
+        HorizontalLayout quickChips = new HorizontalLayout();
+        quickChips.setSpacing(true);
+        quickChips.getElement().getStyle().set("gap", "8px").set("flex-wrap", "wrap").set("margin-top", "4px");
+
+        Button chipAll = new Button("Tarik Semua", e -> amountField.setValue(availableBalance.doubleValue()));
+        chipAll.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        chipAll.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF").set("font-weight", "700");
+
+        Button chip50 = new Button("50rb", e -> amountField.setValue(50000.0));
+        chip50.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+
+        Button chip100 = new Button("100rb", e -> amountField.setValue(100000.0));
+        chip100.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+
+        Button chip500 = new Button("500rb", e -> amountField.setValue(500000.0));
+        chip500.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+
+        quickChips.add(chipAll, chip50, chip100, chip500);
+
+        Paragraph infoNote = new Paragraph("Dana akan diproses dan ditransfer oleh Admin ReWear dalam 1x24 jam kerja.");
+        infoNote.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("margin", "10px 0 0 0");
+
+        formLayout.add(saldoInfo, bankCombo, accNumField, holderField, amountField, quickChips, infoNote);
+
+        Button btnCancel = new Button("Batal", e -> dialog.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnConfirm = new Button("Ajukan Penarikan", e -> {
+            String bank = bankCombo.getValue();
+            String accNum = accNumField.getValue();
+            String holder = holderField.getValue();
+            Double amt = amountField.getValue();
+
+            if (bank == null || accNum == null || accNum.isBlank() || holder == null || holder.isBlank() || amt == null) {
+                Notification.show("Harap lengkapi semua kolom penarikan.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            if (amt < 10000) {
+                Notification.show("Minimal penarikan adalah Rp 10.000", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            if (BigDecimal.valueOf(amt).compareTo(availableBalance) > 0) {
+                Notification.show("Saldo Anda tidak mencukupi untuk penarikan sebesar Rp " + String.format("%,.0f", amt), 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            try {
+                SellerPayout ticket = paymentService.requestPayout(seller, bank, accNum, holder, BigDecimal.valueOf(amt));
+                Notification.show("Permohonan penarikan dana Rp " + String.format("%,.0f", amt) + " berhasil diajukan (Tiket: " + ticket.getReferenceNumber() + ")", 4000, Notification.Position.TOP_CENTER);
+                dialog.close();
+                buildMainLayout();
+            } catch (Exception ex) {
+                Notification.show("Gagal mengajukan penarikan: " + ex.getMessage(), 3500, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnConfirm.getStyle().set("background", "#001934").set("color", "#F5C45E").set("font-weight", "800").set("border-radius", "8px");
+
+        dialog.add(formLayout);
+        dialog.getFooter().add(btnCancel, btnConfirm);
+        dialog.open();
+    }
+
+    private Span buildPayoutStatusBadge(SellerPayout payout) {
+        Span badge = new Span();
+        PayoutStatus status = payout != null ? payout.getStatus() : PayoutStatus.REQUESTED;
+
+        switch (status) {
+            case REQUESTED -> {
+                badge.setText("Menunggu Persetujuan");
+                badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+            }
+            case PROCESSING -> {
+                badge.setText("Sedang Diproses");
+                badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF");
+            }
+            case COMPLETED -> {
+                badge.setText("Selesai Ditransfer");
+                badge.getStyle().set("background", "#DCFCE7").set("color", "#166534");
+            }
+            case REJECTED -> {
+                badge.setText("Ditolak Admin");
+                badge.getStyle().set("background", "#FEF2F2").set("color", "#991B1B");
+            }
+        }
+
+        badge.getStyle()
+            .set("font-size", "11px")
+            .set("font-weight", "700")
+            .set("padding", "4px 10px")
+            .set("border-radius", "20px");
+
+        return badge;
     }
 
     private Component renderPengaturanTab() {

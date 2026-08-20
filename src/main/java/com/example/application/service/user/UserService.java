@@ -108,4 +108,35 @@ public class UserService {
         user.setAccountStatus(AccountStatus.ACTIVE);
         return userRepository.save(user);
     }
+
+    public User toggleAccountSuspension(User user) {
+        if (user == null) return null;
+        if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
+            user.setAccountStatus(AccountStatus.ACTIVE);
+        } else {
+            user.setAccountStatus(AccountStatus.SUSPENDED);
+        }
+        return userRepository.save(user);
+    }
+
+    public User changeUserRole(User user, Role newRole) {
+        if (user == null || newRole == null) return user;
+        user.setRole(newRole);
+        return userRepository.save(user);
+    }
+
+    public User verifyUserSchool(User user, School school) {
+        if (user == null) return null;
+        if (school != null) {
+            user.setSchool(school);
+        }
+        // update existing verification if any
+        Optional<UserSchoolVerification> verOpt = verificationRepository.findByUser(user);
+        if (verOpt.isPresent()) {
+            UserSchoolVerification v = verOpt.get();
+            v.setStatus(VerificationStatus.APPROVED);
+            verificationRepository.save(v);
+        }
+        return userRepository.save(user);
+    }
 }

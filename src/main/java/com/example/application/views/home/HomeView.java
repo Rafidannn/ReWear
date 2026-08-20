@@ -6,6 +6,8 @@ import com.example.application.service.product.ProductService;
 import com.example.application.service.product.CategoryService;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.model.moderation.Review;
+import com.example.application.model.user.User;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
@@ -40,6 +42,11 @@ public class HomeView extends VerticalLayout {
         "<polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/>" +
         "</svg>";
 
+    private final Div cardsGrid = new Div();
+    private final Div filterPillsContainer = new Div();
+    private String activeCategoryFilter = "Semua";
+    private Span marketCountBadge;
+
     public HomeView(ProductService productService, CategoryService categoryService, ModerationService moderationService) {
         this.productService = productService;
         this.categoryService = categoryService;
@@ -61,6 +68,9 @@ public class HomeView extends VerticalLayout {
             createCtaBannerSection(),
             createFooter()
         );
+
+        // Initial product rendering
+        filterAndRenderProducts("Semua", false);
     }
 
     /* -----------------------------------------------------------------
@@ -132,72 +142,90 @@ public class HomeView extends VerticalLayout {
         innerContainer.addClassName("category-inner-container");
 
         Div headerRow = new Div();
-        headerRow.getElement().setProperty("innerHTML",
-            "<div class='rw-section-header'>" +
-            "<div><h2 class='rw-section-title'>Jelajahi Kategori</h2>" +
-            "<p class='rw-section-sub'>Temukan apa yang kamu cari dengan mudah</p></div>" +
-            "<a href='#' class='rw-link-more' onclick=\"var el=document.getElementById('pasar-section');if(el)el.scrollIntoView({behavior:'smooth'});return false;\">Lihat Semua</a>" +
-            "</div>"
-        );
+        headerRow.addClassName("rw-section-header");
+        
+        Div titleGroup = new Div();
+        H2 secTitle = new H2("Jelajahi Kategori");
+        secTitle.addClassName("rw-section-title");
+        Paragraph secSub = new Paragraph("Temukan apa yang kamu cari dengan mudah");
+        secSub.addClassName("rw-section-sub");
+        titleGroup.add(secTitle, secSub);
+
+        Span linkMore = new Span("Lihat Semua");
+        linkMore.addClassName("rw-link-more");
+        linkMore.getElement().getStyle().set("cursor", "pointer");
+        linkMore.addClickListener(e -> filterAndRenderProducts("Semua", true));
+
+        headerRow.add(titleGroup, linkMore);
 
         Div catGrid = new Div();
-        catGrid.getElement().setProperty("innerHTML", buildCategoryGridHtml());
+        catGrid.addClassName("rw-cat-grid");
+
+        List<Category> categories = categoryService.findAllSorted();
+        for (Category cat : categories) {
+            catGrid.add(createCategoryCard(cat));
+        }
 
         innerContainer.add(headerRow, catGrid);
         sectionWrapper.add(innerContainer);
         return sectionWrapper;
     }
 
-    private String buildCategoryGridHtml() {
-        List<Category> categories = categoryService.findAllSorted();
-        StringBuilder sb = new StringBuilder("<div class='rw-cat-grid'>");
-        
-        for (Category cat : categories) {
-            String slug = cat.getSlug() != null ? cat.getSlug().toLowerCase() : "";
-            String color = "#6B7280"; // default
-            String svgPath = "";
-            
-            switch (slug) {
-                case "pakaian":
-                    color = "#2563EB";
-                    svgPath = "<path d='M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/>";
-                    break;
-                case "buku":
-                    color = "#7C3AED";
-                    svgPath = "<path d='M4 19.5A2.5 2.5 0 016.5 17H20' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z' stroke='currentColor' stroke-width='1.8' fill='none'/>";
-                    break;
-                case "elektronik":
-                    color = "#0891B2";
-                    svgPath = "<rect x='2' y='3' width='20' height='14' rx='2' stroke='currentColor' stroke-width='1.8' fill='none'/><path d='M8 21h8M12 17v4' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>";
-                    break;
-                case "hobi":
-                    color = "#D97706";
-                    svgPath = "<circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8' fill='none'/><polygon points='10 8 16 12 10 16 10 8' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linejoin='round'/>";
-                    break;
-                case "peralatan":
-                    color = "#16A34A";
-                    svgPath = "<path d='M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/>";
-                    break;
-                case "jasa":
-                    color = "#EC4899";
-                    svgPath = "<path d='M16 16v1a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h3m3 0V3a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/><rect x='2' y='7' width='20' height='12' rx='2' stroke='currentColor' stroke-width='1.8' fill='none'/>";
-                    break;
-                case "lainnya":
-                default:
-                    color = "#6B7280";
-                    svgPath = "<rect x='3' y='3' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/><rect x='14' y='3' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/><rect x='3' y='14' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/><rect x='14' y='14' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/>";
-                    break;
-            }
-            
-            sb.append("<div class='category-card' onclick=\"var el=document.getElementById('pasar-section');if(el)el.scrollIntoView({behavior:'smooth'});\">")
-              .append("<div class='category-icon-circle' style='color:").append(color).append(";'>")
-              .append("<svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>")
-              .append(svgPath).append("</svg></div>")
-              .append("<span class='category-title'>").append(cat.getName()).append("</span>")
-              .append("</div>");
+    private Component createCategoryCard(Category cat) {
+        String slug = cat.getSlug() != null ? cat.getSlug().toLowerCase() : "";
+        String color = "#6B7280";
+        String svgPath = "";
+
+        switch (slug) {
+            case "pakaian":
+                color = "#2563EB";
+                svgPath = "<path d='M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/>";
+                break;
+            case "buku":
+                color = "#7C3AED";
+                svgPath = "<path d='M4 19.5A2.5 2.5 0 016.5 17H20' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/><path d='M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z' stroke='currentColor' stroke-width='1.8' fill='none'/>";
+                break;
+            case "elektronik":
+                color = "#0891B2";
+                svgPath = "<rect x='2' y='3' width='20' height='14' rx='2' stroke='currentColor' stroke-width='1.8' fill='none'/><path d='M8 21h8M12 17v4' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>";
+                break;
+            case "hobi":
+                color = "#D97706";
+                svgPath = "<circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8' fill='none'/><polygon points='10 8 16 12 10 16 10 8' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linejoin='round'/>";
+                break;
+            case "peralatan":
+                color = "#16A34A";
+                svgPath = "<path d='M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/>";
+                break;
+            case "jasa":
+                color = "#EC4899";
+                svgPath = "<path d='M16 16v1a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h3m3 0V3a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6' stroke='currentColor' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/><rect x='2' y='7' width='20' height='12' rx='2' stroke='currentColor' stroke-width='1.8' fill='none'/>";
+                break;
+            case "lainnya":
+            default:
+                color = "#6B7280";
+                svgPath = "<rect x='3' y='3' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/><rect x='14' y='3' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/><rect x='3' y='14' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/><rect x='14' y='14' width='7' height='7' rx='1' stroke='currentColor' stroke-width='1.8' fill='none'/>";
+                break;
         }
-        sb.append("</div>");
-        return sb.toString();
+
+        Div card = new Div();
+        card.addClassName("category-card");
+        card.getElement().getStyle().set("cursor", "pointer");
+
+        Div iconCircle = new Div();
+        iconCircle.addClassName("category-icon-circle");
+        iconCircle.getElement().getStyle().set("color", color);
+        iconCircle.getElement().setProperty("innerHTML",
+            "<svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" + svgPath + "</svg>"
+        );
+
+        Span titleSpan = new Span(cat.getName());
+        titleSpan.addClassName("category-title");
+
+        card.add(iconCircle, titleSpan);
+        card.addClickListener(e -> filterAndRenderProducts(cat.getName(), true));
+
+        return card;
     }
 
     /* -----------------------------------------------------------------
@@ -224,16 +252,52 @@ public class HomeView extends VerticalLayout {
             "</div>"
         );
 
-        Div cardsGrid = new Div();
+        // Filter Pills Row
+        filterPillsContainer.setWidthFull();
+        filterPillsContainer.getElement().getStyle()
+            .set("display", "flex")
+            .set("flex-wrap", "wrap")
+            .set("gap", "8px")
+            .set("margin-bottom", "24px")
+            .set("align-items", "center");
+
         cardsGrid.addClassName("products-grid-container");
         cardsGrid.setWidthFull();
 
-        // Load seluruh produk aktif dari database (baik Warga SMKN 24 maupun Publik, urut terbaru)
+        innerContainer.add(sectionHeader, filterPillsContainer, cardsGrid);
+        container.add(innerContainer);
+        return container;
+    }
+
+    private void filterAndRenderProducts(String categoryName, boolean smoothScroll) {
+        this.activeCategoryFilter = categoryName;
+
+        // 1. Re-render category pills
+        renderCategoryFilterPills();
+
+        // 2. Fetch and filter products
+        User currentUser = AuthGuard.getCurrentUser();
         List<Product> allProducts = productService.findActiveWithCategory();
-        allProducts.forEach(p -> {
+        if (currentUser != null && currentUser.getId() != null) {
+            allProducts = allProducts.stream()
+                .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
+                .toList();
+        }
+
+        List<Product> filtered = allProducts;
+        if (!"Semua".equalsIgnoreCase(categoryName) && !"Semua Kategori".equalsIgnoreCase(categoryName)) {
+            filtered = allProducts.stream()
+                .filter(p -> p.getCategory() != null && (
+                    p.getCategory().getName().equalsIgnoreCase(categoryName) ||
+                    (p.getCategory().getSlug() != null && p.getCategory().getSlug().equalsIgnoreCase(categoryName))
+                ))
+                .toList();
+        }
+
+        // 3. Populate cards grid
+        cardsGrid.removeAll();
+        for (Product p : filtered) {
             String imgUrl = extractImgUrl(p.getImages(), "images/buku.jpeg");
-            
-            // Ambil review secara dinamis dari database
             List<Review> reviews = moderationService.getProductReviews(p);
             String ratingStr = null;
             int reviewCount = reviews.size();
@@ -241,22 +305,85 @@ public class HomeView extends VerticalLayout {
                 double avg = reviews.stream().mapToInt(Review::getRating).average().orElse(0.0);
                 ratingStr = String.format("%.1f", avg);
             }
-            
             cardsGrid.add(createProductCard(
                 p.getId(), p.getName(), imgUrl,
                 p.getPrice(), ratingStr, reviewCount, p.isSchoolMarket()
             ));
-        });
+        }
 
-        if (allProducts.isEmpty()) {
-            Paragraph empty = new Paragraph("Belum ada produk tersedia.");
-            empty.getElement().getStyle().set("color", "#94A3B8").set("padding", "24px 0");
+        if (filtered.isEmpty()) {
+            Div empty = new Div();
+            empty.getElement().getStyle()
+                .set("padding", "36px 20px")
+                .set("text-align", "center")
+                .set("width", "100%")
+                .set("grid-column", "1 / -1");
+            
+            H4 emptyTitle = new H4("Belum Ada Produk di Kategori Ini");
+            emptyTitle.getElement().getStyle().set("color", "#001934").set("margin-bottom", "8px");
+            Paragraph emptySub = new Paragraph("Coba jelajahi kategori lainnya atau reset filter untuk melihat semua barang.");
+            emptySub.getElement().getStyle().set("color", "#64748B").set("font-size", "14px");
+
+            Button btnReset = new Button("Tampilkan Semua Barang", e -> filterAndRenderProducts("Semua", false));
+            btnReset.getElement().getStyle()
+                .set("background", "#001934")
+                .set("color", "#F5C45E")
+                .set("font-weight", "700")
+                .set("border-radius", "9999px")
+                .set("border", "none")
+                .set("padding", "8px 20px")
+                .set("margin-top", "12px")
+                .set("cursor", "pointer");
+
+            empty.add(emptyTitle, emptySub, btnReset);
             cardsGrid.add(empty);
         }
 
-        innerContainer.add(sectionHeader, cardsGrid);
-        container.add(innerContainer);
-        return container;
+        // 4. Smooth scroll if requested
+        if (smoothScroll) {
+            UI.getCurrent().getPage().executeJs("var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
+        }
+    }
+
+    private void renderCategoryFilterPills() {
+        filterPillsContainer.removeAll();
+
+        List<String> pillOptions = new java.util.ArrayList<>();
+        pillOptions.add("Semua");
+        for (Category c : categoryService.findAllSorted()) {
+            pillOptions.add(c.getName());
+        }
+
+        for (String opt : pillOptions) {
+            boolean isActive = opt.equalsIgnoreCase(activeCategoryFilter) ||
+                ("Semua".equalsIgnoreCase(opt) && "Semua Kategori".equalsIgnoreCase(activeCategoryFilter));
+
+            Span pill = new Span(opt);
+            pill.getElement().getStyle()
+                .set("padding", "7px 16px")
+                .set("border-radius", "9999px")
+                .set("font-size", "13px")
+                .set("font-weight", isActive ? "700" : "600")
+                .set("cursor", "pointer")
+                .set("transition", "all 0.2s ease")
+                .set("user-select", "none");
+
+            if (isActive) {
+                pill.getElement().getStyle()
+                    .set("background", "#001934")
+                    .set("color", "#F5C45E")
+                    .set("border", "1px solid #001934")
+                    .set("box-shadow", "0 2px 8px rgba(0, 25, 52, 0.2)");
+            } else {
+                pill.getElement().getStyle()
+                    .set("background", "#FFFFFF")
+                    .set("color", "#475569")
+                    .set("border", "1px solid #E2E8F0");
+            }
+
+            pill.addClickListener(e -> filterAndRenderProducts(opt, false));
+            filterPillsContainer.add(pill);
+        }
     }
 
     /* -----------------------------------------------------------------

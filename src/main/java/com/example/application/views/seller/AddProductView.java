@@ -29,6 +29,8 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -41,7 +43,7 @@ import java.util.List;
 
 @Route(value = "sell", layout = MainLayout.class)
 @PageTitle("Jual Barang | ReWear SMKN 24")
-public class AddProductView extends VerticalLayout {
+public class AddProductView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ProductService productService;
     private final CategoryService categoryService;
@@ -54,8 +56,6 @@ public class AddProductView extends VerticalLayout {
         this.productService = productService;
         this.categoryService = categoryService;
         this.userService = userService;
-
-        if (!AuthGuard.requireLogin(UI.getCurrent())) return;
 
         setSpacing(false);
         setPadding(false);
@@ -75,7 +75,7 @@ public class AddProductView extends VerticalLayout {
             .set("box-sizing", "border-box");
 
         // Header
-        H2 pageTitle = new H2("🏷️ Jual Barang Preloved");
+        H2 pageTitle = new H2("Jual Barang Preloved");
         pageTitle.getElement().getStyle()
             .set("font-size", "26px")
             .set("font-weight", "800")
@@ -337,14 +337,11 @@ public class AddProductView extends VerticalLayout {
                 return;
             }
 
-            User currentUser = VaadinSession.getCurrent() != null
-                ? VaadinSession.getCurrent().getAttribute(User.class) : null;
-            if (currentUser == null) {
-                currentUser = userService.findAllUsers().stream().findFirst().orElse(null);
-            }
+            User currentUser = AuthGuard.getCurrentUser();
             if (currentUser == null) {
                 errorBox.setText("Silakan login terlebih dahulu untuk menjual barang.");
                 errorBox.setVisible(true);
+                UI.getCurrent().navigate("login");
                 return;
             }
 
@@ -376,7 +373,7 @@ public class AddProductView extends VerticalLayout {
 
             try {
                 productService.saveProduct(product);
-                Notification notif = Notification.show("🎉 Barang berhasil ditayangkan di ReWear!", 3000, Notification.Position.TOP_CENTER);
+                Notification notif = Notification.show("Barang berhasil ditayangkan di ReWear.", 3000, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 UI.getCurrent().navigate("");
             } catch (Exception ex) {
@@ -389,6 +386,13 @@ public class AddProductView extends VerticalLayout {
             priceStockRow, conditionGroup, isSchoolMarketCheck,
             uploadWrapper, descArea, btnSubmit);
         add(container);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (AuthGuard.getCurrentUser() == null) {
+            event.forwardTo("login");
+        }
     }
 
     /**

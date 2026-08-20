@@ -4,9 +4,11 @@ import com.example.application.model.moderation.Review;
 import com.example.application.model.product.Category;
 import com.example.application.model.product.ConditionType;
 import com.example.application.model.product.Product;
+import com.example.application.model.user.User;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.product.CategoryService;
 import com.example.application.service.product.ProductService;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
@@ -18,6 +20,8 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -28,7 +32,7 @@ import java.util.stream.Collectors;
 
 @Route(value = "pasar-smkn24", layout = MainLayout.class)
 @PageTitle("Pasar SMKN 24 Jakarta | ReWear Marketplace")
-public class PasarSMKN24View extends VerticalLayout {
+public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserver {
 
     private final ProductService productService;
     private final CategoryService categoryService;
@@ -68,6 +72,37 @@ public class PasarSMKN24View extends VerticalLayout {
             .set("min-height", "100vh");
 
         add(createPageHeader(), createMainContent());
+        // Data loaded in beforeEnter so URL params are applied first
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        var queryParams = event.getLocation().getQueryParameters().getParameters();
+
+        // Read optional ?q=keyword query parameter
+        if (queryParams.containsKey("q") && !queryParams.get("q").isEmpty()) {
+            String keyword = queryParams.get("q").get(0);
+            if (keyword != null && !keyword.isBlank()) {
+                searchField.setValue(keyword);
+            }
+        }
+
+        // Read optional ?category=... or ?cat=... or ?kategori=...
+        for (String key : List.of("category", "cat", "kategori")) {
+            if (queryParams.containsKey(key) && !queryParams.get(key).isEmpty()) {
+                String catParam = queryParams.get(key).get(0);
+                if (catParam != null && !catParam.isBlank()) {
+                    List<Category> categories = categoryService.findAllSorted();
+                    for (Category c : categories) {
+                        if (c.getName().equalsIgnoreCase(catParam) || (c.getSlug() != null && c.getSlug().equalsIgnoreCase(catParam))) {
+                            categoryRadio.setValue(c.getName());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         loadProductsAndApplyFilters();
     }
 
@@ -123,7 +158,7 @@ public class PasarSMKN24View extends VerticalLayout {
         Div sidebar = new Div();
         sidebar.addClassName("rw-catalog-sidebar");
 
-        H3 filterHeading = new H3("🔍 Filter Produk");
+        H3 filterHeading = new H3("Filter Produk");
         filterHeading.getElement().getStyle()
             .set("font-size", "18px")
             .set("font-weight", "800")
@@ -215,6 +250,11 @@ public class PasarSMKN24View extends VerticalLayout {
 
         cardsGrid.addClassName("products-grid-container");
         cardsGrid.setWidthFull();
+        cardsGrid.getElement().getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(auto-fill, minmax(240px, 1fr))")
+            .set("gap", "20px")
+            .set("box-sizing", "border-box");
 
         rightSide.add(gridHeader, cardsGrid);
 
@@ -223,8 +263,15 @@ public class PasarSMKN24View extends VerticalLayout {
     }
 
     private void loadProductsAndApplyFilters() {
-        // Ambil produk khusus pasar SMKN 24 dari DB
-        allSchoolProducts = productService.findSchoolMarketWithCategory();
+        // Ambil produk khusus pasar SMKN 24 dari DB (filter out produk milik seller yang sedang login)
+        User currentUser = AuthGuard.getCurrentUser();
+        List<Product> list = productService.findSchoolMarketWithCategory();
+        if (currentUser != null && currentUser.getId() != null) {
+            list = list.stream()
+                .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
+                .toList();
+        }
+        allSchoolProducts = list;
         applyFilters();
     }
 
@@ -310,7 +357,16 @@ public class PasarSMKN24View extends VerticalLayout {
                                         int reviewCount, boolean isVerified) {
         Div card = new Div();
         card.addClassName("product-card");
-        card.getElement().getStyle().set("cursor", "pointer");
+        card.getElement().getStyle()
+            .set("cursor", "pointer")
+            .set("background", "#FFFFFF")
+            .set("border-radius", "16px")
+            .set("border", "1px solid #E2E8F0")
+            .set("overflow", "hidden")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)")
+            .set("transition", "all 0.2s ease");
 
         String badgeHtml = isVerified
             ? "<div class='verified-badge' style='position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:5px;background:#F5C45E;color:#001934;font-weight:700;font-size:11px;padding:4px 10px;border-radius:9999px;z-index:2;'>"
@@ -319,6 +375,12 @@ public class PasarSMKN24View extends VerticalLayout {
 
         Div imgWrapper = new Div();
         imgWrapper.addClassName("product-img-wrapper");
+        imgWrapper.getElement().getStyle()
+            .set("position", "relative")
+            .set("width", "100%")
+            .set("height", "220px")
+            .set("overflow", "hidden")
+            .set("background", "#F1F5F9");
         imgWrapper.getElement().setProperty("innerHTML",
             "<img src='" + imgUrl + "' alt='" + name + "' class='product-img' style='width:100%;height:100%;object-fit:cover;'/>"
             + badgeHtml

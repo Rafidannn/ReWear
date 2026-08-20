@@ -34,7 +34,7 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "school_id")
     private School school;
 

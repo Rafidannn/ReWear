@@ -1,5 +1,6 @@
 package com.example.application.views;
 
+import com.example.application.model.user.Role;
 import com.example.application.model.user.User;
 import com.example.application.service.order.CartService;
 import com.example.application.util.AuthGuard;
@@ -17,6 +18,7 @@ import com.vaadin.flow.component.contextmenu.ContextMenu;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Layout;
+import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.server.VaadinSession;
 
 /**
@@ -79,19 +81,33 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             "</svg>"
         );
 
-        // Tekan Enter di search → notification
-        searchInput.getElement().addEventListener("keydown", e -> {})
-            .setFilter("event.key === 'Enter'");
+        // Tekan Enter di search → navigate ke Pasar SMKN 24 dengan keyword
         searchInput.getElement().addEventListener("keydown", e -> {
             UI.getCurrent().getPage().executeJs(
-                "var q = document.querySelector('.rw-nav-search-input');" +
-                "if(q && q.value.trim()) { return q.value.trim(); } else { return ''; }"
+                "return document.querySelector('.rw-nav-search-input') ? document.querySelector('.rw-nav-search-input').value.trim() : ''"
             ).then(String.class, query -> {
-                if (query != null && !query.isEmpty()) {
-                    Notification.show("Mencari: \"" + query + "\"", 2000, Notification.Position.TOP_CENTER);
+                if (query != null && !query.isBlank()) {
+                    UI.getCurrent().navigate("pasar-smkn24",
+                        new QueryParameters(java.util.Map.of("q", java.util.List.of(query))));
+                } else {
+                    UI.getCurrent().navigate("pasar-smkn24");
                 }
             });
         }).setFilter("event.key === 'Enter'");
+
+        // Klik ikon search → juga trigger pencarian
+        searchIcoDiv.addClickListener(e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return document.querySelector('.rw-nav-search-input') ? document.querySelector('.rw-nav-search-input').value.trim() : ''"
+            ).then(String.class, query -> {
+                if (query != null && !query.isBlank()) {
+                    UI.getCurrent().navigate("pasar-smkn24",
+                        new QueryParameters(java.util.Map.of("q", java.util.List.of(query))));
+                } else {
+                    UI.getCurrent().navigate("pasar-smkn24");
+                }
+            });
+        });
 
         searchBar.add(searchInput, searchIcoDiv);
 
@@ -110,12 +126,22 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         linkPasar.addClassName("rw-nav-link");
         linkPasar.addClickListener(e -> UI.getCurrent().navigate("pasar-smkn24"));
 
-        // "Dashboard Penjual" → navigate ke dashboard toko penjual
-        Span linkSeller = new Span("Dashboard Penjual");
-        linkSeller.addClassName("rw-nav-link");
-        linkSeller.addClickListener(e -> UI.getCurrent().navigate("seller/dashboard"));
+        // User session
+        User currentUser = VaadinSession.getCurrent() != null ? VaadinSession.getCurrent().getAttribute(User.class) : null;
 
-        HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar, linkSeller);
+        HorizontalLayout navLinks = new HorizontalLayout(linkKategori, linkPasar);
+        if (currentUser != null && (currentUser.getRole() == Role.SUPER_ADMIN || currentUser.getRole() == Role.MODERATOR)) {
+            Span linkAdmin = new Span("Panel Admin");
+            linkAdmin.addClassName("rw-nav-link");
+            linkAdmin.getStyle().set("color", "#F5C45E").set("font-weight", "800");
+            linkAdmin.addClickListener(e -> UI.getCurrent().navigate("admin"));
+            navLinks.add(linkAdmin);
+        } else {
+            Span linkSeller = new Span("Dashboard Penjual");
+            linkSeller.addClassName("rw-nav-link");
+            linkSeller.addClickListener(e -> UI.getCurrent().navigate("seller/dashboard"));
+            navLinks.add(linkSeller);
+        }
         navLinks.setSpacing(false);
         navLinks.addClassName("rw-nav-links-group");
 
@@ -140,14 +166,12 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("cart");
         });
 
-        Span chatIcon = buildNavIconBtn(VaadinIcon.COMMENT, "Pesan masuk");
-        chatIcon.addClickListener(e -> {
-            if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("chat");
-        });
-        Span bellIcon = buildNavIconBtn(VaadinIcon.BELL, "Notifikasi");
+        Span chatIcon = buildNavIconBtn(VaadinIcon.COMMENT, "Pesan masuk",
+            () -> { if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("chat"); });
+        Span bellIcon = buildNavIconBtn(VaadinIcon.BELL, "Notifikasi",
+            () -> { if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("notifications"); });
 
         // ---- Avatar / Profile Button (Conditional on login state) ----
-        User currentUser = VaadinSession.getCurrent() != null ? VaadinSession.getCurrent().getAttribute(User.class) : null;
         Component rightSideItem;
 
         if (currentUser == null) {
@@ -176,9 +200,12 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
 
             ContextMenu menu = new ContextMenu(avatar);
             menu.setOpenOnClick(true);
+            if (currentUser.getRole() == Role.SUPER_ADMIN || currentUser.getRole() == Role.MODERATOR) {
+                menu.addItem("Panel Admin & Moderasi", e -> UI.getCurrent().navigate("admin"));
+            }
             menu.addItem("Profil Saya", e -> UI.getCurrent().navigate("profile"));
             menu.addItem("Dashboard Penjual", e -> UI.getCurrent().navigate("seller"));
-            menu.addItem("Pesanan Saya", e -> UI.getCurrent().navigate("profile?tab=orders"));
+            menu.addItem("Pesanan Saya", e -> UI.getCurrent().navigate("orders"));
             menu.addItem("Keluar", e -> {
                 VaadinSession.getCurrent().setAttribute(User.class, null);
                 Notification.show("Berhasil keluar.");
@@ -224,16 +251,16 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         return navbarOuter;
     }
 
-    private Span buildNavIconBtn(VaadinIcon iconType, String tooltip) {
+    private Span buildNavIconBtn(VaadinIcon iconType, String tooltip, Runnable onClickAction) {
         Span btn = new Span();
         Icon ico = iconType.create();
         ico.setSize("20px");
         btn.add(ico);
         btn.addClassName("rw-nav-icon-btn");
         btn.getElement().setAttribute("title", tooltip);
-        btn.addClickListener(e ->
-            Notification.show(tooltip, 1500, Notification.Position.TOP_CENTER)
-        );
+        if (onClickAction != null) {
+            btn.addClickListener(e -> onClickAction.run());
+        }
         return btn;
     }
 

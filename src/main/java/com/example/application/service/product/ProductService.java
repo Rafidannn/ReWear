@@ -44,18 +44,9 @@ public class ProductService {
         return productRepository.findBySellerAndDeletedAtIsNull(seller);
     }
 
-    @Transactional(readOnly = true)
     public Optional<Product> findById(Long id) {
-        Optional<Product> pOpt = productRepository.findById(id);
-        pOpt.ifPresent(product -> {
-            if (product.getCategory() != null) {
-                try { product.getCategory().getName(); } catch (Exception ignored) {}
-            }
-            if (product.getSeller() != null) {
-                try { product.getSeller().getFullName(); } catch (Exception ignored) {}
-            }
-        });
-        return pOpt;
+        if (id == null) return Optional.empty();
+        return productRepository.findById(id);
     }
 
     public Product saveProduct(Product product) {
@@ -68,5 +59,21 @@ public class ProductService {
 
     public ProductVariant saveVariant(ProductVariant variant) {
         return variantRepository.save(variant);
+    }
+
+    public List<Product> findAllProducts() {
+        return productRepository.findAll();
+    }
+
+    public Product takedownProduct(Product product, String reason) {
+        if (product == null) return null;
+        product.setStatus(ProductStatus.REMOVED);
+        return productRepository.save(product);
+    }
+
+    public Product activateProduct(Product product) {
+        if (product == null) return null;
+        product.setStatus(ProductStatus.ACTIVE);
+        return productRepository.save(product);
     }
 }

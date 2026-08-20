@@ -13,11 +13,11 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "seller_id", nullable = false)
     private User seller;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;
 
@@ -127,6 +127,10 @@ public class Product {
     }
 
     public ConditionType getConditionType() {
+        return conditionType;
+    }
+
+    public ConditionType getCondition() {
         return conditionType;
     }
 

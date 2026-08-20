@@ -18,10 +18,14 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
+
+import java.util.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -91,9 +95,31 @@ public class CheckoutView extends Div {
         Div wrapper = new Div();
         wrapper.addClassName("rw-checkout-wrapper");
 
+        HorizontalLayout titleRow = new HorizontalLayout();
+        titleRow.setWidthFull();
+        titleRow.setAlignItems(FlexComponent.Alignment.CENTER);
+        titleRow.setSpacing(true);
+        titleRow.getElement().getStyle().set("margin-bottom", "16px");
+
+        Button btnBack = new Button("Kembali", VaadinIcon.ARROW_LEFT.create());
+        btnBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnBack.getElement().getStyle()
+            .set("color", "#001934")
+            .set("font-weight", "700")
+            .set("font-size", "13px")
+            .set("cursor", "pointer")
+            .set("padding", "6px 14px")
+            .set("background", "#FFFFFF")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "8px");
+        btnBack.addClickListener(e -> UI.getCurrent().getPage().getHistory().back());
+
         H2 pageTitle = new H2("Konfirmasi Pesanan");
         pageTitle.addClassName("rw-checkout-page-title");
-        wrapper.add(pageTitle);
+        pageTitle.getElement().getStyle().set("margin", "0");
+
+        titleRow.add(btnBack, pageTitle);
+        wrapper.add(titleRow);
 
         Div toggleBar = createModeToggleBar();
         wrapper.add(toggleBar);
@@ -208,7 +234,7 @@ public class CheckoutView extends Div {
                 "<div style='font-weight:800;color:#001934;margin-bottom:4px;'>Lobby Utama / Kantin SMKN 24 Jakarta</div>" +
                 "<div style='font-size:13px;color:#64748B;line-height:1.4;'>Jl. Bambu Apus No. 24, Cipayung, Jakarta Timur</div>" +
                 "<div style='margin-top:8px;font-size:12px;color:#B45309;background:#FEF3C7;padding:8px 12px;border-radius:6px;'>" +
-                "ℹ️ <strong>Khusus Pesanan Pasar SMKN 24:</strong> Tidak memerlukan alamat rumah. Pembeli dan penjual akan bertemu langsung di area sekolah." +
+                "<strong>Khusus Pesanan Pasar SMKN 24:</strong> Tidak memerlukan alamat rumah. Pembeli dan penjual akan bertemu langsung di area sekolah." +
                 "</div>"
             );
 
@@ -493,7 +519,7 @@ public class CheckoutView extends Div {
             fieldNamaPenerima.clear(); fieldTelepon.clear();
             fieldAlamat.clear(); fieldKota.clear(); fieldKodePos.clear();
 
-            Notification notif = Notification.show("✅ Alamat berhasil disimpan!", 2000, Notification.Position.TOP_CENTER);
+            Notification notif = Notification.show("Alamat berhasil disimpan.", 2000, Notification.Position.TOP_CENTER);
             notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             renderView();
         });
@@ -933,54 +959,75 @@ public class CheckoutView extends Div {
                     + (selectedAddress.getKodePos() != null ? " " + selectedAddress.getKodePos() : "")
                     : "Alamat tidak tersedia");
 
-            // Kalkulasi nilai
-            double subtotalVal = itemsToPay.stream().mapToDouble(i -> i.getPrice() * i.getQuantity()).sum();
-            double shippingCostVal = isPasarSmkn24Mode ? 0 : (selectedShippingIndex == 0 ? 0 : selectedShippingIndex == 1 ? 22000 : 9000);
-            double serviceFeeVal = isPasarSmkn24Mode ? 0 : Math.max(2500, subtotalVal * 0.01);
-            double totalVal = subtotalVal + shippingCostVal + serviceFeeVal;
+            // Group items by seller so multi-seller checkouts create separate orders per seller
+            var entities = cartService.getCartItems(buyer);
+            Map<User, List<CartItem>> itemsBySeller = new HashMap<>();
 
-            // Metode pembayaran
-            String paymentMethodStr = isPasarSmkn24Mode
-                ? (selectedPaymentIndex == 0 ? "COD_SEKOLAH" : "QRIS")
-                : (selectedPaymentIndex == 0 ? "ESCROW" : "TRANSFER_BANK");
-
-            // Metode pengiriman
-            ShippingMethod shippingMethod = isPasarSmkn24Mode ? ShippingMethod.COD_SEKOLAH
-                : (selectedShippingIndex == 0 ? ShippingMethod.LAINNYA : selectedShippingIndex == 1 ? ShippingMethod.GOSEND : ShippingMethod.EKSPEDISI);
-
-            // Dapatkan seller dari item pertama (ReWear: 1 order per seller)
-            // Untuk multi-seller, perlu dibuat per-seller group — untuk sekarang ambil seller pertama
-            User seller = getSellerFromFirstItem(itemsToPay);
-            if (seller == null) {
-                seller = buyer; // fallback
+            for (CartItem item : itemsToPay) {
+                User seller = findSellerForCartItem(item, entities);
+                if (seller == null) seller = buyer;
+                itemsBySeller.computeIfAbsent(seller, k -> new ArrayList<>()).add(item);
             }
 
-            // Buat Order object
-            Order order = new Order();
-            order.setBuyer(buyer);
-            order.setSeller(seller);
-            order.setOrderNumber("RW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-            order.setShippingAddress(shippingAddressStr);
-            order.setSubtotal(BigDecimal.valueOf(subtotalVal));
-            order.setShippingCost(BigDecimal.valueOf(shippingCostVal));
-            order.setAdminFeeAmount(BigDecimal.valueOf(serviceFeeVal));
-            order.setTotalAmount(BigDecimal.valueOf(totalVal));
-            order.setPaymentMethod(paymentMethodStr);
-            order.setShippingMethod(shippingMethod);
-            order.setStatus(OrderStatus.MENUNGGU_PEMBAYARAN);
+            int orderCount = 0;
+            String lastOrderNumber = "";
 
-            // Buat OrderItem list
-            List<OrderItem> orderItems = new ArrayList<>();
-            for (CartItem cartItem : itemsToPay) {
-                OrderItem oi = new OrderItem();
-                oi.setProductNameSnapshot(cartItem.getTitle());
-                oi.setPriceSnapshot(BigDecimal.valueOf(cartItem.getPrice()));
-                oi.setQuantity(cartItem.getQuantity());
-                orderItems.add(oi);
+            for (Map.Entry<User, List<CartItem>> entry : itemsBySeller.entrySet()) {
+                User seller = entry.getKey();
+                List<CartItem> sellerItems = entry.getValue();
+
+                double subtotalVal = sellerItems.stream().mapToDouble(i -> i.getPrice() * i.getQuantity()).sum();
+                double shippingCostVal = isPasarSmkn24Mode ? 0 : (selectedShippingIndex == 0 ? 0 : selectedShippingIndex == 1 ? 22000 : 9000);
+                double serviceFeeVal = isPasarSmkn24Mode ? 0 : Math.max(2500, subtotalVal * 0.01);
+                double totalVal = subtotalVal + shippingCostVal + serviceFeeVal;
+
+                String paymentMethodStr = isPasarSmkn24Mode
+                    ? (selectedPaymentIndex == 0 ? "COD_SEKOLAH" : "QRIS")
+                    : (selectedPaymentIndex == 0 ? "ESCROW" : "TRANSFER_BANK");
+
+                ShippingMethod shippingMethod = isPasarSmkn24Mode ? ShippingMethod.COD_SEKOLAH
+                    : (selectedShippingIndex == 0 ? ShippingMethod.LAINNYA : selectedShippingIndex == 1 ? ShippingMethod.GOSEND : ShippingMethod.EKSPEDISI);
+
+                Order order = new Order();
+                order.setBuyer(buyer);
+                order.setSeller(seller);
+                order.setOrderNumber("RW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                order.setShippingAddress(shippingAddressStr);
+                order.setSubtotal(BigDecimal.valueOf(subtotalVal));
+                order.setShippingCost(BigDecimal.valueOf(shippingCostVal));
+                order.setAdminFeeAmount(BigDecimal.valueOf(serviceFeeVal));
+                order.setTotalAmount(BigDecimal.valueOf(totalVal));
+                order.setPaymentMethod(paymentMethodStr);
+                order.setShippingMethod(shippingMethod);
+                if (isPasarSmkn24Mode || "COD_SEKOLAH".equals(paymentMethodStr)) {
+                    order.setStatus(OrderStatus.DIPROSES);
+                } else {
+                    order.setStatus(OrderStatus.DIPROSES);
+                }
+
+                List<OrderItem> orderItems = new ArrayList<>();
+                for (CartItem cartItem : sellerItems) {
+                    OrderItem oi = new OrderItem();
+                    oi.setProductNameSnapshot(cartItem.getTitle());
+                    oi.setPriceSnapshot(BigDecimal.valueOf(cartItem.getPrice()));
+                    oi.setQuantity(cartItem.getQuantity());
+
+                    // Link Product entity so OrderService updates soldCount & stock
+                    for (var entity : entities) {
+                        if (entity.getProduct() != null && entity.getProduct().getName() != null
+                                && entity.getProduct().getName().equals(cartItem.getTitle())) {
+                            oi.setProduct(entity.getProduct());
+                            break;
+                        }
+                    }
+
+                    orderItems.add(oi);
+                }
+
+                orderService.createOrder(order, orderItems, buyer);
+                orderCount++;
+                lastOrderNumber = order.getOrderNumber();
             }
-
-            // Simpan ke DB
-            orderService.createOrder(order, orderItems, buyer);
 
             // Hapus item yang sudah di-checkout dari cart DB
             for (CartItem cartItem : itemsToPay) {
@@ -990,10 +1037,11 @@ public class CheckoutView extends Div {
             }
 
             // Tampilkan sukses dan redirect
-            Notification successNotif = Notification.show(
-                "🎉 Pesanan Berhasil Dibuat! Order #" + order.getOrderNumber(),
-                4000, Notification.Position.TOP_CENTER
-            );
+            String notifMsg = orderCount > 1
+                ? orderCount + " Pesanan Berhasil Dibuat (Dipesan dari " + orderCount + " penjual berbeda)"
+                : "Pesanan Berhasil Dibuat! Order #" + lastOrderNumber;
+
+            Notification successNotif = Notification.show(notifMsg, 4000, Notification.Position.TOP_CENTER);
             successNotif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             UI.getCurrent().navigate("orders");
 
@@ -1002,18 +1050,40 @@ public class CheckoutView extends Div {
         }
     }
 
-    private User getSellerFromFirstItem(List<CartItem> items) {
-        // Ambil seller dari product via cart item id
-        for (CartItem cartItem : items) {
-            try {
-                long cartItemId = Long.parseLong(cartItem.getId());
-                var entities = cartService.getCartItems(AuthGuard.getCurrentUser());
-                for (var entity : entities) {
-                    if (entity.getId().equals(cartItemId) && entity.getProduct() != null) {
+    private User findSellerForCartItem(CartItem cartItem, List<CartItemEntity> entities) {
+        if (cartItem == null || cartItem.getId() == null) return null;
+
+        try {
+            long cartItemId = Long.parseLong(cartItem.getId());
+            for (var entity : entities) {
+                if (entity.getId() != null && entity.getId().equals(cartItemId)) {
+                    if (entity.getProduct() != null && entity.getProduct().getSeller() != null) {
                         return entity.getProduct().getSeller();
                     }
                 }
-            } catch (Exception ignored) {}
+            }
+        } catch (NumberFormatException ignored) {}
+
+        // Fallback: match by product title
+        for (var entity : entities) {
+            if (entity.getProduct() != null
+                    && entity.getProduct().getName() != null
+                    && entity.getProduct().getName().equals(cartItem.getTitle())
+                    && entity.getProduct().getSeller() != null) {
+                return entity.getProduct().getSeller();
+            }
+        }
+        return null;
+    }
+
+    private User getSellerFromFirstItem(List<CartItem> items) {
+        User currentUser = AuthGuard.getCurrentUser();
+        if (currentUser == null) return null;
+        var entities = cartService.getCartItems(currentUser);
+
+        for (CartItem cartItem : items) {
+            User s = findSellerForCartItem(cartItem, entities);
+            if (s != null) return s;
         }
         return null;
     }

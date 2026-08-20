@@ -6,8 +6,10 @@ import com.example.application.service.user.UserService;
 import com.example.application.views.BlankLayout;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -62,6 +64,19 @@ public class RegisterView extends HorizontalLayout {
             .set("width", "100%")
             .set("max-width", "380px")
             .set("margin", "0 auto");
+
+        Button btnBackHome = new Button("Kembali ke Beranda", VaadinIcon.ARROW_LEFT.create());
+        btnBackHome.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnBackHome.getElement().getStyle()
+            .set("color", "#64748B")
+            .set("font-size", "12px")
+            .set("font-weight", "600")
+            .set("cursor", "pointer")
+            .set("padding", "0")
+            .set("margin-bottom", "16px")
+            .set("align-self", "flex-start");
+        btnBackHome.addClickListener(e -> UI.getCurrent().navigate(""));
+        formBox.add(btnBackHome);
 
         H2 title = new H2("Daftar Akun Baru");
         title.getElement().getStyle()

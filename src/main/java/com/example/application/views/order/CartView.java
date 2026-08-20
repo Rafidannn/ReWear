@@ -303,14 +303,19 @@ public class CartView extends Div {
                 Span plusBtn = new Span("+");
                 plusBtn.addClassName("rw-qty-btn");
                 plusBtn.addClickListener(e -> {
-                    int newQty = item.getQuantity() + 1;
-                    item.setQuantity(newQty);
-                    try {
-                        cartService.updateQuantity(Long.parseLong(item.getId()), newQty);
-                    } catch (Exception ignored) {}
-                    syncCartToSession();
-                    renderLeftColumn();
-                    recalculateTotal();
+                    int maxLimit = item.getMaxStock();
+                    if (item.getQuantity() < maxLimit) {
+                        int newQty = item.getQuantity() + 1;
+                        item.setQuantity(newQty);
+                        try {
+                            cartService.updateQuantity(Long.parseLong(item.getId()), newQty);
+                        } catch (Exception ignored) {}
+                        syncCartToSession();
+                        renderLeftColumn();
+                        recalculateTotal();
+                    } else {
+                        Notification.show("Maksimal stok tercapai (" + maxLimit + " barang)", 2000, Notification.Position.TOP_CENTER);
+                    }
                 });
 
                 qtyWrap.add(minusBtn, qtyVal, plusBtn);

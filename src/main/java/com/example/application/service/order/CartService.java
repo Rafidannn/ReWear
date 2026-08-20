@@ -32,16 +32,27 @@ public class CartService {
     public CartItemEntity addToCart(User user, Product product, int quantity) {
         if (user == null || product == null) return null;
 
+        // Block seller from purchasing own product
+        if (product.getSeller() != null && user.getId() != null && user.getId().equals(product.getSeller().getId())) {
+            throw new IllegalArgumentException("Anda tidak dapat membeli produk milik Anda sendiri!");
+        }
+
+        int availableStock = (product.getStock() != null) ? Math.max(0, product.getStock()) : 1;
+        if (availableStock <= 0) {
+            throw new IllegalArgumentException("Stok produk ini sudah habis!");
+        }
+
         Optional<CartItemEntity> existing = cartItemRepository.findByUserAndProduct(user, product);
         if (existing.isPresent()) {
             CartItemEntity item = existing.get();
-            item.setQuantity(item.getQuantity() + Math.max(1, quantity));
+            int newQty = Math.min(availableStock, item.getQuantity() + Math.max(1, quantity));
+            item.setQuantity(newQty);
             return cartItemRepository.save(item);
         } else {
             CartItemEntity newItem = new CartItemEntity();
             newItem.setUser(user);
             newItem.setProduct(product);
-            newItem.setQuantity(Math.max(1, quantity));
+            newItem.setQuantity(Math.min(availableStock, Math.max(1, quantity)));
             return cartItemRepository.save(newItem);
         }
     }
@@ -55,7 +66,10 @@ public class CartService {
                 cartItemRepository.delete(item);
                 return null;
             } else {
-                item.setQuantity(quantity);
+                int stock = (item.getProduct() != null && item.getProduct().getStock() != null)
+                    ? Math.max(1, item.getProduct().getStock())
+                    : 99;
+                item.setQuantity(Math.min(stock, quantity));
                 return cartItemRepository.save(item);
             }
         }
@@ -133,8 +147,9 @@ public class CartService {
             }
         }
 
-        String itemBadge = p.getConditionType() != null ? p.getConditionType().name().replace("_", " ") : "Pre-Loved";
+        int maxStock = p.getStock() != null ? Math.max(1, p.getStock()) : 1;
         int quantity = entity.getQuantity() != null ? entity.getQuantity() : 1;
+        String itemBadge = isSmkn24 ? "Eksklusif SMKN 24" : "Preloved";
 
         CartItem item = new CartItem(
             String.valueOf(entity.getId()),
@@ -149,7 +164,8 @@ public class CartService {
             itemBadge,
             quantity,
             true, // Default selected
-            isSmkn24
+            isSmkn24,
+            maxStock
         );
 
         return item;

@@ -16,11 +16,11 @@ public class Order {
     @Column(name = "order_number", nullable = false, unique = true, length = 100)
     private String orderNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "buyer_id", nullable = false)
     private User buyer;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "seller_id", nullable = false)
     private User seller;
 

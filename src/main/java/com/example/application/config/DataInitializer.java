@@ -31,6 +31,27 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // Ensure Admin user exists
+        userRepository.findByEmail("admin@smkn24.sch.id").ifPresentOrElse(
+            admin -> {
+                admin.setRole(Role.SUPER_ADMIN);
+                admin.setPasswordHash("admin123");
+                userRepository.save(admin);
+            },
+            () -> {
+                School school = schoolRepository.findAll().stream().findFirst().orElse(null);
+                User admin = new User();
+                admin.setFullName("Administrator ReWear");
+                admin.setEmail("admin@smkn24.sch.id");
+                admin.setPhone("081199998888");
+                admin.setPasswordHash("admin123");
+                admin.setRole(Role.SUPER_ADMIN);
+                admin.setSchool(school);
+                admin.setAccountStatus(AccountStatus.ACTIVE);
+                userRepository.save(admin);
+            }
+        );
+
         if (productRepository.count() == 0) {
             School school = schoolRepository.findAll().stream().findFirst().orElseGet(() -> {
                 School s = new School("SMKN 24 Jakarta", "20101234", "Jl. Bambu Apus No. 1", "Jakarta Timur");

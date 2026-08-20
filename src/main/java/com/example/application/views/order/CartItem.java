@@ -16,10 +16,17 @@ public class CartItem implements Serializable {
     private int quantity;
     private boolean selected;
     private boolean isSmkn24Item;
+    private int maxStock = 99;
 
     public CartItem(String id, String storeName, String storeBadge, String storeBadgeClass,
                     String title, String variant, double price, double originalPrice,
                     String imgUrl, String itemBadge, int quantity, boolean selected, boolean isSmkn24Item) {
+        this(id, storeName, storeBadge, storeBadgeClass, title, variant, price, originalPrice, imgUrl, itemBadge, quantity, selected, isSmkn24Item, 99);
+    }
+
+    public CartItem(String id, String storeName, String storeBadge, String storeBadgeClass,
+                    String title, String variant, double price, double originalPrice,
+                    String imgUrl, String itemBadge, int quantity, boolean selected, boolean isSmkn24Item, int maxStock) {
         this.id = id;
         this.storeName = storeName;
         this.storeBadge = storeBadge;
@@ -33,6 +40,7 @@ public class CartItem implements Serializable {
         this.quantity = quantity;
         this.selected = selected;
         this.isSmkn24Item = isSmkn24Item;
+        this.maxStock = Math.max(1, maxStock);
     }
 
     public String getId() { return id; }
@@ -73,4 +81,7 @@ public class CartItem implements Serializable {
 
     public boolean isSmkn24Item() { return isSmkn24Item; }
     public void setSmkn24Item(boolean smkn24Item) { isSmkn24Item = smkn24Item; }
+
+    public int getMaxStock() { return maxStock; }
+    public void setMaxStock(int maxStock) { this.maxStock = maxStock; }
 }

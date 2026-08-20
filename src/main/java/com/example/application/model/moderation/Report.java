@@ -14,7 +14,7 @@ public class Report {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "reporter_id", nullable = false)
     private User reporter;
 
@@ -22,15 +22,15 @@ public class Report {
     @Column(nullable = false, length = 50)
     private ReportType type;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "reported_user_id")
     private User reportedUser;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "order_id")
     private Order order;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "conversation_id")
     private Conversation conversation;
 
@@ -47,7 +47,7 @@ public class Report {
     @Column(nullable = false, length = 50)
     private ReportStatus status = ReportStatus.PENDING;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "admin_id")
     private User admin;
 

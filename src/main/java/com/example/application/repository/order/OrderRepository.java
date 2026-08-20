@@ -24,4 +24,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findBuyerOrdersWithDetails(@Param("buyer") User buyer);
 
     List<Order> findByStatus(OrderStatus status);
+    List<Order> findAllByOrderByCreatedAtDesc();
 }

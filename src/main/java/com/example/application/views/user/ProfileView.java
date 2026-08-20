@@ -4,13 +4,16 @@ import com.example.application.model.product.Product;
 import com.example.application.model.user.User;
 import com.example.application.repository.moderation.ReviewRepository;
 import com.example.application.repository.order.OrderRepository;
+import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.product.ProductService;
 import com.example.application.service.user.UserService;
+import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
@@ -20,12 +23,21 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+
+import com.example.application.model.payment.PayoutStatus;
+import com.example.application.model.payment.SellerPayout;
+import com.example.application.model.user.Wishlist;
+import com.example.application.service.order.CartService;
+import com.example.application.service.payment.PaymentService;
+import com.example.application.service.user.WishlistService;
 
 @Route(value = "profile", layout = MainLayout.class)
 @RouteAlias(value = "profil", layout = MainLayout.class)
@@ -38,6 +50,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
     private final OrderRepository orderRepository;
     private final ReviewRepository reviewRepository;
     private final com.example.application.service.order.OrderService orderService;
+    private final WishlistService wishlistService;
+    private final CartService cartService;
+    private final ModerationService moderationService;
+    private final PaymentService paymentService;
 
     private User targetUser;
     private boolean isOwnProfile = true;
@@ -52,12 +68,19 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
     public ProfileView(UserService userService, ProductService productService,
                        OrderRepository orderRepository, ReviewRepository reviewRepository,
-                       com.example.application.service.order.OrderService orderService) {
+                       com.example.application.service.order.OrderService orderService,
+                       WishlistService wishlistService, CartService cartService,
+                       ModerationService moderationService,
+                       PaymentService paymentService) {
         this.userService = userService;
         this.productService = productService;
         this.orderRepository = orderRepository;
         this.reviewRepository = reviewRepository;
         this.orderService = orderService;
+        this.wishlistService = wishlistService;
+        this.cartService = cartService;
+        this.moderationService = moderationService;
+        this.paymentService = paymentService;
 
         setSpacing(false);
         setPadding(false);
@@ -83,10 +106,14 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Map<String, List<String>> queryParams = event.getLocation().getQueryParameters().getParameters();
 
         if (path.contains("orders") || path.contains("pesanan")) {
-            activeTab = "orders";
+            event.forwardTo("orders");
+            return;
         } else if (queryParams.containsKey("tab")) {
             String tab = queryParams.get("tab").get(0);
-            if ("orders".equalsIgnoreCase(tab) || "pesanan".equalsIgnoreCase(tab)) activeTab = "orders";
+            if ("orders".equalsIgnoreCase(tab) || "pesanan".equalsIgnoreCase(tab)) {
+                event.forwardTo("orders");
+                return;
+            }
             else if ("profile".equalsIgnoreCase(tab) || "profil".equalsIgnoreCase(tab)) activeTab = "profile";
             else if ("products".equalsIgnoreCase(tab) || "barang".equalsIgnoreCase(tab) || "jual".equalsIgnoreCase(tab)) activeTab = "products";
             else if ("wishlist".equalsIgnoreCase(tab)) activeTab = "wishlist";
@@ -94,7 +121,9 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             else if ("settings".equalsIgnoreCase(tab) || "pengaturan".equalsIgnoreCase(tab)) activeTab = "settings";
         }
 
-        buildMainLayout();
+        if (targetUser != null) {
+            buildMainLayout();
+        }
     }
 
     @Override
@@ -110,9 +139,8 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             targetUser = userService.findByIdWithSchool(loggedInUser.getId()).orElse(loggedInUser);
             isOwnProfile = true;
         } else {
-            User firstUser = userService.findAllUsers().stream().findFirst().orElse(null);
-            targetUser = firstUser != null ? userService.findByIdWithSchool(firstUser.getId()).orElse(firstUser) : null;
-            isOwnProfile = true;
+            event.forwardTo("login");
+            return;
         }
 
         buildMainLayout();
@@ -126,6 +154,26 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             notFound.getElement().getStyle().set("padding", "48px").set("text-align", "center");
             contentContainer.add(notFound);
             return;
+        }
+
+        if (!isOwnProfile) {
+            Div topNav = new Div();
+            topNav.getElement().getStyle().set("margin-bottom", "16px");
+
+            Button btnBack = new Button("Kembali", VaadinIcon.ARROW_LEFT.create());
+            btnBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnBack.getElement().getStyle()
+                .set("color", "#001934")
+                .set("font-weight", "700")
+                .set("font-size", "13px")
+                .set("cursor", "pointer")
+                .set("padding", "6px 14px")
+                .set("background", "#FFFFFF")
+                .set("border", "1px solid #E2E8F0")
+                .set("border-radius", "8px");
+            btnBack.addClickListener(e -> UI.getCurrent().getPage().getHistory().back());
+            topNav.add(btnBack);
+            contentContainer.add(topNav);
         }
 
         // 2-Column Dashboard Grid: Left Sidebar (300px) | Right Active Tab Content (Flex 1)
@@ -174,26 +222,42 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             .set("padding-bottom", "16px")
             .set("border-bottom", "1px solid #DBEAFE");
 
-        String initial = (targetUser.getFullName() != null && !targetUser.getFullName().isEmpty())
-            ? String.valueOf(targetUser.getFullName().charAt(0)).toUpperCase()
-            : "R";
+        Component avatarComponent;
+        String avatarUrl = targetUser.getAvatarUrl();
+        if (avatarUrl != null && !avatarUrl.isBlank() && !avatarUrl.contains("buku.jpeg")) {
+            Image img = new Image(avatarUrl, targetUser.getFullName());
+            img.getElement().getStyle()
+                .set("width", "72px")
+                .set("height", "72px")
+                .set("border-radius", "9999px")
+                .set("object-fit", "cover")
+                .set("border", "3px solid #F5C45E")
+                .set("margin-bottom", "12px")
+                .set("box-shadow", "0 4px 12px rgba(0,25,52,0.15)");
+            avatarComponent = img;
+        } else {
+            String initial = (targetUser.getFullName() != null && !targetUser.getFullName().isEmpty())
+                ? String.valueOf(targetUser.getFullName().charAt(0)).toUpperCase()
+                : "R";
 
-        Div avatarCircle = new Div();
-        avatarCircle.getElement().getStyle()
-            .set("width", "72px")
-            .set("height", "72px")
-            .set("border-radius", "9999px")
-            .set("background", "#001934")
-            .set("color", "#F5C45E")
-            .set("font-size", "28px")
-            .set("font-weight", "800")
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("justify-content", "center")
-            .set("border", "3px solid #F5C45E")
-            .set("margin-bottom", "12px")
-            .set("box-shadow", "0 4px 12px rgba(0,25,52,0.15)");
-        avatarCircle.setText(initial);
+            Div avatarCircle = new Div();
+            avatarCircle.getElement().getStyle()
+                .set("width", "72px")
+                .set("height", "72px")
+                .set("border-radius", "9999px")
+                .set("background", "#001934")
+                .set("color", "#F5C45E")
+                .set("font-size", "28px")
+                .set("font-weight", "800")
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("justify-content", "center")
+                .set("border", "3px solid #F5C45E")
+                .set("margin-bottom", "12px")
+                .set("box-shadow", "0 4px 12px rgba(0,25,52,0.15)");
+            avatarCircle.setText(initial);
+            avatarComponent = avatarCircle;
+        }
 
         H4 userName = new H4(targetUser.getFullName() != null ? targetUser.getFullName() : "Profil Saya");
         userName.getElement().getStyle()
@@ -212,7 +276,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             .set("color", "#64748B")
             .set("font-weight", "600");
 
-        userCard.add(avatarCircle, userName, userRole);
+        userCard.add(avatarComponent, userName, userRole);
 
         // Sidebar Navigation Links
         Div navList = new Div();
@@ -233,7 +297,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             navList.add(createNavItem("Pengaturan", "settings", VaadinIcon.COG));
         } else {
             // For other's profile: show Chat button instead
-            Button btnChatSeller = new Button("💬 Chat Penjual");
+            Button btnChatSeller = new Button("Chat Penjual", VaadinIcon.COMMENT.create());
             btnChatSeller.getElement().getStyle()
                 .set("background", "#001934").set("color", "#F5C45E")
                 .set("font-weight", "700").set("border", "none")
@@ -276,6 +340,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         item.add(ic, text);
 
         item.addClickListener(e -> {
+            if ("orders".equalsIgnoreCase(key) || "pesanan".equalsIgnoreCase(key)) {
+                UI.getCurrent().navigate("orders");
+                return;
+            }
             activeTab = key;
             buildMainLayout();
         });
@@ -404,7 +472,9 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             Div empty = new Div();
             empty.getElement().setProperty("innerHTML",
                 "<div style='text-align:center;padding:48px 24px;background:#F8FAFC;border-radius:16px;border:1px dashed #CBD5E1;'>" +
-                "<div style='font-size:40px;margin-bottom:12px;'>📦</div>" +
+                "<div style='width:48px;height:48px;margin:0 auto 12px;border-radius:12px;background:#E2E8F0;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#64748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'></path></svg>" +
+                "</div>" +
                 "<h3 style='color:#001934;font-size:18px;font-weight:700;margin:0 0 6px 0;'>Belum Ada Pesanan</h3>" +
                 "<p style='color:#64748B;font-size:14px;margin:0;'>Tidak ada pesanan dalam kategori " + orderFilter + ".</p>" +
                 "</div>"
@@ -480,7 +550,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         HorizontalLayout actionBtns = new HorizontalLayout();
         actionBtns.setSpacing(true);
 
-        if (order.getStatus() == com.example.application.model.order.OrderStatus.DIKIRIM || order.getStatus() == com.example.application.model.order.OrderStatus.DITERIMA) {
+        if (order.getStatus() == com.example.application.model.order.OrderStatus.DIPROSES ||
+            order.getStatus() == com.example.application.model.order.OrderStatus.DIBAYAR ||
+            order.getStatus() == com.example.application.model.order.OrderStatus.DIKIRIM ||
+            order.getStatus() == com.example.application.model.order.OrderStatus.DITERIMA) {
             Button btnTerima = new Button("Konfirmasi Diterima", VaadinIcon.CHECK.create());
             btnTerima.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-weight", "700").set("font-size", "12px").set("border-radius", "8px");
             btnTerima.addClickListener(e -> {
@@ -489,6 +562,23 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
                 renderRightTabContent();
             });
             actionBtns.add(btnTerima);
+        }
+        if (order.getStatus() == com.example.application.model.order.OrderStatus.SELESAI) {
+            User currentUser = AuthGuard.getCurrentUser();
+            boolean alreadyReviewed = currentUser != null &&
+                moderationService.hasReviewed(order.getId(), currentUser.getId());
+
+            if (alreadyReviewed) {
+                Span reviewedBadge = new Span("Sudah Diulas");
+                reviewedBadge.getStyle().set("background", "#DCFCE7").set("color", "#166534")
+                    .set("font-size", "11px").set("font-weight", "700").set("padding", "4px 8px").set("border-radius", "6px");
+                actionBtns.add(reviewedBadge);
+            } else {
+                Button btnReview = new Button("Beri Ulasan", VaadinIcon.STAR.create());
+                btnReview.getStyle().set("background", "#F59E0B").set("color", "#FFFFFF").set("font-weight", "700").set("font-size", "12px").set("border-radius", "8px").set("cursor", "pointer");
+                btnReview.addClickListener(e -> openReviewModal(order, targetUser));
+                actionBtns.add(btnReview);
+            }
         }
 
         Button btnDetail = new Button("Rincian", VaadinIcon.EYE.create());
@@ -503,6 +593,102 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         return card;
     }
 
+    private void openReviewModal(com.example.application.model.order.Order order, User buyer) {
+        List<com.example.application.model.order.OrderItem> items = orderService.getOrderItems(order);
+
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Beri Ulasan Pesanan #" + order.getOrderNumber());
+        d.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        // Star Rating
+        Span starLabel = new Span("Rating Produk & Penjual:");
+        starLabel.getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
+
+        int[] selectedRating = {5};
+        Span[] stars = new Span[5];
+        Span ratingHint = new Span("Sangat Puas");
+        ratingHint.getStyle().set("font-size", "13px").set("color", "#F59E0B").set("font-weight", "700");
+
+        String[] ratingLabels = {"", "Sangat Buruk", "Buruk", "Cukup", "Bagus", "Sangat Puas"};
+
+        HorizontalLayout starsRow = new HorizontalLayout();
+        starsRow.setSpacing(false);
+        starsRow.getStyle().set("gap", "6px");
+
+        for (int i = 1; i <= 5; i++) {
+            Span star = new Span("★");
+            final int starVal = i;
+            star.getStyle()
+                .set("font-size", "32px")
+                .set("color", i <= selectedRating[0] ? "#F59E0B" : "#CBD5E1")
+                .set("cursor", "pointer")
+                .set("transition", "color 0.15s ease");
+            star.getElement().addEventListener("mouseover", e -> {
+                for (int j = 0; j < 5; j++) {
+                    stars[j].getStyle().set("color", j < starVal ? "#FBBF24" : "#CBD5E1");
+                }
+            });
+            star.getElement().addEventListener("mouseout", e -> {
+                for (int j = 0; j < 5; j++) {
+                    stars[j].getStyle().set("color", j < selectedRating[0] ? "#F59E0B" : "#CBD5E1");
+                }
+            });
+            star.getElement().addEventListener("click", e -> {
+                selectedRating[0] = starVal;
+                for (int j = 0; j < 5; j++) {
+                    stars[j].getStyle().set("color", j < starVal ? "#F59E0B" : "#CBD5E1");
+                }
+                ratingHint.setText(ratingLabels[starVal]);
+            });
+            stars[i - 1] = star;
+            starsRow.add(star);
+        }
+
+        TextArea commentArea = new TextArea("Komentar Ulasan");
+        commentArea.setPlaceholder("Ceritakan pengalamanmu membeli barang ini...");
+        commentArea.setWidthFull();
+        commentArea.setMaxLength(500);
+
+        layout.add(starLabel, starsRow, ratingHint, commentArea);
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnSubmit = new Button("Kirim Ulasan", e -> {
+            int rating = selectedRating[0];
+            String comment = commentArea.getValue();
+
+            com.example.application.model.product.Product reviewedProduct = null;
+            User seller = order.getSeller();
+            if (!items.isEmpty() && items.get(0).getProduct() != null) {
+                reviewedProduct = items.get(0).getProduct();
+            }
+
+            if (seller == null) {
+                Notification.show("Gagal: data penjual tidak ditemukan.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            try {
+                moderationService.submitReview(order, reviewedProduct, buyer, seller, rating, comment);
+                Notification.show("Ulasan berhasil dikirim. Terima kasih.", 3000, Notification.Position.TOP_CENTER);
+                d.close();
+                renderRightTabContent(); // refresh
+            } catch (Exception ex) {
+                Notification.show("Gagal mengirim ulasan: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnSubmit.getStyle().set("background", "#F59E0B").set("color", "#FFFFFF").set("font-weight", "700").set("border-radius", "8px");
+
+        d.getFooter().add(btnCancel, btnSubmit);
+        d.add(layout);
+        d.open();
+    }
+
     private void openOrderDetailModal(com.example.application.model.order.Order order) {
         Dialog d = new Dialog();
         d.setHeaderTitle("Rincian Pesanan #" + order.getOrderNumber());
@@ -511,9 +697,9 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Div body = new Div();
         body.getStyle().set("font-size", "13px").set("color", "#334155").set("display", "flex").set("flex-direction", "column").set("gap", "8px");
 
-        body.add(new Div(new Span("📍 Alamat Pengiriman: "), new Span(order.getShippingAddress() != null ? order.getShippingAddress() : "-")));
-        body.add(new Div(new Span("💳 Metode Pembayaran: "), new Span(order.getPaymentMethod() != null ? order.getPaymentMethod() : "-")));
-        body.add(new Div(new Span("🚚 Metode Pengiriman: "), new Span(order.getShippingMethod() != null ? order.getShippingMethod().name() : "-")));
+        body.add(new Div(new Span("Alamat Pengiriman: "), new Span(order.getShippingAddress() != null ? order.getShippingAddress() : "-")));
+        body.add(new Div(new Span("Metode Pembayaran: "), new Span(order.getPaymentMethod() != null ? order.getPaymentMethod() : "-")));
+        body.add(new Div(new Span("Metode Pengiriman: "), new Span(order.getShippingMethod() != null ? order.getShippingMethod().name() : "-")));
 
         d.add(body);
         Button btnClose = new Button("Tutup", e -> d.close());
@@ -525,14 +711,14 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Span badge = new Span();
         if (status == null) status = com.example.application.model.order.OrderStatus.MENUNGGU_PEMBAYARAN;
         switch (status) {
-            case MENUNGGU_PEMBAYARAN -> { badge.setText("⏳ Menunggu Pembayaran"); badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E"); }
-            case DIBAYAR          -> { badge.setText("✅ Dibayar");              badge.getStyle().set("background", "#DCFCE7").set("color", "#166534"); }
-            case DIPROSES         -> { badge.setText("⚙️ Diproses");            badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF"); }
-            case DIKIRIM          -> { badge.setText("🚚 Dikirim");             badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D"); }
-            case DITERIMA         -> { badge.setText("📬 Diterima");            badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D"); }
-            case SELESAI          -> { badge.setText("🎉 Selesai");             badge.getStyle().set("background", "#DCFCE7").set("color", "#166534"); }
-            case KOMPLAIN         -> { badge.setText("⚠️ Komplain");            badge.getStyle().set("background", "#FEF2F2").set("color", "#991B1B"); }
-            case DIBATALKAN       -> { badge.setText("❌ Dibatalkan");          badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B"); }
+            case MENUNGGU_PEMBAYARAN -> { badge.setText("Menunggu Pembayaran"); badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E"); }
+            case DIBAYAR          -> { badge.setText("Dibayar");              badge.getStyle().set("background", "#DCFCE7").set("color", "#166534"); }
+            case DIPROSES         -> { badge.setText("Diproses");            badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF"); }
+            case DIKIRIM          -> { badge.setText("Dikirim");             badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D"); }
+            case DITERIMA         -> { badge.setText("Diterima");            badge.getStyle().set("background", "#F0FDF4").set("color", "#15803D"); }
+            case SELESAI          -> { badge.setText("Selesai");             badge.getStyle().set("background", "#DCFCE7").set("color", "#166534"); }
+            case KOMPLAIN         -> { badge.setText("Komplain");            badge.getStyle().set("background", "#FEF2F2").set("color", "#991B1B"); }
+            case DIBATALKAN       -> { badge.setText("Dibatalkan");          badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B"); }
         }
         badge.getStyle().set("font-size", "12px").set("font-weight", "700").set("padding", "4px 10px").set("border-radius", "20px");
         return badge;
@@ -560,7 +746,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         leftMeta.setAlignItems(FlexComponent.Alignment.CENTER);
         leftMeta.setSpacing(true);
 
-        Span badgeSmk = new Span("🛡️ Warga SMKN 24");
+        Span badgeSmk = new Span("Warga SMKN 24");
         badgeSmk.getElement().getStyle()
             .set("background", "#FFDEA2")
             .set("color", "#261900")
@@ -578,7 +764,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Div escrowBadge = new Div();
         escrowBadge.getElement().setProperty("innerHTML",
             "<div style='background:#78350F;color:#FFFFFF;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;'>" +
-            "🔒 Dana Ditahan (Escrow)" +
+            "Dana Ditahan (Escrow)" +
             "<span style='font-weight:400;font-size:10px;opacity:0.85;'>(Aman hingga pesanan selesai)</span></div>"
         );
 
@@ -626,17 +812,17 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
             // Step 2: Diproses
             "<div style='z-index:3;display:flex;flex-direction:column;align-items:center;gap:6px;'>" +
-            "<div style='width:28px;height:28px;border-radius:9999px;background:#001934;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;'>📦</div>" +
+            "<div style='width:28px;height:28px;border-radius:9999px;background:#001934;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;'>2</div>" +
             "<span style='font-size:11px;font-weight:700;color:#001934;'>Diproses</span></div>" +
 
             // Step 3: Dikirim
             "<div style='z-index:3;display:flex;flex-direction:column;align-items:center;gap:6px;'>" +
-            "<div style='width:28px;height:28px;border-radius:9999px;background:#FFF;border:2px solid #CBD5E1;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:12px;'>🚚</div>" +
+            "<div style='width:28px;height:28px;border-radius:9999px;background:#FFF;border:2px solid #CBD5E1;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:12px;'>3</div>" +
             "<span style='font-size:11px;font-weight:600;color:#94A3B8;'>Dikirim</span></div>" +
 
             // Step 4: Selesai
             "<div style='z-index:3;display:flex;flex-direction:column;align-items:center;gap:6px;'>" +
-            "<div style='width:28px;height:28px;border-radius:9999px;background:#FFF;border:2px solid #CBD5E1;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:12px;'>🏁</div>" +
+            "<div style='width:28px;height:28px;border-radius:9999px;background:#FFF;border:2px solid #CBD5E1;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:12px;'>4</div>" +
             "<span style='font-size:11px;font-weight:600;color:#94A3B8;'>Selesai</span></div>" +
 
             "</div>"
@@ -762,7 +948,6 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Div complainText = new Div();
         complainText.getElement().setProperty("innerHTML",
             "<div style='display:flex;align-items:center;gap:10px;color:#991B1B;font-weight:700;font-size:13px;'>" +
-            "<span style='font-size:16px;'>⚠️</span>" +
             "<div><span>Masalah dengan barang?</span><br/>" +
             "<span style='font-size:11px;font-weight:500;color:#B91C1C;'>Anda memiliki waktu sisa 32 jam untuk mengajukan komplain.</span></div>" +
             "</div>"
@@ -927,6 +1112,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
     }
 
     // ==========================================
+    // ==========================================
     // TAB 3: WISHLIST SAYA
     // ==========================================
 
@@ -936,57 +1122,153 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         H2 title = new H2("Wishlist Saya");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
 
-        Paragraph subtitle = new Paragraph("Daftar produk pre-loved yang Anda simpan.");
+        Paragraph subtitle = new Paragraph("Daftar produk pre-loved impian yang Anda simpan.");
         subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 24px 0");
 
         wrapper.add(title, subtitle);
 
-        Div empty = new Div();
-        empty.getElement().setProperty("innerHTML",
-            "<div style='text-align:center;padding:48px 24px;background:#F8FAFC;border-radius:16px;border:1px dashed #CBD5E1;'>" +
-            "<div style='font-size:40px;margin-bottom:12px;'>❤️</div>" +
-            "<h3 style='color:#001934;font-size:18px;font-weight:700;margin:0 0 6px 0;'>Belum Ada Produk di Wishlist</h3>" +
-            "<p style='color:#64748B;font-size:14px;margin:0;'>Jelajahi produk di Pasar SMKN 24 dan simpan barang favoritmu.</p>" +
-            "</div>"
-        );
-        wrapper.add(empty);
+        List<Wishlist> wishlists = List.of();
+        if (targetUser != null && wishlistService != null) {
+            try {
+                wishlists = wishlistService.getUserWishlist(targetUser);
+            } catch (Exception ex) {
+                System.err.println("Error loading wishlist: " + ex.getMessage());
+            }
+        }
+
+        if (wishlists.isEmpty()) {
+            Div empty = new Div();
+            empty.getElement().setProperty("innerHTML",
+                "<div style='text-align:center;padding:56px 24px;background:#F8FAFC;border-radius:16px;border:1px dashed #CBD5E1;margin-top:12px;'>" +
+                "<div style='width:48px;height:48px;margin:0 auto 16px;border-radius:12px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#DC2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'></path></svg>" +
+                "</div>" +
+                "<h3 style='color:#001934;font-size:18px;font-weight:800;margin:0 0 8px 0;'>Belum Ada Produk di Wishlist</h3>" +
+                "<p style='color:#64748B;font-size:14px;margin:0 0 24px 0;'>Jelajahi produk di Pasar SMKN 24 dan simpan barang favoritmu.</p>" +
+                "</div>"
+            );
+
+            Button btnShop = new Button("Jelajahi Pasar SMKN 24", VaadinIcon.SHOP.create());
+            btnShop.getElement().getStyle()
+                .set("background", "#001934").set("color", "#F5C45E").set("font-weight", "700")
+                .set("border-radius", "10px").set("border", "none").set("padding", "12px 24px").set("cursor", "pointer");
+            btnShop.addClickListener(e -> UI.getCurrent().navigate("pasar-smkn24"));
+
+            empty.add(btnShop);
+            wrapper.add(empty);
+        } else {
+            Div grid = new Div();
+            grid.getElement().getStyle()
+                .set("display", "grid")
+                .set("grid-template-columns", "repeat(auto-fill, minmax(220px, 1fr))")
+                .set("gap", "20px")
+                .set("margin-top", "16px");
+
+            for (Wishlist w : wishlists) {
+                Product p = w.getProduct();
+                if (p != null) {
+                    grid.add(createRealWishlistCard(w, p));
+                }
+            }
+            wrapper.add(grid);
+        }
         return wrapper;
     }
 
-    private Div createWishlistCard(String pTitle, String pPrice, String imgUrl, String sellerName) {
+    private Div createRealWishlistCard(Wishlist wishlist, Product p) {
         Div card = new Div();
-        card.getElement().getStyle()
-            .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "16px")
-            .set("overflow", "hidden")
-            .set("padding", "16px")
-            .set("display", "flex")
-            .set("flex-direction", "column")
-            .set("gap", "12px");
+        try {
+            card.getElement().getStyle()
+                .set("background", "#FFFFFF")
+                .set("border", "1px solid #E2E8F0")
+                .set("border-radius", "16px")
+                .set("overflow", "hidden")
+                .set("padding", "16px")
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "10px")
+                .set("position", "relative")
+                .set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)")
+                .set("transition", "all 0.2s ease");
 
-        Image img = new Image(imgUrl, pTitle);
-        img.getElement().getStyle().set("width", "100%").set("height", "160px").set("border-radius", "12px").set("object-fit", "cover");
+            card.getElement().addEventListener("mouseover", e ->
+                card.getElement().getStyle().set("box-shadow", "0 8px 24px rgba(0,25,52,0.10)").set("transform", "translateY(-2px)"));
+            card.getElement().addEventListener("mouseout", e ->
+                card.getElement().getStyle().set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)").set("transform", "translateY(0)"));
 
-        H5 t = new H5(pTitle);
-        t.getElement().getStyle().set("font-size", "15px").set("font-weight", "700").set("color", "#001934").set("margin", "0");
+            String prodName = p != null && p.getName() != null ? p.getName() : "Produk Preloved";
+            BigDecimal priceVal = (p != null && p.getPrice() != null) ? p.getPrice() : BigDecimal.ZERO;
+            String imgUrl = p != null ? extractImgUrl(p.getImages(), "images/buku.jpeg") : "images/buku.jpeg";
+            Long prodId = p != null ? p.getId() : null;
 
-        Span p = new Span(pPrice);
-        p.getElement().getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934");
+            Image img = new Image(imgUrl, prodName);
+            img.getElement().getStyle()
+                .set("width", "100%").set("height", "150px")
+                .set("border-radius", "12px").set("object-fit", "cover")
+                .set("cursor", "pointer");
+            if (prodId != null) {
+                img.addClickListener(e -> UI.getCurrent().navigate("product?id=" + prodId));
+            }
 
-        Span s = new Span("Penjual: " + sellerName);
-        s.getElement().getStyle().set("font-size", "12px").set("color", "#64748B");
+            H5 t = new H5(prodName);
+            t.getElement().getStyle()
+                .set("font-size", "14px").set("font-weight", "700")
+                .set("color", "#001934").set("margin", "0")
+                .set("cursor", "pointer")
+                .set("white-space", "nowrap").set("overflow", "hidden").set("text-overflow", "ellipsis");
+            if (prodId != null) {
+                t.addClickListener(e -> UI.getCurrent().navigate("product?id=" + prodId));
+            }
 
-        Button btnCart = new Button("Pindahkan ke Keranjang");
-        btnCart.getElement().getStyle()
-            .set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700")
-            .set("border-radius", "8px").set("border", "none").set("padding", "10px").set("cursor", "pointer");
-        btnCart.addClickListener(e -> {
-            Notification.show(pTitle + " berhasil dipindahkan ke keranjang!");
-            UI.getCurrent().navigate("cart");
-        });
+            Span priceSpan = new Span("Rp " + String.format("%,.0f", priceVal));
+            priceSpan.getElement().getStyle().set("font-size", "15px").set("font-weight", "800").set("color", "#001934");
 
-        card.add(img, t, p, s, btnCart);
+            String sellerName = (p != null && p.getSeller() != null && p.getSeller().getFullName() != null)
+                ? p.getSeller().getFullName() : "Warga SMKN 24";
+            Span sellerSpan = new Span(sellerName);
+            sellerSpan.getElement().getStyle().set("font-size", "12px").set("color", "#64748B");
+
+            // Action Row
+            HorizontalLayout actions = new HorizontalLayout();
+            actions.setWidthFull();
+            actions.setSpacing(true);
+            actions.getElement().getStyle().set("gap", "8px").set("margin-top", "4px");
+
+            Button btnCart = new Button("Keranjang", VaadinIcon.CART.create());
+            btnCart.setWidth("75%");
+            btnCart.getElement().getStyle()
+                .set("background", "#001934").set("color", "#F5C45E").set("font-weight", "700")
+                .set("font-size", "12px").set("border-radius", "8px").set("border", "none")
+                .set("padding", "8px").set("cursor", "pointer");
+            btnCart.addClickListener(e -> {
+                User user = AuthGuard.getCurrentUser();
+                if (user != null && p != null) {
+                    cartService.addToCart(user, p, 1);
+                    MainLayout.reloadCartBadge(UI.getCurrent());
+                    Notification.show("Ditambahkan ke keranjang.", 2000, Notification.Position.TOP_CENTER);
+                }
+            });
+
+            Button btnDelete = new Button(VaadinIcon.TRASH.create());
+            btnDelete.setWidth("25%");
+            btnDelete.getElement().getStyle()
+                .set("background", "#FEF2F2").set("color", "#DC2626").set("font-weight", "700")
+                .set("border-radius", "8px").set("border", "1px solid #FCA5A5")
+                .set("padding", "8px").set("cursor", "pointer");
+            btnDelete.addClickListener(e -> {
+                User user = AuthGuard.getCurrentUser();
+                if (user != null && p != null) {
+                    wishlistService.removeFromWishlist(user, p);
+                    buildMainLayout();
+                    Notification.show("Dihapus dari Wishlist.", 2000, Notification.Position.TOP_CENTER);
+                }
+            });
+
+            actions.add(btnCart, btnDelete);
+            card.add(img, t, priceSpan, sellerSpan, actions);
+        } catch (Exception ex) {
+            System.err.println("Error building wishlist card: " + ex.getMessage());
+        }
         return card;
     }
 
@@ -996,72 +1278,219 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
     private Component renderReWearPayTab() {
         Div wrapper = new Div();
+        wrapper.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "20px");
 
         H2 title = new H2("ReWear Pay");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
 
-        Paragraph subtitle = new Paragraph("Kelola saldo transaksi aman, refund escrow, dan penarikan dana.");
-        subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 24px 0");
+        Paragraph subtitle = new Paragraph("Pusat kendali saldo transaksi aman, penampungan escrow, dan penarikan dana ke rekening bank / e-wallet.");
+        subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 20px 0");
 
         wrapper.add(title, subtitle);
+
+        BigDecimal saldoReWearPay = paymentService != null ? paymentService.getAvailableBalance(targetUser) : BigDecimal.ZERO;
+        BigDecimal saldoEscrowTerikat = paymentService != null ? paymentService.getEscrowBalance(targetUser) : BigDecimal.ZERO;
 
         // Saldo Banner Hero Card
         Div cardHero = new Div();
         cardHero.getElement().getStyle()
             .set("background", "linear-gradient(135deg, #001934 0%, #002B5B 100%)")
-            .set("border-radius", "20px")
+            .set("border-radius", "18px")
             .set("padding", "28px")
             .set("color", "#FFFFFF")
             .set("display", "flex")
             .set("align-items", "center")
             .set("justify-content", "space-between")
-            .set("margin-bottom", "28px");
-
-        List<com.example.application.model.order.Order> buyerOrders = targetUser != null ? orderService.getBuyerOrders(targetUser) : List.of();
-        List<com.example.application.model.order.Order> sellerOrders = targetUser != null ? orderService.getSellerOrders(targetUser) : List.of();
-
-        double saldoReWearPay = sellerOrders.stream()
-            .filter(o -> o.getStatus() == com.example.application.model.order.OrderStatus.SELESAI)
-            .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount().doubleValue() : 0)
-            .sum();
-
-        double saldoEscrowTerikat = buyerOrders.stream()
-            .filter(o -> o.getStatus() == com.example.application.model.order.OrderStatus.DIPROSES || o.getStatus() == com.example.application.model.order.OrderStatus.DIKIRIM || o.getStatus() == com.example.application.model.order.OrderStatus.MENUNGGU_PEMBAYARAN)
-            .mapToDouble(o -> o.getTotalAmount() != null ? o.getTotalAmount().doubleValue() : 0)
-            .sum();
+            .set("box-shadow", "0 4px 14px rgba(0,25,52,0.12)");
 
         Div salLeft = new Div();
-        Span lbl = new Span("Saldo ReWear Pay Aktif");
-        lbl.getElement().getStyle().set("font-size", "13px").set("opacity", "0.8").set("display", "block").set("margin-bottom", "4px");
+        Span lbl = new Span("Saldo ReWear Pay Aktif (Dapat Ditarik)");
+        lbl.getElement().getStyle().set("font-size", "13px").set("opacity", "0.85").set("display", "block").set("margin-bottom", "4px");
 
-        H3 val = new H3("Rp " + String.format("%,.0f", saldoReWearPay));
+        H3 val = new H3("Rp " + String.format("%,.0f", saldoReWearPay.doubleValue()));
         val.getElement().getStyle().set("font-size", "32px").set("font-weight", "800").set("margin", "0 0 8px 0").set("color", "#F5C45E");
 
-        Span escrowTxt = new Span("🔒 Dana Escrow Terikat Pesanan Aktif: Rp " + String.format("%,.0f", saldoEscrowTerikat));
-        escrowTxt.getElement().getStyle().set("font-size", "12px").set("opacity", "0.9");
+        Span escrowTxt = new Span("Dana Escrow Terikat Pesanan: Rp " + String.format("%,.0f", saldoEscrowTerikat.doubleValue()));
+        escrowTxt.getElement().getStyle().set("font-size", "12px").set("opacity", "0.9").set("color", "#93C5FD");
 
         salLeft.add(lbl, val, escrowTxt);
 
-        HorizontalLayout actBtns = new HorizontalLayout();
-        actBtns.setSpacing(true);
-
-        Button btnTopUp = new Button("+ Top Up");
-        btnTopUp.getElement().getStyle()
-            .set("background", "#F5C45E").set("color", "#001934").set("font-weight", "800")
-            .set("border-radius", "8px").set("padding", "10px 20px").set("border", "none").set("cursor", "pointer");
-        btnTopUp.addClickListener(e -> Notification.show("Fitur Top Up QRIS ReWear Pay dibuka."));
-
-        Button btnWithdraw = new Button("💸 Tarik Dana");
+        Button btnWithdraw = new Button("Tarik Saldo", VaadinIcon.MONEY_WITHDRAW.create());
         btnWithdraw.getElement().getStyle()
-            .set("background", "rgba(255,255,255,0.15)").set("color", "#FFFFFF").set("font-weight", "700")
-            .set("border-radius", "8px").set("padding", "10px 20px").set("border", "1px solid rgba(255,255,255,0.3)").set("cursor", "pointer");
-        btnWithdraw.addClickListener(e -> Notification.show("Permintaan Penarikan Dana diproses ke Rekening/E-Wallet."));
+            .set("background", "#F5C45E").set("color", "#001934").set("font-weight", "800")
+            .set("border-radius", "8px").set("padding", "12px 24px").set("border", "none").set("cursor", "pointer")
+            .set("box-shadow", "0 2px 8px rgba(245, 196, 94, 0.35)");
+        btnWithdraw.addClickListener(e -> openWithdrawDialog(saldoReWearPay.doubleValue()));
 
-        actBtns.add(btnTopUp, btnWithdraw);
-        cardHero.add(salLeft, actBtns);
-
+        cardHero.add(salLeft, btnWithdraw);
         wrapper.add(cardHero);
+
+        // Riwayat Penarikan Dana
+        List<SellerPayout> payouts = paymentService != null ? paymentService.getSellerPayouts(targetUser) : List.of();
+
+        Div historyCard = new Div();
+        historyCard.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "20px")
+            .set("box-shadow", "0 2px 6px rgba(0,25,52,0.03)");
+
+        H3 hTitle = new H3("Riwayat Penarikan Dana (" + payouts.size() + ")");
+        hTitle.getElement().getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 16px 0");
+        historyCard.add(hTitle);
+
+        if (payouts.isEmpty()) {
+            Div emptyState = new Div();
+            emptyState.getElement().getStyle().set("text-align", "center").set("padding", "32px 0").set("color", "#94A3B8");
+            emptyState.add(new Paragraph("Belum ada riwayat penarikan dana."));
+            historyCard.add(emptyState);
+        } else {
+            Div table = new Div();
+            table.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "12px");
+
+            for (SellerPayout p : payouts) {
+                HorizontalLayout row = new HorizontalLayout();
+                row.setWidthFull();
+                row.setAlignItems(FlexComponent.Alignment.CENTER);
+                row.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+                row.getElement().getStyle()
+                    .set("padding", "14px 16px")
+                    .set("background", "#F8FAFC")
+                    .set("border-radius", "10px")
+                    .set("border", "1px solid #E2E8F0");
+
+                Div leftInfo = new Div();
+                Span refNo = new Span(p.getReferenceNumber() != null ? p.getReferenceNumber() : "WD-RW");
+                refNo.getElement().getStyle().set("font-weight", "700").set("color", "#001934").set("font-size", "13px");
+
+                String bankInfo = p.getBankAccount() != null
+                    ? (p.getBankAccount().getBankName() + " • " + p.getBankAccount().getAccountNumber() + " (a.n " + p.getBankAccount().getAccountHolderName() + ")")
+                    : "Transfer Bank";
+                Paragraph pSub = new Paragraph(bankInfo + " • " + (p.getCreatedAt() != null ? p.getCreatedAt().format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")) : "-"));
+                pSub.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("margin", "2px 0 0 0");
+                leftInfo.add(refNo, pSub);
+
+                HorizontalLayout rightStatus = new HorizontalLayout();
+                rightStatus.setAlignItems(FlexComponent.Alignment.CENTER);
+                rightStatus.setSpacing(true);
+
+                Span amt = new Span("Rp " + String.format("%,.0f", p.getAmount() != null ? p.getAmount().doubleValue() : 0));
+                amt.getElement().getStyle().set("font-weight", "800").set("color", "#001934").set("font-size", "14px");
+
+                Span statusBadge = new Span();
+                statusBadge.getElement().getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "4px 8px").set("border-radius", "6px");
+
+                if (p.getStatus() == PayoutStatus.COMPLETED) {
+                    statusBadge.setText("Berhasil");
+                    statusBadge.getElement().getStyle().set("background", "#DCFCE7").set("color", "#15803D");
+                } else if (p.getStatus() == PayoutStatus.REJECTED) {
+                    statusBadge.setText("Ditolak");
+                    statusBadge.getElement().getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
+                } else {
+                    statusBadge.setText("Menunggu Persetujuan");
+                    statusBadge.getElement().getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+                }
+
+                rightStatus.add(amt, statusBadge);
+                row.add(leftInfo, rightStatus);
+                table.add(row);
+            }
+            historyCard.add(table);
+        }
+
+        wrapper.add(historyCard);
         return wrapper;
+    }
+
+    private void openWithdrawDialog(double maxSaldo) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Penarikan Dana ReWear Pay");
+        dialog.setWidth("440px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Span saldoInfo = new Span("Saldo tersedia: Rp " + String.format("%,.0f", maxSaldo));
+        saldoInfo.getElement().getStyle()
+            .set("font-size", "13px")
+            .set("font-weight", "700")
+            .set("color", "#001934")
+            .set("background", "#FEF3C7")
+            .set("padding", "8px 14px")
+            .set("border-radius", "8px")
+            .set("width", "100%")
+            .set("box-sizing", "border-box");
+
+        ComboBox<String> bankCombo = new ComboBox<>("Tujuan Transfer (Bank / E-Wallet)");
+        bankCombo.setItems("Bank BCA", "Bank Mandiri", "Bank BRI", "Bank BNI", "GoPay", "OVO", "DANA", "ShopeePay");
+        bankCombo.setValue("Bank BCA");
+        bankCombo.setWidthFull();
+
+        TextField accNumField = new TextField("Nomor Rekening / HP E-Wallet");
+        accNumField.setPlaceholder("Contoh: 1234567890 atau 08123456789");
+        accNumField.setWidthFull();
+
+        TextField accHolderField = new TextField("Nama Pemilik Rekening / Akun");
+        accHolderField.setValue(targetUser != null && targetUser.getFullName() != null ? targetUser.getFullName() : "");
+        accHolderField.setWidthFull();
+
+        TextField amountField = new TextField("Nominal Penarikan (Rp)");
+        amountField.setValue(String.format("%.0f", maxSaldo > 0 ? maxSaldo : 10000));
+        amountField.setWidthFull();
+
+        layout.add(saldoInfo, bankCombo, accNumField, accHolderField, amountField);
+
+        Button btnCancel = new Button("Batal", e -> dialog.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnSubmit = new Button("Konfirmasi Penarikan", e -> {
+            String bank = bankCombo.getValue();
+            String accNum = accNumField.getValue() != null ? accNumField.getValue().trim() : "";
+            String accHolder = accHolderField.getValue() != null ? accHolderField.getValue().trim() : "";
+            String amountStr = amountField.getValue() != null ? amountField.getValue().trim() : "0";
+
+            if (accNum.isEmpty()) {
+                Notification.show("Harap isi nomor rekening / e-wallet!", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (accHolder.isEmpty()) {
+                Notification.show("Harap isi nama pemilik rekening!", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            double amount = 0;
+            try {
+                amount = Double.parseDouble(amountStr.replaceAll("[^0-9]", ""));
+            } catch (Exception ignored) {}
+
+            if (amount < 10000) {
+                Notification.show("Minimal penarikan dana adalah Rp 10.000", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (amount > maxSaldo) {
+                Notification.show("Nominal penarikan melebihi saldo aktif Anda!", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            try {
+                if (paymentService != null && targetUser != null) {
+                    paymentService.requestPayout(targetUser, bank, accNum, accHolder, BigDecimal.valueOf(amount));
+                }
+                dialog.close();
+                Notification.show("Permohonan penarikan dana sebesar Rp " + String.format("%,.0f", amount) + " berhasil diajukan.", 3500, Notification.Position.TOP_CENTER);
+                buildMainLayout();
+            } catch (Exception ex) {
+                Notification.show("Gagal mengajukan penarikan: " + ex.getMessage(), 3500, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnSubmit.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        btnSubmit.getElement().getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700");
+
+        dialog.add(layout);
+        dialog.getFooter().add(btnCancel, btnSubmit);
+        dialog.open();
     }
 
     // ==========================================
@@ -1070,35 +1499,155 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
     private Component renderSettingsTab() {
         Div wrapper = new Div();
+        wrapper.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "32px");
 
-        H2 title = new H2("Pengaturan Akun");
+        // Header
+        Div headerBox = new Div();
+        H2 title = new H2("Pengaturan Akun & Profil");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
+        Paragraph subtitle = new Paragraph("Perbarui informasi profil publik, kontak, dan keamanan akun Anda.");
+        subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0");
+        headerBox.add(title, subtitle);
+        wrapper.add(headerBox);
 
-        Paragraph subtitle = new Paragraph("Atur keamanan kata sandi dan preferensi notifikasi Anda.");
-        subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 24px 0");
+        // Card 1: Informasi Profil
+        Div profileCard = new Div();
+        profileCard.getElement().getStyle()
+            .set("background", "#F8FAFC")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "24px")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("gap", "18px");
 
-        wrapper.add(title, subtitle);
+        H3 sec1Title = new H3("Informasi Profil");
+        sec1Title.getElement().getStyle().set("font-size", "18px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
 
-        Div form = new Div();
-        form.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "16px").set("max-width", "500px");
+        TextField nameField = new TextField("Nama Lengkap");
+        nameField.setValue(targetUser != null && targetUser.getFullName() != null ? targetUser.getFullName() : "");
+        nameField.setWidthFull();
 
-        PasswordField oldPass = new PasswordField("Kata Sandi Lama");
+        TextField emailField = new TextField("Alamat Email (Akun Utama)");
+        emailField.setValue(targetUser != null && targetUser.getEmail() != null ? targetUser.getEmail() : "");
+        emailField.setReadOnly(true);
+        emailField.setHelperText("Email akun terverifikasi dan tidak dapat diubah.");
+        emailField.setWidthFull();
+
+        TextField phoneField = new TextField("Nomor Telepon / WhatsApp");
+        phoneField.setValue(targetUser != null && targetUser.getPhone() != null ? targetUser.getPhone() : "");
+        phoneField.setPlaceholder("Contoh: 081234567890");
+        phoneField.setWidthFull();
+
+        TextField avatarField = new TextField("URL Foto Profil (Avatar)");
+        avatarField.setValue(targetUser != null && targetUser.getAvatarUrl() != null ? targetUser.getAvatarUrl() : "");
+        avatarField.setPlaceholder("Contoh: images/foto-profil.jpg atau https://...");
+        avatarField.setWidthFull();
+
+        TextArea bioField = new TextArea("Bio / Deskripsi Profil");
+        bioField.setValue(targetUser != null && targetUser.getBio() != null ? targetUser.getBio() : "");
+        bioField.setPlaceholder("Ceritakan tentang dirimu, kelas/jurusan di SMKN 24, atau barang yang sering kamu jual...");
+        bioField.setWidthFull();
+        bioField.setMaxLength(300);
+
+        Button btnSaveProfile = new Button("Simpan Perubahan Profil", VaadinIcon.CHECK.create());
+        btnSaveProfile.getElement().getStyle()
+            .set("background", "#001934").set("color", "#F5C45E").set("font-weight", "800")
+            .set("border-radius", "10px").set("padding", "12px 24px").set("border", "none")
+            .set("cursor", "pointer").set("width", "fit-content");
+
+        btnSaveProfile.addClickListener(e -> {
+            if (targetUser == null) return;
+            String newName = nameField.getValue() != null ? nameField.getValue().trim() : "";
+            if (newName.isEmpty()) {
+                Notification.show("Nama lengkap tidak boleh kosong.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            targetUser.setFullName(newName);
+            targetUser.setPhone(phoneField.getValue() != null ? phoneField.getValue().trim() : "");
+            targetUser.setAvatarUrl(avatarField.getValue() != null ? avatarField.getValue().trim() : "");
+            targetUser.setBio(bioField.getValue() != null ? bioField.getValue().trim() : "");
+
+            User saved = userService.saveUser(targetUser);
+            targetUser = saved;
+            VaadinSession.getCurrent().setAttribute(User.class, saved);
+
+            Notification.show("Profil berhasil diperbarui.", 3000, Notification.Position.TOP_CENTER);
+            buildMainLayout();
+        });
+
+        profileCard.add(sec1Title, nameField, emailField, phoneField, avatarField, bioField, btnSaveProfile);
+        wrapper.add(profileCard);
+
+        // Card 2: Keamanan & Kata Sandi
+        Div passwordCard = new Div();
+        passwordCard.getElement().getStyle()
+            .set("background", "#F8FAFC")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "24px")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("gap", "18px");
+
+        H3 sec2Title = new H3("Keamanan Kata Sandi");
+        sec2Title.getElement().getStyle().set("font-size", "18px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
+
+        PasswordField oldPass = new PasswordField("Kata Sandi Saat Ini");
         oldPass.setWidthFull();
 
         PasswordField newPass = new PasswordField("Kata Sandi Baru");
+        newPass.setHelperText("Minimal 6 karakter.");
         newPass.setWidthFull();
 
         PasswordField confirmPass = new PasswordField("Konfirmasi Kata Sandi Baru");
         confirmPass.setWidthFull();
 
-        Button btnChange = new Button("Ubah Kata Sandi");
-        btnChange.getElement().getStyle()
-            .set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700")
-            .set("border-radius", "8px").set("padding", "12px").set("cursor", "pointer");
-        btnChange.addClickListener(e -> Notification.show("Kata sandi berhasil diperbarui!", 2500, Notification.Position.TOP_CENTER));
+        Button btnChangePass = new Button("Perbarui Kata Sandi", VaadinIcon.KEY.create());
+        btnChangePass.getElement().getStyle()
+            .set("background", "#1E293B").set("color", "#FFFFFF").set("font-weight", "700")
+            .set("border-radius", "10px").set("padding", "12px 24px").set("border", "none")
+            .set("cursor", "pointer").set("width", "fit-content");
 
-        form.add(oldPass, newPass, confirmPass, btnChange);
-        wrapper.add(form);
+        btnChangePass.addClickListener(e -> {
+            if (targetUser == null) return;
+            String oldVal = oldPass.getValue();
+            String newVal = newPass.getValue();
+            String confirmVal = confirmPass.getValue();
+
+            if (oldVal == null || oldVal.isBlank()) {
+                Notification.show("Harap masukkan kata sandi lama Anda.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (targetUser.getPasswordHash() != null && !oldVal.equals(targetUser.getPasswordHash())) {
+                Notification.show("Kata sandi lama yang Anda masukkan salah.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (newVal == null || newVal.length() < 6) {
+                Notification.show("Kata sandi baru minimal 6 karakter.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (!newVal.equals(confirmVal)) {
+                Notification.show("Konfirmasi kata sandi baru tidak cocok.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            targetUser.setPasswordHash(newVal);
+            User saved = userService.saveUser(targetUser);
+            targetUser = saved;
+            VaadinSession.getCurrent().setAttribute(User.class, saved);
+
+            oldPass.clear();
+            newPass.clear();
+            confirmPass.clear();
+
+            Notification.show("Kata sandi akun berhasil diperbarui.", 3000, Notification.Position.TOP_CENTER);
+        });
+
+        passwordCard.add(sec2Title, oldPass, newPass, confirmPass, btnChangePass);
+        wrapper.add(passwordCard);
+
         return wrapper;
     }
 
@@ -1123,7 +1672,9 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             Div empty = new Div();
             empty.getElement().setProperty("innerHTML",
                 "<div style='text-align:center;padding:48px 20px;background:#F8FAFC;border-radius:16px;border:1px dashed #CBD5E1;margin-top:16px;'>" +
-                "<div style='font-size:40px;margin-bottom:12px;'>🏷️</div>" +
+                "<div style='width:48px;height:48px;margin:0 auto 12px;border-radius:12px;background:#E2E8F0;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#64748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z'></path><line x1='7' y1='7' x2='7.01' y2='7'></line></svg>" +
+                "</div>" +
                 "<h3 style='color:#001934;margin:0 0 8px 0;font-size:18px;font-weight:700;'>Belum Ada Barang yang Dijual</h3>" +
                 "<p style='color:#64748B;margin:0 0 20px 0;font-size:14px;'>" +
                 (isOwnProfile ? "Kamu belum mengunggah produk barang preloved. Yuk mulai jualan!" : "Penjual ini belum mengunggah barang preloved.") +
@@ -1208,5 +1759,21 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         infoBox.add(title, price);
         card.add(img, infoBox);
         return card;
+    }
+
+    private String extractImgUrl(String imagesJson, String fallback) {
+        if (imagesJson == null || imagesJson.isBlank()) return fallback;
+        String s = imagesJson.trim();
+        if (s.startsWith("[")) {
+            s = s.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").trim();
+            String[] parts = s.split(",");
+            if (parts.length > 0 && !parts[0].trim().isEmpty()) {
+                return parts[0].trim();
+            }
+        }
+        if (s.startsWith("http") || s.startsWith("images/") || s.startsWith("uploads/")) {
+            return s;
+        }
+        return fallback;
     }
 }

@@ -3,7 +3,8 @@ package com.example.application.model.moderation;
 public enum ReportType {
     ORDER_COMPLAINT("order_complaint"),
     USER_VIOLATION("user_violation"),
-    CHAT_ISSUE("chat_issue");
+    CHAT_ISSUE("chat_issue"),
+    PRODUCT_VIOLATION("product_violation");
 
     private final String value;
 
