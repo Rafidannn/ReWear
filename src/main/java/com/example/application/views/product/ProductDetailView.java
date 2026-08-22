@@ -33,6 +33,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.application.views.order.CartItem;
+import com.vaadin.flow.server.VaadinSession;
+
 @Route(value = "product", layout = MainLayout.class)
 @PageTitle("Detail Produk | ReWear SMKN 24")
 public class ProductDetailView extends VerticalLayout implements HasUrlParameter<Long> {

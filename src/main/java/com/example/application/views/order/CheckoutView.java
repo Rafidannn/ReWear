@@ -6,6 +6,7 @@ import com.example.application.model.user.Address;
 import com.example.application.model.user.User;
 import com.example.application.service.order.CartService;
 import com.example.application.service.order.OrderService;
+import com.example.application.service.product.ProductService;
 import com.example.application.service.user.AddressService;
 import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
@@ -40,6 +41,7 @@ public class CheckoutView extends Div {
     private final CartService cartService;
     private final OrderService orderService;
     private final AddressService addressService;
+    private final ProductService productService;
 
     // Mode checkout: true = Pasar SMKN 24 (COD Sekolah), false = Reguler/Ekspedisi
     private boolean isPasarSmkn24Mode = true;
@@ -75,10 +77,11 @@ public class CheckoutView extends Div {
 
     private List<CartItem> allCartItems = new ArrayList<>();
 
-    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService) {
+    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService, ProductService productService) {
         this.cartService = cartService;
         this.orderService = orderService;
         this.addressService = addressService;
+        this.productService = productService;
 
         if (!AuthGuard.requireLogin(UI.getCurrent())) return;
 
@@ -113,7 +116,13 @@ public class CheckoutView extends Div {
             .set("background", "#FFFFFF")
             .set("border", "1px solid #E2E8F0")
             .set("border-radius", "8px");
-        btnBack.addClickListener(e -> UI.getCurrent().getPage().getHistory().back());
+        btnBack.addClickListener(e -> {
+            VaadinSession s = VaadinSession.getCurrent();
+            if (s != null) {
+                s.removeAttribute("DIRECT_CHECKOUT_ITEM");
+            }
+            UI.getCurrent().getPage().getHistory().back();
+        });
 
         H2 pageTitle = new H2("Konfirmasi Pesanan");
         pageTitle.addClassName("rw-checkout-page-title");
@@ -142,11 +151,19 @@ public class CheckoutView extends Div {
         User user = AuthGuard.getCurrentUser();
         if (user == null) return;
 
+        VaadinSession session = VaadinSession.getCurrent();
+        CartItem directItem = (session != null) ? (CartItem) session.getAttribute("DIRECT_CHECKOUT_ITEM") : null;
+
+        if (directItem != null) {
+            this.allCartItems = new ArrayList<>(List.of(directItem));
+            this.isPasarSmkn24Mode = directItem.isSmkn24Item();
+            return;
+        }
+
         var entities = cartService.getCartItems(user);
         this.allCartItems = cartService.convertToUiCartItemList(entities);
 
         // Sync to session for compatibility
-        VaadinSession session = VaadinSession.getCurrent();
         if (session != null) {
             session.setAttribute(CartView.SESSION_CART_KEY, this.allCartItems);
         }
@@ -317,7 +334,7 @@ public class CheckoutView extends Div {
         formBox.addClassName("rw-address-form-box");
 
         // Tombol GPS
-        Button btnGps = new Button("📡 Gunakan Lokasi GPS Saya");
+        Button btnGps = new Button("Gunakan Lokasi GPS Saya", VaadinIcon.MAP_MARKER.create());
         btnGps.addClassName("rw-btn-gps");
         btnGps.getStyle()
             .set("background", "linear-gradient(135deg, #001934, #0A3D7A)")
@@ -338,7 +355,7 @@ public class CheckoutView extends Div {
         gpsStatus.getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block").set("margin-bottom", "12px");
 
         btnGps.addClickListener(e -> {
-            gpsStatus.setText("⏳ Mendapatkan lokasi GPS...");
+            gpsStatus.setText("Mendapatkan lokasi GPS...");
             // Jalankan Geolocation + Nominatim reverse geocoding
             UI.getCurrent().getPage().executeJs("""
                 navigator.geolocation.getCurrentPosition(
@@ -379,7 +396,7 @@ public class CheckoutView extends Div {
                 fieldKota.getElement(),
                 fieldKodePos.getElement()
             );
-            gpsStatus.setText("✅ Lokasi berhasil dideteksi! Periksa dan lengkapi data di bawah.");
+            gpsStatus.setText("Lokasi berhasil dideteksi. Periksa dan lengkapi data di bawah.");
         });
 
         // Style input fields
@@ -433,7 +450,7 @@ public class CheckoutView extends Div {
                 }).addTo(map);
 
                 var marker = L.marker([defaultLat, defaultLon], { draggable: true }).addTo(map);
-                marker.bindPopup('<b>📌 Lokasi Pengiriman</b><br/>Geser marker atau klik peta').openPopup();
+                marker.bindPopup('<b>Lokasi Pengiriman</b><br/>Geser marker atau klik peta').openPopup();
 
                 function updateAddressFromCoords(lat, lng) {
                     marker.setLatLng([lat, lng]);
@@ -483,7 +500,7 @@ public class CheckoutView extends Div {
         Div row3 = new Div(fieldKota, fieldKodePos);
         row3.getStyle().set("display", "grid").set("grid-template-columns", "1fr 120px").set("gap", "12px");
 
-        Button btnSimpanAlamat = new Button("💾 Simpan Alamat & Lanjutkan");
+        Button btnSimpanAlamat = new Button("Simpan Alamat & Lanjutkan");
         btnSimpanAlamat.addClassName("btn-confirm-pay");
         btnSimpanAlamat.getStyle().set("width", "100%").set("margin-top", "12px");
         btnSimpanAlamat.addClickListener(e -> {
@@ -1065,11 +1082,18 @@ public class CheckoutView extends Div {
                 lastOrderNumber = order.getOrderNumber();
             }
 
-            // Hapus item yang sudah di-checkout dari cart DB
+            // Hapus item yang sudah di-checkout dari cart DB jika bukan direct checkout
             for (CartItem cartItem : itemsToPay) {
-                try {
-                    cartService.removeFromCart(Long.parseLong(cartItem.getId()));
-                } catch (Exception ignored) {}
+                if (cartItem.getId() != null && !cartItem.getId().startsWith("direct-")) {
+                    try {
+                        cartService.removeFromCart(Long.parseLong(cartItem.getId()));
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            VaadinSession session = VaadinSession.getCurrent();
+            if (session != null) {
+                session.removeAttribute("DIRECT_CHECKOUT_ITEM");
             }
 
             // Tampilkan sukses dan redirect
@@ -1087,7 +1111,14 @@ public class CheckoutView extends Div {
     }
 
     private User findSellerForCartItem(CartItem cartItem, List<CartItemEntity> entities) {
-        if (cartItem == null || cartItem.getId() == null) return null;
+        if (cartItem == null) return null;
+
+        if (cartItem.getProductId() != null) {
+            Product p = productService.getProductById(cartItem.getProductId()).orElse(null);
+            if (p != null && p.getSeller() != null) return p.getSeller();
+        }
+
+        if (cartItem.getId() == null) return null;
 
         try {
             long cartItemId = Long.parseLong(cartItem.getId());
@@ -1112,6 +1143,7 @@ public class CheckoutView extends Div {
         return null;
     }
 
+    @SuppressWarnings("unused")
     private User getSellerFromFirstItem(List<CartItem> items) {
         User currentUser = AuthGuard.getCurrentUser();
         if (currentUser == null) return null;

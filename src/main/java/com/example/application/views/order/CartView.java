@@ -282,7 +282,7 @@ public class CartView extends Div {
                 Div qtyWrap = new Div();
                 qtyWrap.addClassName("rw-qty-controller");
 
-                Span minusBtn = new Span("-");
+                Button minusBtn = new Button("-");
                 minusBtn.addClassName("rw-qty-btn");
                 minusBtn.addClickListener(e -> {
                     if (item.getQuantity() > 1) {
@@ -294,13 +294,23 @@ public class CartView extends Div {
                         syncCartToSession();
                         renderLeftColumn();
                         recalculateTotal();
+                    } else {
+                        // Confirm deletion if quantity is 1
+                        try {
+                            cartService.removeFromCart(Long.parseLong(item.getId()));
+                        } catch (Exception ignored) {}
+                        cartItems.remove(item);
+                        syncCartToSession();
+                        renderLeftColumn();
+                        recalculateTotal();
+                        Notification.show("Produk " + item.getTitle() + " dihapus dari keranjang.", 2000, Notification.Position.TOP_CENTER);
                     }
                 });
 
                 Span qtyVal = new Span(String.valueOf(item.getQuantity()));
                 qtyVal.addClassName("rw-qty-val");
 
-                Span plusBtn = new Span("+");
+                Button plusBtn = new Button("+");
                 plusBtn.addClassName("rw-qty-btn");
                 plusBtn.addClickListener(e -> {
                     int maxLimit = item.getMaxStock();
@@ -330,9 +340,19 @@ public class CartView extends Div {
             // Store Subtotal Footer
             Div storeFooter = new Div();
             storeFooter.addClassName("rw-cart-store-footer");
-            storeFooter.getElement().setProperty("innerHTML",
-                "Subtotal (Toko): <strong>Rp " + String.format("%,.0f", storeSubtotal) + "</strong>"
-            );
+
+            double storeSubtotal = storeItems.stream()
+                .filter(CartItem::isSelected)
+                .mapToDouble(i -> i.getPrice() * i.getQuantity())
+                .sum();
+
+            Span storeSubtotalLabel = new Span("Subtotal Toko:");
+            storeSubtotalLabel.addClassName("rw-store-subtotal-label");
+
+            Span storeSubtotalVal = new Span("Rp " + String.format("%,.0f", storeSubtotal));
+            storeSubtotalVal.addClassName("rw-store-subtotal-val");
+
+            storeFooter.add(storeSubtotalLabel, storeSubtotalVal);
             storeCard.add(storeFooter);
 
             leftContainer.add(storeCard);
