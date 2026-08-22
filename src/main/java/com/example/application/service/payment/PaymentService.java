@@ -26,15 +26,18 @@ public class PaymentService {
     private final SellerPayoutRepository sellerPayoutRepository;
     private final OrderRepository orderRepository;
     private final BankAccountRepository bankAccountRepository;
+    private final com.example.application.repository.user.UserRepository userRepository;
 
     public PaymentService(PaymentRepository paymentRepository,
                           SellerPayoutRepository sellerPayoutRepository,
                           OrderRepository orderRepository,
-                          BankAccountRepository bankAccountRepository) {
+                          BankAccountRepository bankAccountRepository,
+                          com.example.application.repository.user.UserRepository userRepository) {
         this.paymentRepository = paymentRepository;
         this.sellerPayoutRepository = sellerPayoutRepository;
         this.orderRepository = orderRepository;
         this.bankAccountRepository = bankAccountRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Payment> getPaymentsForOrder(Order order) {
@@ -110,6 +113,13 @@ public class PaymentService {
                 newAcc.setPrimary(existingAccounts.isEmpty());
                 return bankAccountRepository.save(newAcc);
             });
+
+        // Deduct seller user balance
+        BigDecimal currentBalance = seller.getBalance();
+        if (currentBalance != null && currentBalance.compareTo(amount) >= 0) {
+            seller.setBalance(currentBalance.subtract(amount));
+            userRepository.save(seller);
+        }
 
         SellerPayout payout = new SellerPayout();
         payout.setSeller(seller);

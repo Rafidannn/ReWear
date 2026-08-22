@@ -15,6 +15,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -64,8 +65,8 @@ public class CheckoutView extends Div {
 
     private final Div leftCol = new Div();
     private final Div rightCol = new Div();
-    private final Button btnTabSmkn24 = new Button("🏪 Pasar SMKN 24 (COD Sekolah)");
-    private final Button btnTabRegular = new Button("📦 Barang Reguler / Ekspedisi");
+    private final Button btnTabSmkn24 = new Button("Pasar SMKN 24 (COD Sekolah)", VaadinIcon.INSTITUTION.create());
+    private final Button btnTabRegular = new Button("Barang Reguler / Ekspedisi", VaadinIcon.PACKAGE.create());
 
     private final Div addressSectionContainer = new Div();
     private final Div shippingSectionContainer = new Div();
@@ -344,9 +345,7 @@ public class CheckoutView extends Div {
                     function(pos) {
                         var lat = pos.coords.latitude;
                         var lon = pos.coords.longitude;
-                        fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&addressdetails=1', {
-                            headers: { 'Accept-Language': 'id', 'User-Agent': 'ReWear-SMKN24/1.0' }
-                        })
+                        fetch('/api/geocode/reverse?lat=' + lat + '&lon=' + lon)
                         .then(function(r) { return r.json(); })
                         .then(function(data) {
                             var addr = data.address || {};
@@ -385,7 +384,8 @@ public class CheckoutView extends Div {
 
         // Style input fields
         styleFormField(fieldNamaPenerima, "Contoh: Budi Santoso");
-        styleFormField(fieldTelepon, "Contoh: 0812-3456-7890");
+        styleFormField(fieldTelepon, "Contoh: 081234567890");
+        fieldTelepon.setAllowedCharPattern("[0-9+]");
         styleFormField(fieldAlamat, "Jl. Contoh No. 1, RT/RW, Kelurahan");
         styleFormField(fieldKota, "Kecamatan, Kota / Kabupaten, Provinsi");
         styleFormField(fieldKodePos, "Contoh: 13890");
@@ -437,9 +437,7 @@ public class CheckoutView extends Div {
 
                 function updateAddressFromCoords(lat, lng) {
                     marker.setLatLng([lat, lng]);
-                    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&addressdetails=1', {
-                        headers: { 'Accept-Language': 'id', 'User-Agent': 'ReWear-SMKN24/1.0' }
-                    })
+                    fetch('/api/geocode/reverse?lat=' + lat + '&lon=' + lng)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         var addr = data.address || {};
@@ -865,9 +863,16 @@ public class CheckoutView extends Div {
             .set("background", "#F8FAFC").set("border", "1px solid #E2E8F0")
             .set("border-radius", "8px").set("padding", "12px 16px").set("margin-bottom", "14px");
 
-        H5 itemsTitle = new H5("📦 Barang yang Dibeli (" + itemsToPay.size() + " produk):");
-        itemsTitle.getStyle().set("margin", "0 0 8px 0").set("color", "#001934").set("font-weight", "700");
-        itemsBox.add(itemsTitle);
+        Div itemsHeader = new Div();
+        itemsHeader.getStyle().set("display", "flex").set("align-items", "center").set("gap", "8px").set("margin-bottom", "8px");
+
+        Icon pkgIcon = VaadinIcon.PACKAGE.create();
+        pkgIcon.getElement().getStyle().set("width", "16px").set("height", "16px").set("color", "#001934");
+
+        H5 itemsTitle = new H5("Barang yang Dibeli (" + itemsToPay.size() + " produk):");
+        itemsTitle.getStyle().set("margin", "0").set("color", "#001934").set("font-weight", "700");
+        itemsHeader.add(pkgIcon, itemsTitle);
+        itemsBox.add(itemsHeader);
 
         for (CartItem item : itemsToPay) {
             Div itemRow = new Div();
@@ -895,8 +900,8 @@ public class CheckoutView extends Div {
             : (selectedShippingIndex == 0 ? "Ambil Sendiri (Gratis)" : selectedShippingIndex == 1 ? "Instan Gojek/Grab (Rp22.000)" : "Reguler JNE/J&T (Rp9.000)");
 
         shipBox.add(
-            buildDialogRow("📍 Tujuan: ", locText),
-            buildDialogRow("🚚 Pengiriman: ", shipText)
+            buildDialogRow(VaadinIcon.MAP_MARKER, "Tujuan", locText),
+            buildDialogRow(VaadinIcon.TRUCK, "Pengiriman", shipText)
         );
         body.add(shipBox);
 
@@ -911,8 +916,8 @@ public class CheckoutView extends Div {
             : (selectedPaymentIndex == 0 ? "Escrow Rekber Safety" : "Transfer Bank / Virtual Account");
 
         payBox.add(
-            buildDialogRow("💳 Pembayaran: ", payText),
-            buildDialogRow("💰 Total Tagihan: ", totalTagihanSpan.getText())
+            buildDialogRow(VaadinIcon.CREDIT_CARD, "Pembayaran", payText),
+            buildDialogRow(VaadinIcon.MONEY, "Total Tagihan", totalTagihanSpan.getText())
         );
         body.add(payBox);
 
@@ -932,9 +937,30 @@ public class CheckoutView extends Div {
         dialog.open();
     }
 
-    private Div buildDialogRow(String label, String value) {
-        Div row = new Div(new Span(label), new Span(value));
-        row.getStyle().set("font-size", "13px").set("margin-bottom", "4px").set("color", "#334155");
+    private Div buildDialogRow(VaadinIcon icon, String label, String value) {
+        Div row = new Div();
+        row.getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "8px")
+            .set("font-size", "13px")
+            .set("margin-bottom", "6px")
+            .set("color", "#334155");
+
+        Icon ic = icon.create();
+        ic.getElement().getStyle()
+            .set("width", "16px")
+            .set("height", "16px")
+            .set("color", "#001934")
+            .set("flex-shrink", "0");
+
+        Span lbl = new Span(label + ":");
+        lbl.getStyle().set("font-weight", "600").set("color", "#64748B");
+
+        Span val = new Span(value);
+        val.getStyle().set("font-weight", "700").set("color", "#001934");
+
+        row.add(ic, lbl, val);
         return row;
     }
 
@@ -1012,12 +1038,22 @@ public class CheckoutView extends Div {
                     oi.setPriceSnapshot(BigDecimal.valueOf(cartItem.getPrice()));
                     oi.setQuantity(cartItem.getQuantity());
 
-                    // Link Product entity so OrderService updates soldCount & stock
+                    // Link Product entity precisely by Product ID
                     for (var entity : entities) {
-                        if (entity.getProduct() != null && entity.getProduct().getName() != null
-                                && entity.getProduct().getName().equals(cartItem.getTitle())) {
+                        if (entity.getProduct() != null && entity.getProduct().getId() != null
+                                && entity.getProduct().getId().equals(cartItem.getProductId())) {
                             oi.setProduct(entity.getProduct());
                             break;
+                        }
+                    }
+                    // Fallback to name matching if product ID not matched
+                    if (oi.getProduct() == null) {
+                        for (var entity : entities) {
+                            if (entity.getProduct() != null && entity.getProduct().getName() != null
+                                    && entity.getProduct().getName().equals(cartItem.getTitle())) {
+                                oi.setProduct(entity.getProduct());
+                                break;
+                            }
                         }
                     }
 

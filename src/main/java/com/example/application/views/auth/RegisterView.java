@@ -16,6 +16,9 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.example.application.model.user.UserSchoolVerification;
+import com.example.application.model.user.VerificationStatus;
+import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -104,6 +107,23 @@ public class RegisterView extends HorizontalLayout {
             .set("font-weight", "500")
             .set("margin-bottom", "16px");
 
+        // Kategori Akun (Warga SMKN 24 vs Masyarakat Umum)
+        RadioButtonGroup<String> userTypeRadio = new RadioButtonGroup<>("Kategori Akun");
+        userTypeRadio.setItems("Warga SMKN 24 / Sekolah", "Masyarakat Umum (Publik)");
+        userTypeRadio.setValue("Warga SMKN 24 / Sekolah");
+        userTypeRadio.setWidthFull();
+        userTypeRadio.getElement().getStyle().set("margin-bottom", "8px");
+
+        // Info Badge Kategori
+        Div categoryInfoBadge = new Div();
+        categoryInfoBadge.getElement().getStyle()
+            .set("padding", "10px 14px")
+            .set("border-radius", "10px")
+            .set("font-size", "12px")
+            .set("font-weight", "600")
+            .set("margin-bottom", "14px")
+            .set("line-height", "1.4");
+
         // Input Nama Lengkap
         TextField nameField = new TextField("Nama Lengkap");
         nameField.setPlaceholder("Masukkan nama lengkap kamu");
@@ -112,7 +132,7 @@ public class RegisterView extends HorizontalLayout {
         nameField.getElement().getStyle().set("margin-bottom", "12px");
 
         // Input Email
-        EmailField emailField = new EmailField("Email Sekolah / Umum");
+        EmailField emailField = new EmailField("Email");
         emailField.setPlaceholder("nama@smkn24.sch.id");
         emailField.setWidthFull();
         emailField.setRequiredIndicatorVisible(true);
@@ -123,6 +143,7 @@ public class RegisterView extends HorizontalLayout {
         phoneField.setPlaceholder("08xxxxxxxxxx");
         phoneField.setWidthFull();
         phoneField.setRequiredIndicatorVisible(true);
+        phoneField.setAllowedCharPattern("[0-9+]");
         phoneField.getElement().getStyle().set("margin-bottom", "12px");
 
         // Input Sekolah (ComboBox dinamis dari database)
@@ -138,6 +159,39 @@ public class RegisterView extends HorizontalLayout {
         if (!schools.isEmpty()) {
             schoolComboBox.setValue(schools.get(0)); // Auto-select the first school (SMKN 24 Jakarta)
         }
+
+        // Input NISN / NIP (Wajib untuk Warga Sekolah)
+        TextField nisnField = new TextField("NISN / NIP (Nomor Induk)");
+        nisnField.setPlaceholder("Contoh: 0054928104 (10-18 digit angka)");
+        nisnField.setHelperText("Wajib untuk verifikasi identitas Warga SMKN 24");
+        nisnField.setWidthFull();
+        nisnField.setRequiredIndicatorVisible(true);
+        nisnField.setAllowedCharPattern("[0-9]");
+        nisnField.getElement().getStyle().set("margin-bottom", "12px");
+
+        Runnable updateCategoryUI = () -> {
+            boolean isSchool = "Warga SMKN 24 / Sekolah".equals(userTypeRadio.getValue());
+            schoolComboBox.setVisible(isSchool);
+            nisnField.setVisible(isSchool);
+            if (isSchool) {
+                categoryInfoBadge.getElement().getStyle()
+                    .set("background", "#FEF3C7")
+                    .set("color", "#92400E")
+                    .set("border", "1px solid #FCD34D");
+                categoryInfoBadge.setText("✨ Akun Warga Sekolah: Wajib verifikasi NISN/NIP untuk Badge Emas & Fitur COD.");
+                emailField.setPlaceholder("nama@smkn24.sch.id atau email pribadi");
+            } else {
+                categoryInfoBadge.getElement().getStyle()
+                    .set("background", "#F1F5F9")
+                    .set("color", "#475569")
+                    .set("border", "1px solid #CBD5E1");
+                categoryInfoBadge.setText("🌐 Akun Masyarakat Umum: Terdaftar sebagai pembeli/penjual reguler untuk pengiriman kurir.");
+                emailField.setPlaceholder("nama@email.com");
+            }
+        };
+
+        userTypeRadio.addValueChangeListener(e -> updateCategoryUI.run());
+        updateCategoryUI.run();
 
         // Input Password
         PasswordField passwordField = new PasswordField("Password");
@@ -165,14 +219,29 @@ public class RegisterView extends HorizontalLayout {
             String email = emailField.getValue();
             String phone = phoneField.getValue();
             String password = passwordField.getValue();
-            School school = schoolComboBox.getValue();
+            boolean isSchoolAccount = "Warga SMKN 24 / Sekolah".equals(userTypeRadio.getValue());
+            School school = isSchoolAccount ? schoolComboBox.getValue() : null;
+            String nisn = nisnField.getValue();
 
             if (name == null || name.isBlank() ||
                 email == null || email.isBlank() ||
                 phone == null || phone.isBlank() ||
                 password == null || password.isBlank() ||
-                school == null) {
-                errorBox.setText("Semua kolom harus diisi.");
+                (isSchoolAccount && (school == null || nisn == null || nisn.isBlank()))) {
+                errorBox.setText("Semua kolom yang wajib (termasuk NISN/NIP untuk Warga Sekolah) harus diisi.");
+                errorBox.setVisible(true);
+                return;
+            }
+
+            if (isSchoolAccount && (nisn == null || nisn.trim().length() < 8)) {
+                errorBox.setText("Nomor Induk (NISN/NIP) harus berupa kombinasi angka valid (minimal 8-10 digit).");
+                errorBox.setVisible(true);
+                return;
+            }
+
+            String cleanPhone = phone.trim();
+            if (!cleanPhone.matches("^[0-9+]{8,16}$")) {
+                errorBox.setText("Nomor telepon tidak valid. Gunakan format angka (contoh: 08123456789).");
                 errorBox.setVisible(true);
                 return;
             }
@@ -186,9 +255,23 @@ public class RegisterView extends HorizontalLayout {
             }
 
             try {
-                userService.registerUser(name, email, phone, password, school);
+                User registeredUser = userService.registerUser(name, email, phone, password, school);
 
-                Notification notif = Notification.show("Registrasi berhasil! Silakan masuk dengan akun baru Anda.", 3000, Notification.Position.TOP_CENTER);
+                if (isSchoolAccount && nisn != null && !nisn.isBlank()) {
+                    UserSchoolVerification ver = new UserSchoolVerification();
+                    ver.setUser(registeredUser);
+                    ver.setSchool(school);
+                    ver.setSchoolNumber(nisn.trim());
+                    ver.setSchoolEmail(email.trim().toLowerCase());
+                    ver.setStatus(VerificationStatus.APPROVED);
+                    userService.requestSchoolVerification(ver);
+                }
+
+                String successMsg = isSchoolAccount 
+                    ? "Registrasi Berhasil! Status Warga SMKN 24 (NISN: " + nisn + ") Terverifikasi."
+                    : "Registrasi Berhasil! Akun Publik siap digunakan.";
+
+                Notification notif = Notification.show(successMsg, 3500, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
                 UI.getCurrent().navigate("login");
@@ -215,7 +298,7 @@ public class RegisterView extends HorizontalLayout {
 
         formFooter.add(hasAccount, loginLink);
 
-        formBox.add(title, subtitle, errorBox, nameField, emailField, phoneField, schoolComboBox, passwordField, btnSubmit, formFooter);
+        formBox.add(title, subtitle, errorBox, userTypeRadio, categoryInfoBadge, nameField, emailField, phoneField, schoolComboBox, nisnField, passwordField, btnSubmit, formFooter);
 
         // Left Bottom Copyright / Info
         Paragraph copyright = new Paragraph("© 2026 ReWear SMKN 24 Jakarta");

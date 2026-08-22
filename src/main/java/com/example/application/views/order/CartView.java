@@ -219,7 +219,7 @@ public class CartView extends Div {
                     recalculateTotal();
                 });
 
-                // Image with optional badge
+                // Image wrap
                 Div imgWrap = new Div();
                 imgWrap.addClassName("rw-cart-img-wrap");
 
@@ -227,15 +227,15 @@ public class CartView extends Div {
                 img.addClassName("rw-cart-img");
                 imgWrap.add(img);
 
-                if (item.getItemBadge() != null) {
-                    Span badge = new Span(item.getItemBadge());
-                    badge.addClassName("rw-cart-item-badge");
-                    imgWrap.add(badge);
-                }
-
                 // Details Area
                 Div infoDiv = new Div();
                 infoDiv.addClassName("rw-cart-item-info");
+
+                if (item.getItemBadge() != null) {
+                    Span badge = new Span(item.getItemBadge());
+                    badge.addClassName("rw-cart-item-badge");
+                    infoDiv.add(badge);
+                }
 
                 H4 itemTitle = new H4(item.getTitle());
                 itemTitle.addClassName("rw-cart-item-title");
@@ -403,7 +403,7 @@ public class CartView extends Div {
         rowTotalTagihan.add(tagihanLabel, totalTagihanSpan);
 
         Button btnCheckout = new Button("Lanjut ke Checkout");
-        btnCheckout.setIcon(new Span("➔"));
+        btnCheckout.setIcon(VaadinIcon.ARROW_RIGHT.create());
         btnCheckout.setIconAfterText(true);
         btnCheckout.addClassName("btn-checkout-cart");
         btnCheckout.addClickListener(e -> {

@@ -88,13 +88,16 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         getElement().getStyle()
             .set("background-color", "#F8F9FF")
             .set("min-height", "100vh")
-            .set("padding", "24px 0 64px 0");
+            .set("padding", "24px 0 64px 0")
+            .set("max-width", "100%")
+            .set("overflow-x", "hidden");
 
         contentContainer.setWidthFull();
+        contentContainer.addClassName("rw-profile-container");
         contentContainer.getElement().getStyle()
             .set("max-width", "1280px")
             .set("margin", "0 auto")
-            .set("padding", "0 32px")
+            .set("padding", "0 16px")
             .set("box-sizing", "border-box");
 
         add(contentContainer);
@@ -176,17 +179,19 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             contentContainer.add(topNav);
         }
 
-        // 2-Column Dashboard Grid: Left Sidebar (300px) | Right Active Tab Content (Flex 1)
+        // 2-Column Dashboard Grid: Left Sidebar | Right Active Tab Content
         HorizontalLayout gridLayout = new HorizontalLayout();
+        gridLayout.addClassName("rw-profile-dashboard-grid");
         gridLayout.setWidthFull();
         gridLayout.setSpacing(true);
-        gridLayout.getElement().getStyle().set("gap", "28px");
 
         // LEFT SIDEBAR NAVIGATION
         Div leftSidebar = createLeftSidebar();
+        leftSidebar.addClassName("rw-profile-left-sidebar");
 
         // RIGHT CONTENT CONTAINER
         rightContentArea.setWidthFull();
+        rightContentArea.addClassName("rw-profile-right-content");
         rightContentArea.getElement().getStyle().set("flex", "1");
         renderRightTabContent();
 
@@ -1052,6 +1057,50 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
     private Component renderProfileInfoTab() {
         Div wrapper = new Div();
 
+        if (!isOwnProfile) {
+            String sellerName = targetUser != null && targetUser.getFullName() != null ? targetUser.getFullName() : "Pengguna";
+            H2 title = new H2("Profil " + sellerName);
+            title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
+
+            Paragraph subtitle = new Paragraph("Informasi publik dan barang preloved yang dijual oleh " + sellerName);
+            subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 20px 0");
+
+            wrapper.add(title, subtitle);
+
+            // Bio Card
+            Div bioCard = new Div();
+            bioCard.getElement().getStyle()
+                .set("background", "#F8FAFC")
+                .set("border", "1px solid #E2E8F0")
+                .set("border-radius", "16px")
+                .set("padding", "24px")
+                .set("margin-bottom", "24px");
+
+            H4 bioHeader = new H4("Bio & Tentang Penjual");
+            bioHeader.getElement().getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
+
+            String bioText = (targetUser != null && targetUser.getBio() != null && !targetUser.getBio().isBlank())
+                ? targetUser.getBio()
+                : "Pengguna ini belum menambahkan deskripsi bio.";
+
+            Paragraph bioPara = new Paragraph(bioText);
+            bioPara.getElement().getStyle().set("font-size", "14px").set("color", "#334155").set("line-height", "1.6").set("margin", "0 0 12px 0");
+
+            Span schoolBadge = new Span(targetUser != null && targetUser.getSchool() != null ? targetUser.getSchool().getName() : "SMKN 24 Jakarta");
+            schoolBadge.getElement().getStyle()
+                .set("background", "#FEF3C7").set("color", "#92400E")
+                .set("font-size", "12px").set("font-weight", "700")
+                .set("padding", "4px 10px").set("border-radius", "6px");
+
+            bioCard.add(bioHeader, bioPara, schoolBadge);
+            wrapper.add(bioCard);
+
+            // Products section
+            wrapper.add(renderProductsTab());
+            return wrapper;
+        }
+
+        // OWN PROFILE VIEW
         H2 title = new H2("Profil Saya");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
 
@@ -1068,7 +1117,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
         String nameVal = targetUser != null && targetUser.getFullName() != null ? targetUser.getFullName() : "-";
         String emailVal = targetUser != null && targetUser.getEmail() != null ? targetUser.getEmail() : "-";
-        String phoneVal = targetUser != null && targetUser.getPhone() != null ? targetUser.getPhone() : "-";
+        String phoneVal = targetUser != null && targetUser.getPhone() != null ? targetUser.getPhone() : "";
         String schoolVal = (targetUser != null && targetUser.getSchool() != null && targetUser.getSchool().getName() != null)
             ? targetUser.getSchool().getName() : "SMKN 24 Jakarta";
         String roleVal = targetUser != null && targetUser.getRole() != null ? targetUser.getRole().name() : "Warga SMKN 24";
@@ -1077,18 +1126,24 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         txtName.setWidthFull();
 
         TextField txtRole = new TextField("Status / Peran", roleVal, "");
+        txtRole.setReadOnly(true);
         txtRole.setWidthFull();
 
         TextField txtEmail = new TextField("Email", emailVal, "");
+        txtEmail.setReadOnly(true);
         txtEmail.setWidthFull();
 
         TextField txtPhone = new TextField("Nomor HP / WhatsApp", phoneVal, "");
+        txtPhone.setAllowedCharPattern("[0-9+]");
+        txtPhone.setPlaceholder("08xxxxxxxxxx");
         txtPhone.setWidthFull();
 
         TextField txtSchool = new TextField("Sekolah Terverifikasi", schoolVal, "");
+        txtSchool.setReadOnly(true);
         txtSchool.setWidthFull();
 
-        TextField txtBio = new TextField("Bio / Deskripsi Profil", targetUser != null && targetUser.getBio() != null ? targetUser.getBio() : "Pengguna Aktif ReWear SMKN 24", "");
+        TextField txtBio = new TextField("Bio / Deskripsi Profil", targetUser != null && targetUser.getBio() != null ? targetUser.getBio() : "", "");
+        txtBio.setPlaceholder("Tuliskan sedikit tentang dirimu...");
         txtBio.setWidthFull();
 
         formGrid.add(txtName, txtRole, txtEmail, txtPhone, txtSchool, txtBio);
@@ -1099,11 +1154,23 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             .set("border-radius", "8px").set("padding", "12px 24px").set("margin-top", "24px").set("cursor", "pointer");
         btnSave.addClickListener(e -> {
             if (targetUser != null) {
-                targetUser.setFullName(txtName.getValue().trim());
-                targetUser.setPhone(txtPhone.getValue().trim());
-                targetUser.setBio(txtBio.getValue().trim());
+                String newName = txtName.getValue() != null ? txtName.getValue().trim() : "";
+                String newPhone = txtPhone.getValue() != null ? txtPhone.getValue().trim() : "";
+                
+                if (newName.isEmpty()) {
+                    Notification.show("Nama lengkap tidak boleh kosong.", 2500, Notification.Position.TOP_CENTER);
+                    return;
+                }
+                if (!newPhone.isEmpty() && !newPhone.matches("^[0-9+]{8,16}$")) {
+                    Notification.show("Nomor HP harus berupa angka (contoh: 081234567890).", 3000, Notification.Position.TOP_CENTER);
+                    return;
+                }
+
+                targetUser.setFullName(newName);
+                targetUser.setPhone(newPhone);
+                targetUser.setBio(txtBio.getValue() != null ? txtBio.getValue().trim() : "");
                 userService.saveUser(targetUser);
-                Notification.show("Informasi profil berhasil diperbarui di Database!", 2500, Notification.Position.TOP_CENTER);
+                Notification.show("Informasi profil berhasil diperbarui!", 2500, Notification.Position.TOP_CENTER);
             }
         });
 
@@ -1158,10 +1225,11 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             wrapper.add(empty);
         } else {
             Div grid = new Div();
+            grid.addClassName("rw-products-grid");
             grid.getElement().getStyle()
                 .set("display", "grid")
-                .set("grid-template-columns", "repeat(auto-fill, minmax(220px, 1fr))")
-                .set("gap", "20px")
+                .set("grid-template-columns", "repeat(auto-fill, minmax(130px, 1fr))")
+                .set("gap", "12px")
                 .set("margin-top", "16px");
 
             for (Wishlist w : wishlists) {
@@ -1531,6 +1599,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         TextField phoneField = new TextField("Nomor Telepon / WhatsApp");
         phoneField.setValue(targetUser != null && targetUser.getPhone() != null ? targetUser.getPhone() : "");
         phoneField.setPlaceholder("Contoh: 081234567890");
+        phoneField.setAllowedCharPattern("[0-9+]");
         phoneField.setWidthFull();
 
         TextField avatarField = new TextField("URL Foto Profil (Avatar)");
@@ -1553,13 +1622,19 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         btnSaveProfile.addClickListener(e -> {
             if (targetUser == null) return;
             String newName = nameField.getValue() != null ? nameField.getValue().trim() : "";
+            String newPhone = phoneField.getValue() != null ? phoneField.getValue().trim() : "";
+
             if (newName.isEmpty()) {
                 Notification.show("Nama lengkap tidak boleh kosong.", 3000, Notification.Position.TOP_CENTER);
                 return;
             }
+            if (!newPhone.isEmpty() && !newPhone.matches("^[0-9+]{8,16}$")) {
+                Notification.show("Nomor HP harus berupa angka (contoh: 081234567890).", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
 
             targetUser.setFullName(newName);
-            targetUser.setPhone(phoneField.getValue() != null ? phoneField.getValue().trim() : "");
+            targetUser.setPhone(newPhone);
             targetUser.setAvatarUrl(avatarField.getValue() != null ? avatarField.getValue().trim() : "");
             targetUser.setBio(bioField.getValue() != null ? bioField.getValue().trim() : "");
 
@@ -1684,10 +1759,11 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             wrapper.add(empty);
         } else {
             Div grid = new Div();
+            grid.addClassName("rw-products-grid");
             grid.getElement().getStyle()
                 .set("display", "grid")
-                .set("grid-template-columns", "repeat(auto-fill, minmax(220px, 1fr))")
-                .set("gap", "20px")
+                .set("grid-template-columns", "repeat(auto-fill, minmax(130px, 1fr))")
+                .set("gap", "12px")
                 .set("margin-top", "16px");
 
             for (Product p : products) {
@@ -1704,7 +1780,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         card.getElement().getStyle()
             .set("background", "#FFFFFF")
             .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "14px")
+            .set("border-radius", "12px")
             .set("overflow", "hidden")
             .set("display", "flex")
             .set("flex-direction", "column")
@@ -1725,22 +1801,23 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         }
 
         Image img = new Image(imgUrl, p.getName());
-        img.getElement().getStyle().set("width", "100%").set("height", "180px").set("object-fit", "cover");
+        img.addClassName("rw-product-card-img");
+        img.getElement().getStyle().set("width", "100%").set("height", "130px").set("object-fit", "cover");
 
         Div infoBox = new Div();
-        infoBox.getElement().getStyle().set("padding", "14px").set("display", "flex").set("flex-direction", "column").set("gap", "6px");
+        infoBox.getElement().getStyle().set("padding", "10px").set("display", "flex").set("flex-direction", "column").set("gap", "4px");
 
         if (p.isSchoolMarket()) {
             Span badge = new Span("WARGA SMKN 24");
-            badge.getStyle().set("font-size", "10px").set("font-weight", "800").set("background", "#FEF3C7").set("color", "#92400E").set("padding", "2px 8px").set("border-radius", "4px").set("width", "fit-content");
+            badge.getStyle().set("font-size", "9px").set("font-weight", "800").set("background", "#FEF3C7").set("color", "#92400E").set("padding", "2px 6px").set("border-radius", "4px").set("width", "fit-content");
             infoBox.add(badge);
         }
 
         Span title = new Span(p.getName());
-        title.getElement().getStyle().set("font-size", "14px").set("font-weight", "700").set("color", "#001934").set("white-space", "nowrap").set("overflow", "hidden").set("text-overflow", "ellipsis");
+        title.getElement().getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934").set("white-space", "nowrap").set("overflow", "hidden").set("text-overflow", "ellipsis");
 
         Span price = new Span("Rp " + String.format("%,.0f", p.getPrice() != null ? p.getPrice() : 0));
-        price.getElement().getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934");
+        price.getElement().getStyle().set("font-size", "14px").set("font-weight", "800").set("color", "#001934");
 
         infoBox.add(title, price);
         card.add(img, infoBox);

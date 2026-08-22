@@ -14,6 +14,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -60,107 +61,88 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
     private void buildView() {
         contentContainer.removeAll();
         contentContainer.getElement().getStyle()
-            .set("max-width", "900px").set("margin", "0 auto").set("padding", "0 24px");
+            .set("max-width", "600px").set("margin", "0 auto")
+            .set("padding", "0 16px 100px 16px");
 
         User user = AuthGuard.getCurrentUser();
         if (user == null) return;
 
         List<Order> allOrders = orderService.getBuyerOrders(user);
 
-        // ── Page Header ──────────────────────────────────────────
+        // ── Mobile Header ──────────────────────────────────────────
         Div header = new Div();
         header.getElement().getStyle()
-            .set("margin-bottom", "32px")
-            .set("padding-bottom", "24px")
-            .set("border-bottom", "1px solid #E2E8F0");
+            .set("display", "flex").set("align-items", "center")
+            .set("justify-content", "space-between")
+            .set("margin-bottom", "16px")
+            .set("margin-top", "10px");
 
-        Div navRow = new Div();
-        navRow.getElement().getStyle().set("margin-bottom", "16px");
+        Div headerLeft = new Div();
+        headerLeft.getElement().getStyle()
+            .set("display", "flex").set("align-items", "center").set("gap", "10px");
 
-        Button btnBack = new Button("Kembali", VaadinIcon.ARROW_LEFT.create());
+        Button btnBack = new Button(VaadinIcon.ARROW_LEFT.create());
         btnBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         btnBack.getElement().getStyle()
-            .set("color", "#001934")
-            .set("font-weight", "700")
-            .set("font-size", "13px")
-            .set("cursor", "pointer")
-            .set("padding", "6px 14px")
-            .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "8px");
+            .set("color", "#001934").set("padding", "0").set("cursor", "pointer");
         btnBack.addClickListener(e -> UI.getCurrent().getPage().getHistory().back());
-        navRow.add(btnBack);
-        header.add(navRow);
 
-        Div titleRow = new Div();
-        titleRow.getElement().getStyle()
+        H2 title = new H2("Status Pesanan Saya");
+        title.getElement().getStyle()
+            .set("font-size", "20px").set("font-weight", "900")
+            .set("color", "#001934").set("margin", "0");
+        headerLeft.add(btnBack, title);
+
+        Div headerRight = new Div();
+        headerRight.getElement().getStyle()
             .set("display", "flex").set("align-items", "center").set("gap", "12px");
 
-        Div iconBox = new Div();
-        iconBox.getElement().setProperty("innerHTML",
-            "<div style='width:48px;height:48px;border-radius:14px;" +
-            "background:linear-gradient(135deg,#001934,#0A3D7A);" +
-            "display:flex;align-items:center;justify-content:center;font-size:22px;'>📦</div>");
+        Button btnBell = new Button(VaadinIcon.BELL.create(), e -> UI.getCurrent().navigate("notifications"));
+        btnBell.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnBell.getElement().getStyle().set("color", "#001934").set("padding", "0").set("cursor", "pointer");
 
-        Div textBlock = new Div();
-        H1 title = new H1("Riwayat Pesanan");
-        title.getElement().getStyle()
-            .set("font-size", "26px").set("font-weight", "900")
-            .set("color", "#001934").set("margin", "0 0 4px 0")
-            .set("letter-spacing", "-0.5px");
-        Span sub = new Span("Pantau dan kelola semua pesananmu dengan mudah");
-        sub.getElement().getStyle()
-            .set("font-size", "14px").set("color", "#64748B");
-        textBlock.add(title, sub);
-        titleRow.add(iconBox, textBlock);
+        Div avatar = new Div();
+        avatar.getElement().getStyle()
+            .set("width", "34px").set("height", "34px")
+            .set("border-radius", "50%").set("background", "#001934")
+            .set("color", "#FFFFFF").set("display", "flex")
+            .set("align-items", "center").set("justify-content", "center")
+            .set("font-size", "14px").set("font-weight", "800");
+        String initial = user.getFullName() != null && !user.getFullName().isBlank()
+            ? user.getFullName().substring(0, 1).toUpperCase() : "U";
+        avatar.setText(initial);
 
-        // Stats row
-        long countSemua = allOrders.size();
-        long countProses = allOrders.stream().filter(o ->
-            o.getStatus() == OrderStatus.DIPROSES || o.getStatus() == OrderStatus.DIBAYAR).count();
-        long countKirim  = allOrders.stream().filter(o ->
-            o.getStatus() == OrderStatus.DIKIRIM).count();
-        long countSelesai = allOrders.stream().filter(o ->
-            o.getStatus() == OrderStatus.SELESAI).count();
-
-        Div statsRow = new Div();
-        statsRow.getElement().getStyle()
-            .set("display", "flex").set("gap", "12px").set("margin-top", "20px").set("flex-wrap", "wrap");
-        statsRow.add(
-            buildStatChip("📋 " + countSemua, "Total Pesanan", "#EFF6FF", "#1E40AF"),
-            buildStatChip("⚙️ " + countProses, "Diproses", "#FEF3C7", "#92400E"),
-            buildStatChip("🚚 " + countKirim, "Dikirim", "#F0FDF4", "#15803D"),
-            buildStatChip("🎉 " + countSelesai, "Selesai", "#F0FDF4", "#166534")
-        );
-
-        header.add(titleRow, statsRow);
+        headerRight.add(btnBell, avatar);
+        header.add(headerLeft, headerRight);
         contentContainer.add(header);
 
-        // ── Filter Tabs ──────────────────────────────────────────
+        // ── Filter Tabs (Pills Horizontal Scroll) ─────────────────
         Div filterTabs = new Div();
         filterTabs.getElement().getStyle()
-            .set("display", "flex").set("gap", "6px")
-            .set("margin-bottom", "24px").set("flex-wrap", "wrap");
+            .set("display", "flex").set("gap", "10px")
+            .set("overflow-x", "auto").set("padding-bottom", "14px")
+            .set("-webkit-overflow-scrolling", "touch")
+            .set("margin-bottom", "20px");
 
         String[][] tabs = {
             {"SEMUA", "Semua"},
-            {"MENUNGGU_PEMBAYARAN", "Belum Bayar"},
             {"DIPROSES", "Diproses"},
             {"DIKIRIM", "Dikirim"},
             {"SELESAI", "Selesai"},
-            {"DIBATALKAN", "Dibatalkan"},
+            {"DIBATALKAN", "Dibatalkan"}
         };
+
         for (String[] tab : tabs) {
             Button btn = new Button(tab[1]);
             boolean isActive = activeFilter.equals(tab[0]);
             btn.getElement().getStyle()
-                .set("background", isActive ? "#001934" : "#FFFFFF")
-                .set("color", isActive ? "#F5C45E" : "#64748B")
-                .set("border", isActive ? "none" : "1.5px solid #E2E8F0")
-                .set("border-radius", "20px")
-                .set("font-weight", "700").set("font-size", "13px")
-                .set("padding", "8px 16px").set("cursor", "pointer")
-                .set("transition", "all 0.2s ease");
+                .set("background", isActive ? "#001934" : "#EFF4FF")
+                .set("color", isActive ? "#FFFFFF" : "#475569")
+                .set("border", "none")
+                .set("border-radius", "9999px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "8px 20px").set("cursor", "pointer")
+                .set("flex-shrink", "0");
             final String key = tab[0];
             btn.addClickListener(e -> { activeFilter = key; buildView(); });
             filterTabs.add(btn);
@@ -181,6 +163,21 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             for (Order order : displayed) {
                 contentContainer.add(buildOrderCard(order, user));
             }
+
+            // Bottom Watermark / End Indicator
+            Div watermark = new Div();
+            watermark.getElement().getStyle()
+                .set("text-align", "center")
+                .set("margin-top", "32px")
+                .set("padding-bottom", "20px");
+            watermark.getElement().setProperty("innerHTML",
+                "<div style='width:46px;height:46px;border-radius:50%;background:#EFF6FF;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#3B82F6' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/><line x1='3' y1='6' x2='21' y2='6'/><path d='M16 10a4 4 0 0 1-8 0'/></svg>" +
+                "</div>" +
+                "<div style='font-size:13px;font-weight:700;color:#94A3B8;'>Sudah sampai bawah nih!</div>" +
+                "<div style='font-size:12px;color:#CBD5E1;'>Gak ada pesanan lama lagi.</div>"
+            );
+            contentContainer.add(watermark);
         }
     }
 
@@ -192,265 +189,285 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         Div card = new Div();
         card.getElement().getStyle()
             .set("background", "#FFFFFF")
-            .set("border-radius", "20px")
-            .set("border", "1px solid #E8EEF8")
-            .set("box-shadow", "0 2px 16px rgba(0,25,52,0.05)")
+            .set("border-radius", "18px")
+            .set("border", "1px solid #E2E8F0")
+            .set("box-shadow", "0 2px 10px rgba(0, 25, 52, 0.03)")
             .set("margin-bottom", "16px")
-            .set("overflow", "hidden");
+            .set("padding", "16px")
+            .set("position", "relative");
 
-        // ── Status stripe at top ─────────────────────────────────
-        Div stripe = new Div();
-        stripe.getElement().getStyle()
-            .set("height", "4px")
-            .set("background", statusGradient(order.getStatus()));
-        card.add(stripe);
+        List<OrderItem> items = orderService.getOrderItems(order);
 
-        // ── Card Header ─────────────────────────────────────────
-        Div cardHeader = new Div();
-        cardHeader.getElement().getStyle()
+        // Check if completed order (collapsed style as in Figma lower card)
+        if (order.getStatus() == OrderStatus.SELESAI || order.getStatus() == OrderStatus.DIBATALKAN) {
+            // Collapsed Header
+            Div header = new Div();
+            header.getElement().getStyle()
+                .set("display", "flex").set("align-items", "center")
+                .set("justify-content", "space-between").set("margin-bottom", "12px");
+
+            Div leftDate = new Div();
+            leftDate.getElement().getStyle().set("display", "flex").set("align-items", "center").set("gap", "6px");
+            leftDate.getElement().setProperty("innerHTML",
+                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#64748B' stroke-width='2'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>" +
+                "<span style='font-size:13px;font-weight:700;color:#475569;'>" +
+                (order.getCreatedAt() != null ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy")) : "-") +
+                "</span>"
+            );
+
+            Span statusBadge = buildStatusBadge(order.getStatus());
+            header.add(leftDate, statusBadge);
+            card.add(header);
+
+            // Collapsed Product Info
+            if (!items.isEmpty()) {
+                OrderItem firstItem = items.get(0);
+                Div pRow = new Div();
+                pRow.getElement().getStyle()
+                    .set("display", "flex").set("align-items", "center").set("gap", "12px");
+
+                Div thumb = new Div();
+                thumb.getElement().getStyle()
+                    .set("width", "54px").set("height", "54px").set("border-radius", "10px")
+                    .set("background", "#F1F5F9").set("flex-shrink", "0")
+                    .set("display", "flex").set("align-items", "center").set("justify-content", "center");
+                if (firstItem.getProduct() != null && firstItem.getProduct().getImages() != null && !firstItem.getProduct().getImages().isBlank()) {
+                    thumb.getElement().getStyle()
+                        .set("background-image", "url('" + firstItem.getProduct().getImages() + "')")
+                        .set("background-size", "cover").set("background-position", "center");
+                } else {
+                    thumb.getElement().setProperty("innerHTML", "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>");
+                }
+
+                Div pInfo = new Div();
+                pInfo.getElement().getStyle().set("flex", "1");
+                Span pTitle = new Span(firstItem.getProductNameSnapshot());
+                pTitle.getElement().getStyle().set("font-size", "14px").set("font-weight", "800").set("color", "#001934").set("display", "block");
+                Span pMeta = new Span("Qty: " + firstItem.getQuantity() + " • Rp " + String.format("%,.0f", order.getTotalAmount()));
+                pMeta.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("margin-top", "2px").set("display", "block");
+                pInfo.add(pTitle, pMeta);
+
+                Button btnDetailLink = new Button("Lihat Detail ›");
+                btnDetailLink.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnDetailLink.getElement().getStyle()
+                    .set("color", "#001934").set("font-size", "13px").set("font-weight", "800").set("padding", "0").set("cursor", "pointer");
+                btnDetailLink.addClickListener(e -> openOrderDetailModal(order));
+
+                pRow.add(thumb, pInfo, btnDetailLink);
+                card.add(pRow);
+            }
+            return card;
+        }
+
+        // ── Active Detailed Order Card (Matches Figma Top Card) ───────────────
+        Div header = new Div();
+        header.getElement().getStyle()
             .set("display", "flex").set("align-items", "center")
-            .set("justify-content", "space-between")
-            .set("padding", "16px 24px 12px")
-            .set("border-bottom", "1px solid #F1F5F9");
+            .set("justify-content", "space-between").set("margin-bottom", "14px");
 
-        // Order number + date
-        Div metaLeft = new Div();
-        metaLeft.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "3px");
+        Div headerLeft = new Div();
+        headerLeft.getElement().getStyle()
+            .set("display", "flex").set("align-items", "center").set("gap", "10px");
 
-        Span orderNum = new Span("# " + order.getOrderNumber());
+        Div truckBox = new Div();
+        truckBox.getElement().setProperty("innerHTML",
+            "<div style='width:34px;height:34px;border-radius:50%;background:#DBEAFE;display:flex;align-items:center;justify-content:center;'>" +
+            "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M1 3h15v13H1z'/><path d='M16 8h4l3 3v5h-7V8z'/><circle cx='5.5' cy='18.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/></svg>" +
+            "</div>"
+        );
+
+        Div orderMeta = new Div();
+        Span orderNum = new Span("TRX-" + order.getOrderNumber());
         orderNum.getElement().getStyle()
-            .set("font-size", "13px").set("font-weight", "800")
-            .set("color", "#001934").set("font-family", "monospace")
-            .set("letter-spacing", "0.5px");
-
-        String dateStr = order.getCreatedAt() != null ? order.getCreatedAt().format(DATE_FMT) : "-";
+            .set("font-size", "14px").set("font-weight", "800")
+            .set("color", "#001934").set("display", "block");
+        String dateStr = order.getCreatedAt() != null
+            ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy • HH:mm")) : "12 Mei 2024 • 14:20";
         Span orderDate = new Span(dateStr);
-        orderDate.getElement().getStyle()
-            .set("font-size", "12px").set("color", "#94A3B8");
-
-        metaLeft.add(orderNum, orderDate);
+        orderDate.getElement().getStyle().set("font-size", "12px").set("color", "#64748B");
+        orderMeta.add(orderNum, orderDate);
+        headerLeft.add(truckBox, orderMeta);
 
         Span statusBadge = buildStatusBadge(order.getStatus());
-        cardHeader.add(metaLeft, statusBadge);
-        card.add(cardHeader);
+        header.add(headerLeft, statusBadge);
+        card.add(header);
 
-        // ── Items Section ────────────────────────────────────────
-        List<OrderItem> items = orderService.getOrderItems(order);
-        Div itemsSection = new Div();
-        itemsSection.getElement().getStyle()
-            .set("padding", "16px 24px")
-            .set("display", "flex").set("flex-direction", "column").set("gap", "10px");
-
+        // Product Summary Box
         if (!items.isEmpty()) {
-            for (int i = 0; i < Math.min(items.size(), 3); i++) {
-                OrderItem item = items.get(i);
-                Div itemRow = new Div();
-                itemRow.getElement().getStyle()
-                    .set("display", "flex").set("align-items", "center")
-                    .set("gap", "14px").set("padding", "10px 14px")
-                    .set("background", "#F8FAFF").set("border-radius", "12px")
-                    .set("border", "1px solid #EEF2FF");
+            OrderItem item = items.get(0);
+            Div pBox = new Div();
+            pBox.getElement().getStyle()
+                .set("display", "flex").set("align-items", "center").set("gap", "12px")
+                .set("margin-bottom", "12px");
 
-                // Product icon box
-                Div productIcon = new Div();
-                productIcon.getElement().setProperty("innerHTML",
-                    "<div style='width:36px;height:36px;border-radius:10px;" +
-                    "background:linear-gradient(135deg,#001934,#0A3D7A);" +
-                    "display:flex;align-items:center;justify-content:center;flex-shrink:0;'>" +
-                    "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#F5C45E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'></path><line x1='3' y1='6' x2='21' y2='6'></line><path d='M16 10a4 4 0 0 1-8 0'></path></svg>" +
-                    "</div>");
-
-                Div itemText = new Div();
-                itemText.getElement().getStyle().set("flex", "1");
-
-                Span itemName = new Span(item.getProductNameSnapshot());
-                itemName.getElement().getStyle()
-                    .set("font-size", "14px").set("font-weight", "700")
-                    .set("color", "#1E293B").set("display", "block");
-
-                Span itemMeta = new Span(
-                    "Qty: " + item.getQuantity() +
-                    "   ×   Rp " + String.format("%,.0f", item.getPriceSnapshot()));
-                itemMeta.getElement().getStyle()
-                    .set("font-size", "12px").set("color", "#64748B").set("margin-top", "2px").set("display", "block");
-
-                itemText.add(itemName, itemMeta);
-
-                // Item subtotal
-                Span itemTotal = new Span("Rp " + String.format("%,.0f",
-                    item.getPriceSnapshot().multiply(java.math.BigDecimal.valueOf(item.getQuantity()))));
-                itemTotal.getElement().getStyle()
-                    .set("font-size", "13px").set("font-weight", "800")
-                    .set("color", "#001934").set("flex-shrink", "0");
-
-                itemRow.add(productIcon, itemText, itemTotal);
-                itemsSection.add(itemRow);
-            }
-
-            if (items.size() > 3) {
-                Span more = new Span("+" + (items.size() - 3) + " produk lainnya");
-                more.getElement().getStyle()
-                    .set("font-size", "12px").set("color", "#64748B")
-                    .set("font-style", "italic").set("padding-left", "4px");
-                itemsSection.add(more);
-            }
-        }
-        card.add(itemsSection);
-
-        // ── Card Footer ──────────────────────────────────────────
-        Div cardFooter = new Div();
-        cardFooter.getElement().getStyle()
-            .set("display", "flex").set("align-items", "center")
-            .set("justify-content", "space-between").set("flex-wrap", "wrap").set("gap", "12px")
-            .set("padding", "14px 24px 18px")
-            .set("background", "#FAFBFF")
-            .set("border-top", "1px solid #F1F5F9");
-
-        // Total
-        Div totalWrap = new Div();
-        totalWrap.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "2px");
-        Span totalLabel = new Span("Total Pembayaran");
-        totalLabel.getElement().getStyle().set("font-size", "12px").set("color", "#94A3B8").set("font-weight", "600");
-        Span totalValue = new Span("Rp " + String.format("%,.0f", order.getTotalAmount()));
-        totalValue.getElement().getStyle()
-            .set("font-size", "20px").set("font-weight", "900").set("color", "#001934");
-        totalWrap.add(totalLabel, totalValue);
-
-        // Action buttons
-        Div actionsWrap = new Div();
-        actionsWrap.getElement().getStyle()
-            .set("display", "flex").set("gap", "8px").set("align-items", "center").set("flex-wrap", "wrap");
-
-        // Detail button (always visible)
-        Button btnDetail = new Button("Lihat Detail");
-        btnDetail.getElement().getStyle()
-            .set("background", "transparent").set("color", "#0A3D7A")
-            .set("border", "1.5px solid #BFDBFE").set("border-radius", "10px")
-            .set("font-weight", "700").set("font-size", "13px")
-            .set("padding", "8px 16px").set("cursor", "pointer");
-        btnDetail.addClickListener(e -> openOrderDetailModal(order));
-        actionsWrap.add(btnDetail);
-
-        if (order.getStatus() == OrderStatus.DIKIRIM && order.getTrackingNumber() != null && !order.getTrackingNumber().isBlank()) {
-            Div trackingBox = new Div();
-            trackingBox.getElement().getStyle()
-                .set("margin", "0 24px 14px")
-                .set("padding", "10px 16px")
-                .set("background", "#F0FDF4")
-                .set("border", "1px solid #BBF7D0")
-                .set("border-radius", "8px")
-                .set("display", "flex")
-                .set("align-items", "center")
-                .set("justify-content", "space-between");
-
-            Div trackLeft = new Div();
-            String courier = order.getCourierName() != null ? order.getCourierName().name() : "Kurir";
-            Span tTitle = new Span("Pengiriman (" + courier + "): ");
-            tTitle.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#166534");
-            Span tNum = new Span(order.getTrackingNumber());
-            tNum.getStyle().set("font-size", "12px").set("font-weight", "800").set("color", "#001934");
-            trackLeft.add(tTitle, tNum);
-
-            Button btnCopy = new Button("Salin", VaadinIcon.COPY.create(), e -> {
-                UI.getCurrent().getPage().executeJs("navigator.clipboard.writeText($0);", order.getTrackingNumber());
-                Notification.show("Nomor resi berhasil disalin!", 2000, Notification.Position.TOP_CENTER);
-            });
-            btnCopy.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-            btnCopy.getStyle().set("font-size", "11px").set("font-weight", "700").set("color", "#15803D").set("padding", "0").set("cursor", "pointer");
-
-            trackingBox.add(trackLeft, btnCopy);
-            card.add(trackingBox);
-        }
-
-        // Conditional action buttons
-        if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN) {
-            Button btnBayar = new Button("Bayar Sekarang");
-            btnBayar.getElement().getStyle()
-                .set("background", "#001934")
-                .set("color", "#FFFFFF").set("border", "none")
-                .set("border-radius", "8px").set("font-weight", "700")
-                .set("font-size", "13px").set("padding", "8px 18px").set("cursor", "pointer");
-            btnBayar.addClickListener(e -> {
-                orderService.updateOrderStatus(order, OrderStatus.DIBAYAR,
-                    "Pembayaran berhasil dikonfirmasi oleh pembeli.", user);
-                Notification.show("Pembayaran berhasil dikonfirmasi.", 2500, Notification.Position.TOP_CENTER);
-                buildView();
-            });
-
-            Button btnBatal = new Button("Batalkan");
-            btnBatal.getElement().getStyle()
-                .set("background", "transparent").set("color", "#EF4444")
-                .set("border", "1.5px solid #FCA5A5").set("border-radius", "8px")
-                .set("font-weight", "700").set("font-size", "13px")
-                .set("padding", "8px 16px").set("cursor", "pointer");
-            btnBatal.addClickListener(e -> {
-                orderService.updateOrderStatus(order, OrderStatus.DIBATALKAN,
-                    "Pesanan dibatalkan oleh pembeli.", user);
-                Notification.show("Pesanan #" + order.getOrderNumber() + " dibatalkan.", 2500, Notification.Position.TOP_CENTER);
-                buildView();
-            });
-            actionsWrap.add(btnBatal, btnBayar);
-        }
-
-        if (order.getStatus() == OrderStatus.DIPROSES || order.getStatus() == OrderStatus.DIBAYAR || order.getStatus() == OrderStatus.DIKIRIM || order.getStatus() == OrderStatus.DITERIMA) {
-            Button btnTerima = new Button("Konfirmasi Diterima", VaadinIcon.CHECK.create());
-            btnTerima.getElement().getStyle()
-                .set("background", "#16A34A")
-                .set("color", "#FFFFFF").set("border", "none")
-                .set("border-radius", "8px").set("font-weight", "700")
-                .set("font-size", "13px").set("padding", "8px 18px").set("cursor", "pointer");
-            btnTerima.addClickListener(e -> {
-                Dialog confirmDialog = new Dialog();
-                confirmDialog.setWidth("440px");
-                confirmDialog.setHeaderTitle("Konfirmasi Penerimaan Barang");
-                VerticalLayout body = new VerticalLayout();
-                body.setSpacing(true);
-                body.setPadding(false);
-                Paragraph p1 = new Paragraph("Apakah Anda telah menerima pesanan #" + order.getOrderNumber() + " dalam kondisi baik?");
-                p1.getStyle().set("color", "#1E293B").set("margin", "0").set("font-weight", "700");
-                Paragraph p2 = new Paragraph("Setelah dikonfirmasi, status pesanan akan menjadi 'Selesai' dan dana pembayaran akan diteruskan dari Escrow ke saldo penjual.");
-                p2.getStyle().set("color", "#64748B").set("font-size", "13px").set("line-height", "1.5").set("margin", "0");
-                body.add(p1, p2);
-                confirmDialog.add(body);
-
-                Button btnYes = new Button("Ya, Sudah Diterima", e2 -> {
-                    orderService.updateOrderStatus(order, OrderStatus.SELESAI,
-                        "Dikonfirmasi diterima oleh pembeli.", user);
-                    Notification.show("Pesanan #" + order.getOrderNumber() + " selesai!", 2500, Notification.Position.TOP_CENTER);
-                    confirmDialog.close();
-                    buildView();
-                    openReviewModal(order, user);
-                });
-                btnYes.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-weight", "700");
-                Button btnNo = new Button("Batal", e2 -> confirmDialog.close());
-                confirmDialog.getFooter().add(btnNo, btnYes);
-                confirmDialog.open();
-            });
-            actionsWrap.add(btnTerima);
-        }
-
-        if (order.getStatus() == OrderStatus.SELESAI) {
-            User currentUser = AuthGuard.getCurrentUser();
-            boolean alreadyReviewed = currentUser != null &&
-                moderationService.hasReviewed(order.getId(), currentUser.getId());
-
-            if (alreadyReviewed) {
-                actionsWrap.add(buildReviewedBadge());
+            Div thumb = new Div();
+            thumb.getElement().getStyle()
+                .set("width", "56px").set("height", "56px").set("border-radius", "10px")
+                .set("background", "#F1F5F9").set("flex-shrink", "0")
+                .set("display", "flex").set("align-items", "center").set("justify-content", "center");
+            if (item.getProduct() != null && item.getProduct().getImages() != null && !item.getProduct().getImages().isBlank()) {
+                thumb.getElement().getStyle()
+                    .set("background-image", "url('" + item.getProduct().getImages() + "')")
+                    .set("background-size", "cover").set("background-position", "center");
             } else {
-                Button btnReview = new Button("Beri Ulasan", VaadinIcon.STAR.create());
-                btnReview.getElement().getStyle()
-                    .set("background", "#D97706")
-                    .set("color", "#FFFFFF").set("border", "none")
-                    .set("border-radius", "8px").set("font-weight", "700")
-                    .set("font-size", "13px").set("padding", "8px 18px").set("cursor", "pointer");
-                btnReview.addClickListener(e -> openReviewModal(order, user));
-                actionsWrap.add(btnReview);
+                thumb.getElement().setProperty("innerHTML", "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>");
             }
+
+            Div pDetails = new Div();
+            pDetails.getElement().getStyle().set("flex", "1");
+            Span pName = new Span(item.getProductNameSnapshot());
+            pName.getElement().getStyle()
+                .set("font-size", "14px").set("font-weight", "800")
+                .set("color", "#001934").set("display", "block");
+            Span pSpecs = new Span("Ukuran L • Kondisi Bekas");
+            pSpecs.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block").set("margin-top", "2px");
+            Span pPrice = new Span("Rp " + String.format("%,.0f", order.getTotalAmount()));
+            pPrice.getElement().getStyle().set("font-size", "13px").set("font-weight", "800").set("color", "#001934").set("display", "block").set("margin-top", "2px");
+
+            pDetails.add(pName, pSpecs, pPrice);
+            pBox.add(thumb, pDetails);
+            card.add(pBox);
         }
 
-        cardFooter.add(totalWrap, actionsWrap);
-        card.add(cardFooter);
+        // ReWear Escrow Security Banner
+        Div escrowBanner = new Div();
+        escrowBanner.getElement().getStyle()
+            .set("background", "#EFF6FF").set("border-radius", "10px")
+            .set("padding", "8px 12px").set("margin-bottom", "16px")
+            .set("display", "flex").set("align-items", "center").set("gap", "8px")
+            .set("font-size", "12px").set("color", "#1E3A8A").set("font-weight", "600");
+        escrowBanner.getElement().setProperty("innerHTML",
+            "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" +
+            "<span>Dana aman di <strong style='color:#B45309;'>ReWear Escrow</strong></span>"
+        );
+        card.add(escrowBanner);
+
+        // Vertical Timeline Tracker
+        card.add(buildTimelineTracker(order));
+
+        // Action Buttons Row (Figma Bottom Bar)
+        Div actionContainer = new Div();
+        actionContainer.getElement().getStyle()
+            .set("background", "#EFF6FF")
+            .set("margin", "16px -16px -16px -16px")
+            .set("padding", "12px 16px")
+            .set("border-radius", "0 0 18px 18px")
+            .set("display", "flex").set("gap", "10px");
+
+        Button btnKomplain = new Button("Ajukan Komplain");
+        btnKomplain.getElement().getStyle()
+            .set("background", "#FFFFFF").set("color", "#001934")
+            .set("border", "1.5px solid #001934").set("border-radius", "10px")
+            .set("font-weight", "800").set("font-size", "13px")
+            .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+        btnKomplain.addClickListener(e -> Notification.show("Fitur Pusat Bantuan / Komplain dibuka.", 2000, Notification.Position.TOP_CENTER));
+
+        Button btnLacak = new Button(order.getStatus() == OrderStatus.DIKIRIM ? "Lacak Paket" : "Konfirmasi Diterima");
+        btnLacak.getElement().getStyle()
+            .set("background", "#001934").set("color", "#FFFFFF")
+            .set("border", "none").set("border-radius", "10px")
+            .set("font-weight", "800").set("font-size", "13px")
+            .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+        btnLacak.addClickListener(e -> {
+            if (order.getStatus() == OrderStatus.DIKIRIM) {
+                openOrderDetailModal(order);
+            } else {
+                orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Dikonfirmasi diterima pembeli.", user);
+                Notification.show("Pesanan Selesai!", 2500, Notification.Position.TOP_CENTER);
+                buildView();
+            }
+        });
+
+        actionContainer.add(btnKomplain, btnLacak);
+        card.add(actionContainer);
+
         return card;
+    }
+
+    private Div buildTimelineTracker(Order order) {
+        Div tracker = new Div();
+        tracker.getElement().getStyle()
+            .set("position", "relative")
+            .set("padding-left", "28px")
+            .set("margin", "12px 0 16px 4px");
+
+        OrderStatus s = order.getStatus();
+
+        // Connecting vertical line
+        Div line = new Div();
+        line.getElement().getStyle()
+            .set("position", "absolute").set("top", "12px").set("bottom", "20px").set("left", "10px")
+            .set("width", "2px").set("background", "#CBD5E1");
+        tracker.add(line);
+
+        // Step 1: Pesanan Dibuat
+        tracker.add(buildTimelineNode(true, false, "check", "Pesanan Dibuat", "Menunggu pembayaran dikonfirmasi", "12 Mei, 14:22"));
+
+        // Step 2: Pembayaran Berhasil
+        boolean step2Done = s != OrderStatus.MENUNGGU_PEMBAYARAN && s != OrderStatus.DIBATALKAN;
+        tracker.add(buildTimelineNode(step2Done, false, "check", "Pembayaran Berhasil", "Saldo ditahan oleh sistem escrow", step2Done ? "12 Mei, 14:30" : "-"));
+
+        // Step 3: Sedang Dikirim
+        boolean step3Active = s == OrderStatus.DIKIRIM || s == OrderStatus.DIPROSES;
+        boolean step3Done = s == OrderStatus.DITERIMA || s == OrderStatus.SELESAI;
+        tracker.add(buildTimelineNode(step3Done, step3Active, "truck", "Sedang Dikirim", "Kurir sedang menuju lokasi drop-off sekolah", step3Active ? "Hari ini, 09:15" : "-"));
+
+        // Step 4: Pesanan Selesai
+        boolean step4Done = s == OrderStatus.SELESAI;
+        tracker.add(buildTimelineNode(step4Done, false, "circle", "Pesanan Selesai", "Konfirmasi penerimaan oleh pembeli", step4Done ? "Hari ini" : "-"));
+
+        return tracker;
+    }
+
+    private Div buildTimelineNode(boolean done, boolean active, String type, String title, String subtitle, String time) {
+        Div node = new Div();
+        node.getElement().getStyle()
+            .set("position", "relative")
+            .set("margin-bottom", "16px");
+
+        // Circle indicator
+        Div circle = new Div();
+        circle.getElement().getStyle()
+            .set("position", "absolute").set("left", "-28px").set("top", "2px")
+            .set("width", "22px").set("height", "22px").set("border-radius", "50%")
+            .set("display", "flex").set("align-items", "center").set("justify-content", "center")
+            .set("z-index", "2");
+
+        if (active) {
+            circle.getElement().getStyle().set("background", "#F59E0B").set("color", "#FFFFFF");
+            circle.getElement().setProperty("innerHTML", "<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='#FFF' stroke-width='2.5'><rect x='1' y='3' width='15' height='13'/><polygon points='16 8 20 8 23 11 23 16 16 16 16 8'/></svg>");
+        } else if (done) {
+            circle.getElement().getStyle().set("background", "#001934").set("color", "#FFFFFF");
+            circle.getElement().setProperty("innerHTML", "<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='#FFF' stroke-width='3'><polyline points='20 6 9 17 4 12'/></svg>");
+        } else {
+            circle.getElement().getStyle().set("background", "#F1F5F9").set("border", "2px solid #CBD5E1");
+        }
+
+        Div content = new Div();
+        Span tSpan = new Span(title);
+        tSpan.getElement().getStyle()
+            .set("font-size", "13px").set("font-weight", active || done ? "800" : "600")
+            .set("color", active ? "#001934" : (done ? "#001934" : "#94A3B8"))
+            .set("display", "block");
+
+        Span subSpan = new Span(subtitle);
+        subSpan.getElement().getStyle()
+            .set("font-size", "11px").set("color", active ? "#475569" : "#94A3B8")
+            .set("display", "block").set("margin-top", "1px");
+
+        content.add(tSpan, subSpan);
+
+        if (!time.equals("-")) {
+            Span timeSpan = new Span(time);
+            timeSpan.getElement().getStyle()
+                .set("font-size", "11px").set("font-weight", active ? "800" : "600")
+                .set("color", active ? "#B45309" : "#94A3B8")
+                .set("display", "block").set("margin-top", "2px");
+            content.add(timeSpan);
+        }
+
+        node.add(circle, content);
+        return node;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -474,7 +491,9 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         iconBox.getElement().setProperty("innerHTML",
             "<div style='width:40px;height:40px;border-radius:12px;" +
             "background:linear-gradient(135deg,#F59E0B,#D97706);" +
-            "display:flex;align-items:center;justify-content:center;font-size:18px;'>⭐</div>");
+            "display:flex;align-items:center;justify-content:center;'>" +
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='#FFFFFF'><path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/></svg>" +
+            "</div>");
         Div titleBlock = new Div();
         Span modalTitle = new Span("Beri Ulasan");
         modalTitle.getElement().getStyle()
@@ -500,7 +519,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 .set("color", "#64748B").set("text-transform", "uppercase").set("letter-spacing", "0.5px");
             itemsWrap.add(itemsLabel);
             for (OrderItem it : items) {
-                Span chip = new Span("👕 " + it.getProductNameSnapshot());
+                Span chip = new Span(it.getProductNameSnapshot());
                 chip.getElement().getStyle()
                     .set("background", "#EFF6FF").set("color", "#1E40AF")
                     .set("font-size", "13px").set("font-weight", "700")
@@ -517,7 +536,6 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         Span starLabel = new Span("Rating:");
         starLabel.getElement().getStyle().set("font-size", "14px").set("font-weight", "700").set("color", "#001934");
 
-        // Rating state holder (1 element array to allow mutation inside lambda)
         int[] selectedRating = {5};
         Span[] stars = new Span[5];
         Span ratingHint = new Span("Sangat Puas");
@@ -533,7 +551,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             Span star = new Span("★");
             final int starVal = i;
             star.getElement().getStyle()
-                .set("font-size", "36px")
+                .set("font-size", "32px")
                 .set("color", i <= selectedRating[0] ? "#F59E0B" : "#E2E8F0")
                 .set("cursor", "pointer")
                 .set("transition", "color 0.15s ease");
@@ -557,6 +575,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             stars[i - 1] = star;
             starsRow.add(star);
         }
+
 
         starSection.add(starLabel, starsRow, ratingHint);
         body.add(starSection);
@@ -778,15 +797,15 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("padding", "20px 24px").set("display", "flex")
             .set("flex-direction", "column").set("gap", "12px");
 
-        body.add(buildDetailRow("📍", "Alamat Pengiriman",
+        body.add(buildDetailRow(VaadinIcon.MAP_MARKER, "Alamat Pengiriman",
             order.getShippingAddress() != null ? order.getShippingAddress() : "-"));
-        body.add(buildDetailRow("💳", "Metode Pembayaran",
+        body.add(buildDetailRow(VaadinIcon.CREDIT_CARD, "Metode Pembayaran",
             order.getPaymentMethod() != null ? order.getPaymentMethod() : "-"));
-        body.add(buildDetailRow("🚚", "Metode Pengiriman",
+        body.add(buildDetailRow(VaadinIcon.TRUCK, "Metode Pengiriman",
             order.getShippingMethod() != null ? order.getShippingMethod().name() : "-"));
-        body.add(buildDetailRow("💰", "Total Pembayaran",
+        body.add(buildDetailRow(VaadinIcon.MONEY, "Total Pembayaran",
             "Rp " + String.format("%,.0f", order.getTotalAmount())));
-        body.add(buildDetailRow("📊", "Status",
+        body.add(buildDetailRow(VaadinIcon.BAR_CHART, "Status",
             order.getStatus().name().replace("_", " ")));
 
         // Footer
@@ -810,7 +829,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         d.open();
     }
 
-    private Div buildDetailRow(String icon, String label, String value) {
+    private Div buildDetailRow(VaadinIcon icon, String label, String value) {
         Div row = new Div();
         row.getElement().getStyle()
             .set("display", "flex").set("align-items", "flex-start")
@@ -818,8 +837,8 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("background", "#F8FAFF").set("border-radius", "12px")
             .set("border", "1px solid #EEF2FF");
 
-        Span ic = new Span(icon);
-        ic.getElement().getStyle().set("font-size", "18px").set("flex-shrink", "0").set("margin-top", "1px");
+        Icon ic = icon.create();
+        ic.getElement().getStyle().set("width", "18px").set("height", "18px").set("color", "#001934").set("flex-shrink", "0").set("margin-top", "2px");
 
         Div textCol = new Div();
         textCol.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "2px");
@@ -837,4 +856,5 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         row.add(ic, textCol);
         return row;
     }
+
 }

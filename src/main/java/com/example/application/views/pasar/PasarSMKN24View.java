@@ -20,9 +20,13 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
 
 import java.math.BigDecimal;
@@ -71,7 +75,7 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
             .set("background-color", "#F8F9FF")
             .set("min-height", "100vh");
 
-        add(createPageHeader(), createMainContent());
+        add(createMobileHeaderBar(), createPageHeader(), createMainContent());
         // Data loaded in beforeEnter so URL params are applied first
     }
 
@@ -104,6 +108,138 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
         }
 
         loadProductsAndApplyFilters();
+    }
+
+    private Component createMobileHeaderBar() {
+        Div mobileHeaderBar = new Div();
+        mobileHeaderBar.addClassName("rw-mobile-home-header");
+        mobileHeaderBar.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "10px")
+            .set("padding", "10px 16px")
+            .set("background", "#001934")
+            .set("width", "100%")
+            .set("box-sizing", "border-box")
+            .set("position", "sticky")
+            .set("top", "0")
+            .set("z-index", "98");
+
+        Div searchWrap = new Div();
+        searchWrap.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "8px")
+            .set("background", "rgba(255, 255, 255, 0.12)")
+            .set("border", "1px solid rgba(255, 255, 255, 0.2)")
+            .set("border-radius", "10px")
+            .set("padding", "8px 12px")
+            .set("flex", "1");
+
+        Icon searchIcon = VaadinIcon.SEARCH.create();
+        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px");
+
+        Input mobSearchInput = new Input();
+        mobSearchInput.setPlaceholder("Cari barang di Pasar SMKN 24...");
+        if (searchField.getValue() != null) {
+            mobSearchInput.setValue(searchField.getValue());
+        }
+        mobSearchInput.getElement().getStyle()
+            .set("background", "transparent")
+            .set("border", "none")
+            .set("outline", "none")
+            .set("color", "#FFFFFF")
+            .set("font-size", "13px")
+            .set("width", "100%");
+
+        mobSearchInput.getElement().addEventListener("keydown", e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
+            ).then(String.class, query -> {
+                searchField.setValue(query != null ? query : "");
+                applyFilters();
+            });
+        }).setFilter("event.key === 'Enter'");
+
+        searchWrap.add(searchIcon, mobSearchInput);
+
+        Button filterBtn = new Button(VaadinIcon.SLIDERS.create());
+        filterBtn.getElement().getStyle()
+            .set("background", "#F5C45E")
+            .set("color", "#001934")
+            .set("border", "none")
+            .set("border-radius", "10px")
+            .set("width", "38px")
+            .set("height", "38px")
+            .set("min-width", "38px")
+            .set("cursor", "pointer")
+            .set("flex-shrink", "0");
+
+        filterBtn.addClickListener(e -> openMobileFilterDialog());
+
+        mobileHeaderBar.add(searchWrap, filterBtn);
+        return mobileHeaderBar;
+    }
+
+    private void openMobileFilterDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Filter Produk Pasar SMKN 24");
+        dialog.setWidth("380px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setPadding(false);
+        layout.setSpacing(true);
+
+        ComboBox<String> catCombo = new ComboBox<>("Kategori");
+        List<Category> categories = categoryService.findAllSorted();
+        List<String> catOptions = categories.stream().map(Category::getName).collect(Collectors.toList());
+        catOptions.add(0, "Semua Kategori");
+        catCombo.setItems(catOptions);
+        catCombo.setValue(categoryRadio.getValue() != null ? categoryRadio.getValue() : "Semua Kategori");
+        catCombo.setWidthFull();
+
+        ComboBox<String> condCombo = new ComboBox<>("Kondisi Barang");
+        condCombo.setItems("Semua Kondisi", "Bekas (Preloved)", "Baru");
+        condCombo.setValue(conditionRadio.getValue() != null ? conditionRadio.getValue() : "Semua Kondisi");
+        condCombo.setWidthFull();
+
+        ComboBox<String> sortCmb = new ComboBox<>("Urutkan");
+        sortCmb.setItems("Terbaru", "Harga Termurah", "Harga Tertinggi", "Nama A-Z");
+        sortCmb.setValue(sortCombo.getValue() != null ? sortCombo.getValue() : "Terbaru");
+        sortCmb.setWidthFull();
+
+        layout.add(catCombo, condCombo, sortCmb);
+
+        Button btnApply = new Button("Terapkan Filter", e -> {
+            categoryRadio.setValue(catCombo.getValue());
+            conditionRadio.setValue(condCombo.getValue());
+            sortCombo.setValue(sortCmb.getValue());
+            applyFilters();
+            dialog.close();
+        });
+        btnApply.getElement().getStyle()
+            .set("background", "#001934")
+            .set("color", "#F5C45E")
+            .set("font-weight", "700")
+            .set("border-radius", "8px")
+            .set("border", "none")
+            .set("width", "100%");
+
+        Button btnResetModal = new Button("Reset Filter", e -> {
+            catCombo.setValue("Semua Kategori");
+            condCombo.setValue("Semua Kondisi");
+            sortCmb.setValue("Terbaru");
+            categoryRadio.setValue("Semua Kategori");
+            conditionRadio.setValue("Semua Kondisi");
+            sortCombo.setValue("Terbaru");
+            applyFilters();
+            dialog.close();
+        });
+        btnResetModal.getElement().getStyle().set("color", "#64748B");
+
+        dialog.getFooter().add(btnResetModal, btnApply);
+        dialog.add(layout);
+        dialog.open();
     }
 
     private Component createPageHeader() {
@@ -218,6 +354,7 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
 
         // ---- RIGHT PRODUCT GRID SIDE ----
         Div rightSide = new Div();
+        rightSide.addClassName("rw-catalog-right");
         rightSide.getElement().getStyle()
             .set("flex", "1")
             .set("min-width", "0")
@@ -249,10 +386,11 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
         gridHeader.add(gridTitle, totalCountBadge);
 
         cardsGrid.addClassName("products-grid-container");
+        cardsGrid.addClassName("rw-products-grid");
         cardsGrid.setWidthFull();
         cardsGrid.getElement().getStyle()
             .set("display", "grid")
-            .set("grid-template-columns", "repeat(auto-fill, minmax(240px, 1fr))")
+            .set("grid-template-columns", "repeat(auto-fill, minmax(210px, 1fr))")
             .set("gap", "20px")
             .set("box-sizing", "border-box");
 

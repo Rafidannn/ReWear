@@ -44,6 +44,9 @@ public class User {
     @Column(name = "average_rating", precision = 3, scale = 2)
     private BigDecimal averageRating = BigDecimal.ZERO;
 
+    @Column(name = "balance", precision = 12, scale = 2, nullable = false)
+    private BigDecimal balance = BigDecimal.ZERO;
+
     @Column(name = "total_reviews", nullable = false)
     private Integer totalReviews = 0;
 
@@ -168,6 +171,14 @@ public class User {
 
     public void setAverageRating(BigDecimal averageRating) {
         this.averageRating = averageRating;
+    }
+
+    public BigDecimal getBalance() {
+        return balance != null ? balance : BigDecimal.ZERO;
+    }
+
+    public void setBalance(BigDecimal balance) {
+        this.balance = balance != null ? balance : BigDecimal.ZERO;
     }
 
     public Integer getTotalReviews() {

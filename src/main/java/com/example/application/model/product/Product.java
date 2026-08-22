@@ -56,6 +56,9 @@ public class Product {
     @Column(name = "is_school_market", nullable = false)
     private boolean isSchoolMarket = false;
 
+    @Version
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

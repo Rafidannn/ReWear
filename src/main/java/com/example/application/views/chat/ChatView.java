@@ -51,6 +51,8 @@ public class ChatView extends Div implements BeforeEnterObserver {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
+    private final Div wrapper = new Div();
+
     public ChatView(ChatService chatService, UserService userService,
                     ProductService productService, ModerationService moderationService) {
         this.chatService = chatService;
@@ -60,7 +62,6 @@ public class ChatView extends Div implements BeforeEnterObserver {
 
         addClassName("rw-chat-page");
 
-        Div wrapper = new Div();
         wrapper.addClassName("rw-chat-wrapper");
         leftSidebar.addClassName("rw-chat-left-sidebar");
         rightChatArea.addClassName("rw-chat-right-area");
@@ -168,11 +169,6 @@ public class ChatView extends Div implements BeforeEnterObserver {
 
         List<Conversation> conversations = chatService.getUserConversations(currentUser);
 
-        // If no conversation was specifically selected and we have conversations, default to first
-        if (activeConversation == null && !conversations.isEmpty()) {
-            activeConversation = conversations.get(0);
-        }
-
         if (conversations.isEmpty()) {
             Paragraph empty = new Paragraph("Belum ada percakapan.");
             empty.getElement().getStyle().set("color", "#94A3B8").set("font-size", "13px")
@@ -246,7 +242,7 @@ public class ChatView extends Div implements BeforeEnterObserver {
             listDiv.add(item);
         }
 
-        leftSidebar.add(title, searchWrap, listDiv);
+        leftSidebar.add(titleRow, searchWrap, listDiv);
     }
 
     // ==========================================
@@ -256,7 +252,13 @@ public class ChatView extends Div implements BeforeEnterObserver {
     private void renderChatArea() {
         rightChatArea.removeAll();
 
-        if (activeConversation == null) {
+        if (activeConversation != null) {
+            wrapper.addClassName("has-active-conv");
+            wrapper.removeClassName("no-active-conv");
+        } else {
+            wrapper.addClassName("no-active-conv");
+            wrapper.removeClassName("has-active-conv");
+
             Div emptyArea = new Div();
             emptyArea.addClassName("rw-chat-empty-state");
             emptyArea.getElement().setProperty("innerHTML",
@@ -279,8 +281,17 @@ public class ChatView extends Div implements BeforeEnterObserver {
         Div chatHeaderBar = new Div();
         chatHeaderBar.addClassName("rw-chat-header-bar");
 
-        Div headerInfo = new Div();
-        headerInfo.addClassName("rw-chat-header-info");
+        // Mobile back button to list
+        Button btnBackToList = new Button(VaadinIcon.ARROW_LEFT.create(), e -> {
+            activeConversation = null;
+            renderSidebar();
+            renderChatArea();
+        });
+        btnBackToList.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnBackToList.addClassName("rw-chat-mob-back-btn");
+
+        Div headerLeft = new Div();
+        headerLeft.addClassName("rw-chat-header-info");
 
         H4 headerName = new H4(otherName);
         headerName.addClassName("rw-chat-header-name");
@@ -288,13 +299,30 @@ public class ChatView extends Div implements BeforeEnterObserver {
         Span statusSpan = new Span();
         statusSpan.addClassName("rw-chat-header-status");
         statusSpan.getElement().setProperty("innerHTML", "<span class='dot-online'>●</span> Online");
-        headerInfo.add(headerName, statusSpan);
+        headerLeft.add(headerName, statusSpan);
 
-        Button btnReport = new Button("Laporkan Pengguna", VaadinIcon.WARNING.create());
-        btnReport.addClassName("rw-btn-report-user");
-        btnReport.addClickListener(e -> openReportUserDialog(other, activeConversation));
+        chatHeaderBar.add(btnBackToList, headerLeft);
 
-        chatHeaderBar.add(headerInfo, btnReport);
+        Div headerRightActions = new Div();
+        headerRightActions.getElement().getStyle().set("display", "flex").set("align-items", "center").set("gap", "12px");
+
+        Button btnBell = new Button(VaadinIcon.BELL_O.create());
+        btnBell.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnBell.getStyle().set("color", "#001934").set("cursor", "pointer").set("font-size", "16px");
+
+        Button btnUserIcon = new Button(VaadinIcon.USER.create());
+        btnUserIcon.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnUserIcon.getStyle()
+            .set("background", "#001934").set("color", "#FFFFFF")
+            .set("border-radius", "50%").set("width", "34px").set("height", "34px").set("min-width", "34px");
+        btnUserIcon.addClickListener(e -> {
+            if (other != null && other.getId() != null) {
+                UI.getCurrent().navigate("profile/" + other.getId());
+            }
+        });
+
+        headerRightActions.add(btnBell, btnUserIcon);
+        chatHeaderBar.add(headerLeft, headerRightActions);
 
         // 2. Product Banner (if conversation has a product context)
         Div productBannerCard = new Div();
@@ -319,10 +347,10 @@ public class ChatView extends Div implements BeforeEnterObserver {
 
             pMeta.add(pTitle, pPrice);
 
-            Button btnBuyNow = new Button("Beli Sekarang");
+            Button btnBuyNow = new Button("Buy Now");
             btnBuyNow.addClassName("rw-chat-btn-buy");
             Long prodId = product.getId();
-            btnBuyNow.addClickListener(e -> UI.getCurrent().navigate("product/" + prodId));
+            btnBuyNow.addClickListener(e -> UI.getCurrent().navigate("product?id=" + prodId));
 
             productBannerCard.add(pImg, pMeta, btnBuyNow);
         }
@@ -331,7 +359,7 @@ public class ChatView extends Div implements BeforeEnterObserver {
         Div messagesStream = new Div();
         messagesStream.addClassName("rw-chat-stream");
 
-        Div datePill = new Div(new Span("Hari ini"));
+        Div datePill = new Div(new Span("TODAY"));
         datePill.addClassName("rw-chat-date-pill");
         messagesStream.add(datePill);
 
@@ -342,13 +370,31 @@ public class ChatView extends Div implements BeforeEnterObserver {
             boolean isMe = msg.getSender() != null && msg.getSender().getId().equals(currentUser.getId());
             bubbleRow.addClassName(isMe ? "me" : "other");
 
+            if (!isMe) {
+                // Incoming message: add circular avatar
+                Div avatarDiv = new Div();
+                avatarDiv.addClassName("rw-chat-msg-avatar");
+                String avatarUrl = msg.getSender() != null ? msg.getSender().getAvatarUrl() : null;
+                if (avatarUrl != null && !avatarUrl.isBlank() && !avatarUrl.contains("buku.jpeg")) {
+                    Image avImg = new Image(avatarUrl, "Avatar");
+                    avImg.getStyle().set("width", "32px").set("height", "32px").set("border-radius", "50%").set("object-fit", "cover");
+                    avatarDiv.add(avImg);
+                } else {
+                    Span init = new Span(getInitials(msg.getSender() != null ? msg.getSender().getFullName() : "U"));
+                    init.getStyle().set("font-size", "11px").set("font-weight", "800").set("color", "#001934");
+                    avatarDiv.add(init);
+                }
+                bubbleRow.add(avatarDiv);
+            }
+
             Div bubbleCard = new Div();
             bubbleCard.addClassName("rw-chat-bubble");
 
             Paragraph txt = new Paragraph(msg.getBody());
             txt.addClassName("rw-chat-msg-txt");
 
-            Span time = new Span(msg.getCreatedAt() != null ? msg.getCreatedAt().format(TIME_FMT) : "");
+            String timeFormatted = msg.getCreatedAt() != null ? msg.getCreatedAt().format(TIME_FMT) : "09:15";
+            Span time = new Span(isMe ? timeFormatted + " ✓✓" : timeFormatted);
             time.addClassName("rw-chat-msg-time");
 
             bubbleCard.add(txt, time);
@@ -360,7 +406,11 @@ public class ChatView extends Div implements BeforeEnterObserver {
         Div inputFooter = new Div();
         inputFooter.addClassName("rw-chat-input-footer");
 
-        messageInput.setPlaceholder("Ketik pesan di sini...");
+        Button btnAttach = new Button(VaadinIcon.PLUS_CIRCLE_O.create());
+        btnAttach.addClassName("rw-chat-icon-action");
+        btnAttach.getStyle().set("font-size", "22px").set("color", "#001934");
+
+        messageInput.setPlaceholder("Type a message...");
         messageInput.addClassName("rw-chat-input-field");
         Span emojiIcon = new Span("😊");
         emojiIcon.getElement().getStyle().set("cursor", "pointer").set("font-size", "18px").set("padding-right", "8px");
@@ -373,12 +423,7 @@ public class ChatView extends Div implements BeforeEnterObserver {
         messageInput.getElement().addEventListener("keydown", e -> sendMessage())
             .setFilter("event.key === 'Enter'");
 
-        Button btnAttach = new Button(VaadinIcon.PLUS.create());
-        btnAttach.addClassName("rw-chat-icon-action");
-        Button btnImgUpload = new Button(VaadinIcon.PICTURE.create());
-        btnImgUpload.addClassName("rw-chat-icon-action");
-
-        inputFooter.add(btnAttach, btnImgUpload, messageInput, btnSend);
+        inputFooter.add(btnAttach, messageInput, btnSend);
 
         rightChatArea.add(chatHeaderBar, productBannerCard, messagesStream, inputFooter);
 

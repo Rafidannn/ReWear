@@ -19,17 +19,20 @@ public class OrderService {
     private final OrderStatusLogRepository statusLogRepository;
     private final OrderReturnRepository returnRepository;
     private final com.example.application.repository.product.ProductRepository productRepository;
+    private final com.example.application.repository.user.UserRepository userRepository;
 
     public OrderService(OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository,
                         OrderStatusLogRepository statusLogRepository,
                         OrderReturnRepository returnRepository,
-                        com.example.application.repository.product.ProductRepository productRepository) {
+                        com.example.application.repository.product.ProductRepository productRepository,
+                        com.example.application.repository.user.UserRepository userRepository) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.statusLogRepository = statusLogRepository;
         this.returnRepository = returnRepository;
         this.productRepository = productRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Order> getBuyerOrders(User buyer) {
@@ -52,6 +55,18 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(Order order, List<OrderItem> items, User actor) {
+        // Validate stock for all items before saving anything
+        for (OrderItem item : items) {
+            if (item.getProduct() != null) {
+                com.example.application.model.product.Product product = item.getProduct();
+                int requestedQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                int currentStock = product.getStock() != null ? product.getStock() : 0;
+                if (currentStock < requestedQty) {
+                    throw new IllegalStateException("Stok produk '" + product.getName() + "' tidak mencukupi! Sisa stok: " + currentStock + ", diminta: " + requestedQty);
+                }
+            }
+        }
+
         Order savedOrder = orderRepository.save(order);
         for (OrderItem item : items) {
             item.setOrder(savedOrder);
@@ -62,7 +77,7 @@ public class OrderService {
                 com.example.application.model.product.Product product = item.getProduct();
                 int requestedQty = item.getQuantity() != null ? item.getQuantity() : 1;
                 int currentStock = product.getStock() != null ? product.getStock() : 0;
-                int newStock = Math.max(0, currentStock - requestedQty);
+                int newStock = currentStock - requestedQty;
                 int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
 
                 product.setStock(newStock);
@@ -120,10 +135,13 @@ public class OrderService {
             }
         }
 
-        // Jika status menjadi SELESAI, dana Escrow dicairkan ke penjual
-        if (newStatus == OrderStatus.SELESAI && updated.getSeller() != null) {
+        // Jika status menjadi SELESAI, dana Escrow dicairkan ke saldo penjual
+        if (newStatus == OrderStatus.SELESAI && updated.getSeller() != null && oldStatus != OrderStatus.SELESAI) {
             User seller = updated.getSeller();
-            System.out.println("Dana Escrow sebesar Rp " + updated.getTotalAmount() + " berhasil dicairkan ke penjual: " + seller.getFullName());
+            java.math.BigDecimal amount = updated.getTotalAmount() != null ? updated.getTotalAmount() : java.math.BigDecimal.ZERO;
+            seller.setBalance(seller.getBalance().add(amount));
+            userRepository.save(seller);
+            System.out.println("Dana Escrow sebesar Rp " + amount + " berhasil dicairkan ke saldo penjual: " + seller.getFullName());
         }
 
         return updated;

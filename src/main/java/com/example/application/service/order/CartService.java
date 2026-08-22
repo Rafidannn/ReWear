@@ -167,7 +167,7 @@ public class CartService {
             isSmkn24,
             maxStock
         );
-
+        item.setProductId(p.getId());
         return item;
     }
 

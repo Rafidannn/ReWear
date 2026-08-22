@@ -31,11 +31,15 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     private Span linkPasar;
     private final CartService cartService;
     private Span cartBadge;
+    private Div mobNavHome;
+    private Div mobNavCat;
+    private Div mobNavChat;
+    private Div mobNavProfile;
 
     public MainLayout(CartService cartService) {
         this.cartService = cartService;
         setPrimarySection(Section.NAVBAR);
-        addToNavbar(true, createTopNavbar());
+        addToNavbar(true, createTopNavbar(), createMobileBottomBar());
     }
 
     @Override
@@ -50,6 +54,22 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
                 linkKategori.addClassNames("rw-nav-link", "rw-nav-link-active");
                 linkPasar.removeClassName("rw-nav-link-active");
                 linkPasar.addClassName("rw-nav-link");
+            }
+        }
+        if (mobNavHome != null) {
+            mobNavHome.removeClassName("active");
+            mobNavCat.removeClassName("active");
+            mobNavChat.removeClassName("active");
+            mobNavProfile.removeClassName("active");
+
+            if (path.isEmpty() || "home".equalsIgnoreCase(path)) {
+                mobNavHome.addClassName("active");
+            } else if ("pasar-smkn24".equalsIgnoreCase(path)) {
+                mobNavCat.addClassName("active");
+            } else if ("chat".equalsIgnoreCase(path)) {
+                mobNavChat.addClassName("active");
+            } else if ("profile".equalsIgnoreCase(path)) {
+                mobNavProfile.addClassName("active");
             }
         }
     }
@@ -281,6 +301,66 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
                 mainLayout.refreshCartBadge();
             }
         });
+    }
+
+    private Component createMobileBottomBar() {
+        Div bottomBar = new Div();
+        bottomBar.addClassName("rw-mobile-bottom-bar");
+
+        // Home
+        mobNavHome = createMobileNavItem("Home",
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'></path><polyline points='9 22 9 12 15 12 15 22'></polyline></svg>",
+            "Home", "");
+
+        // Categories
+        mobNavCat = createMobileNavItem("Categories",
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='7' height='7'></rect><rect x='14' y='3' width='7' height='7'></rect><rect x='14' y='14' width='7' height='7'></rect><rect x='3' y='14' width='7' height='7'></rect></svg>",
+            "Categories", "pasar-smkn24");
+
+        // Plus FAB
+        Div fabWrap = new Div();
+        fabWrap.addClassName("rw-mobile-fab-wrap");
+        Div fab = new Div();
+        fab.addClassName("rw-mobile-fab");
+        fab.getElement().setProperty("innerHTML",
+            "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='5' x2='12' y2='19'></line><line x1='5' y1='12' x2='19' y2='12'></line></svg>"
+        );
+        fab.addClickListener(e -> {
+            if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("sell");
+        });
+        fabWrap.add(fab);
+
+        // Chat
+        mobNavChat = createMobileNavItem("Chat",
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'></path></svg>",
+            "Chat", "chat");
+
+        // Profile
+        mobNavProfile = createMobileNavItem("Profile",
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'></path><circle cx='12' cy='7' r='4'></circle></svg>",
+            "Profile", "profile");
+
+        bottomBar.add(mobNavHome, mobNavCat, fabWrap, mobNavChat, mobNavProfile);
+        return bottomBar;
+    }
+
+    private Div createMobileNavItem(String label, String svgHtml, String title, String routePath) {
+        Div item = new Div();
+        item.addClassName("rw-mobile-nav-item");
+        Div iconDiv = new Div();
+        iconDiv.addClassName("rw-mob-nav-icon");
+        iconDiv.getElement().setProperty("innerHTML", svgHtml);
+        Span textSpan = new Span(label);
+        textSpan.addClassName("rw-mob-nav-label");
+        item.add(iconDiv, textSpan);
+        item.addClickListener(e -> {
+            if ("profile".equals(routePath) || "chat".equals(routePath) || "sell".equals(routePath)) {
+                if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate(routePath);
+            } else {
+                UI.getCurrent().navigate(routePath);
+            }
+        });
+        return item;
     }
 }
 

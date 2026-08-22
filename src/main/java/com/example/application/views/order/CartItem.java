@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 public class CartItem implements Serializable {
     private String id;
+    private Long productId;
     private String storeName;
     private String storeBadge;
     private String storeBadgeClass; // gold / blue
@@ -84,4 +85,7 @@ public class CartItem implements Serializable {
 
     public int getMaxStock() { return maxStock; }
     public void setMaxStock(int maxStock) { this.maxStock = maxStock; }
+
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
 }

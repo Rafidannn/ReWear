@@ -56,6 +56,8 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
+    private boolean isStoreActivated = false;
+
     public SellerDashboardView(ProductService productService, OrderService orderService, PaymentService paymentService) {
         this.productService = productService;
         this.orderService = orderService;
@@ -88,9 +90,21 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
     private void buildMainLayout() {
         contentContainer.removeAll();
 
+        User currentSeller = AuthGuard.getCurrentUser();
+        List<Product> products = currentSeller != null ? productService.findProductsBySeller(currentSeller) : List.of();
+        List<Order> orders = currentSeller != null ? orderService.getSellerOrders(currentSeller) : List.of();
+
+        boolean isActiveSeller = (products != null && !products.isEmpty()) || (orders != null && !orders.isEmpty()) || isStoreActivated;
+
+        if (!isActiveSeller) {
+            contentContainer.add(createSellerOnboardingView());
+            return;
+        }
+
         HorizontalLayout gridLayout = new HorizontalLayout();
         gridLayout.setWidthFull();
         gridLayout.setSpacing(true);
+        gridLayout.addClassName("rw-seller-dashboard-grid");
         gridLayout.getElement().getStyle().set("gap", "28px");
 
         // LEFT SIDEBAR NAVIGATION
@@ -98,6 +112,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
         // RIGHT CONTENT AREA
         rightContentArea.setWidthFull();
+        rightContentArea.addClassName("rw-seller-content-area");
         rightContentArea.getElement().getStyle().set("flex", "1");
         renderRightTabContent();
 
@@ -107,12 +122,127 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         contentContainer.add(gridLayout);
     }
 
+    private Component createSellerOnboardingView() {
+        Div card = new Div();
+        card.addClassName("rw-seller-onboarding-card");
+        card.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "24px")
+            .set("padding", "44px 36px")
+            .set("box-shadow", "0 10px 30px rgba(0, 25, 52, 0.05)")
+            .set("text-align", "center")
+            .set("max-width", "880px")
+            .set("margin", "20px auto 40px auto")
+            .set("box-sizing", "border-box");
+
+        // Top Banner Icon
+        Div iconBadge = new Div();
+        iconBadge.getElement().getStyle()
+            .set("width", "80px")
+            .set("height", "80px")
+            .set("margin", "0 auto 20px auto")
+            .set("border-radius", "20px")
+            .set("background", "linear-gradient(135deg, #001934 0%, #002B5B 100%)")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("box-shadow", "0 8px 20px rgba(0, 25, 52, 0.15)");
+
+        Icon storeIcon = VaadinIcon.SHOP.create();
+        storeIcon.getElement().getStyle().set("width", "40px").set("height", "40px").set("color", "#F5C45E");
+        iconBadge.add(storeIcon);
+
+        Span badgeText = new Span("PROGRAM KEMITRAAN WARGA SMKN 24");
+        badgeText.getElement().getStyle()
+            .set("background", "#FEF3C7")
+            .set("color", "#92400E")
+            .set("font-weight", "800")
+            .set("font-size", "12px")
+            .set("padding", "6px 16px")
+            .set("border-radius", "9999px")
+            .set("letter-spacing", "0.5px")
+            .set("display", "inline-block")
+            .set("margin-bottom", "16px");
+
+        H2 title = new H2("Mulai Berjualan di ReWear SMKN 24");
+        title.getElement().getStyle()
+            .set("font-size", "28px")
+            .set("font-weight", "900")
+            .set("color", "#001934")
+            .set("margin", "0 0 10px 0");
+
+        Paragraph sub = new Paragraph("Ubah seragam, buku, almamater, dan barang preloved-mu jadi uang tambahan. Transaksi cepat, aman, dan 100% tanpa biaya komisi!");
+        sub.getElement().getStyle()
+            .set("font-size", "15px")
+            .set("color", "#64748B")
+            .set("max-width", "620px")
+            .set("margin", "0 auto 32px auto")
+            .set("line-height", "1.6");
+
+        // 3 Benefit Cards Grid
+        Div benefitsGrid = new Div();
+        benefitsGrid.addClassName("rw-onboarding-benefits-grid");
+        benefitsGrid.getElement().getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(3, 1fr)")
+            .set("gap", "16px")
+            .set("margin-bottom", "36px")
+            .set("text-align", "left");
+
+        benefitsGrid.add(createBenefitCard(VaadinIcon.MONEY_DEPOSIT, "100% Bebas Komisi", "Semua hasil penjualan barangmu utuh masuk ke dompet ReWearPay milikmu."));
+        benefitsGrid.add(createBenefitCard(VaadinIcon.SHIELD, "COD & Escrow SMKN 24", "Sistem keamanan transaksi terjamin untuk sesama warga sekolah SMKN 24."));
+        benefitsGrid.add(createBenefitCard(VaadinIcon.CART, "Langsung Dilihat Pembeli", "Produkmu otomatis tampil di Pasar SMKN 24 dan siap dibeli teman sekolah."));
+
+        // Action Button
+        Button btnRegisterSeller = new Button("🚀 Buka Toko & Tambah Produk Pertama", e -> {
+            isStoreActivated = true;
+            UI.getCurrent().navigate("sell");
+        });
+        btnRegisterSeller.getElement().getStyle()
+            .set("background", "#001934")
+            .set("color", "#F5C45E")
+            .set("font-size", "15px")
+            .set("font-weight", "800")
+            .set("padding", "16px 32px")
+            .set("border-radius", "12px")
+            .set("border", "none")
+            .set("cursor", "pointer")
+            .set("box-shadow", "0 6px 16px rgba(0, 25, 52, 0.2)");
+
+        card.add(iconBadge, badgeText, title, sub, benefitsGrid, btnRegisterSeller);
+        return card;
+    }
+
+    private Div createBenefitCard(VaadinIcon icon, String title, String desc) {
+        Div box = new Div();
+        box.getElement().getStyle()
+            .set("background", "#F8FAFC")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "20px")
+            .set("box-sizing", "border-box");
+
+        Icon ic = icon.create();
+        ic.getElement().getStyle().set("width", "24px").set("height", "24px").set("color", "#001934").set("margin-bottom", "10px");
+
+        H4 h4 = new H4(title);
+        h4.getElement().getStyle().set("font-size", "15px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
+
+        Paragraph p = new Paragraph(desc);
+        p.getElement().getStyle().set("font-size", "13px").set("color", "#64748B").set("margin", "0").set("line-height", "1.5");
+
+        box.add(ic, h4, p);
+        return box;
+    }
+
     // ==========================================
     // LEFT SIDEBAR NAVIGATION
     // ==========================================
 
     private Div createLeftSidebar() {
         Div sidebar = new Div();
+        sidebar.addClassName("rw-seller-sidebar");
         sidebar.getElement().getStyle()
             .set("width", "260px")
             .set("flex-shrink", "0")
@@ -150,6 +280,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
         // Navigation Links
         Div navList = new Div();
+        navList.addClassName("rw-seller-nav-list");
         navList.getElement().getStyle()
             .set("display", "flex")
             .set("flex-direction", "column")
@@ -971,7 +1102,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private Component renderPengaturanTab() {
         Div wrapper = new Div();
-        H2 title = new H2("⚙️ Pengaturan Toko");
+        H2 title = new H2("Pengaturan Toko");
         title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 8px 0");
 
         User seller = AuthGuard.getCurrentUser();

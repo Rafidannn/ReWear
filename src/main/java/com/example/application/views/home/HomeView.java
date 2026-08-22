@@ -18,7 +18,12 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
 
 import java.math.BigDecimal;
@@ -62,6 +67,7 @@ public class HomeView extends VerticalLayout {
             .set("max-width", "100%");
 
         add(
+            createMobileHeaderBar(),
             createHeroSection(),
             createCategorySection(),
             createSchoolMarketSection(),
@@ -471,9 +477,9 @@ public class HomeView extends VerticalLayout {
         ctaContainer.addAttachListener(event -> {
             UI.getCurrent().getPage().executeJs(
                 "var b1 = document.getElementById('btn-cta-jual');" +
-                "if(b1) b1.onclick = function(){ window.location.href='/seller'; };" +
+                "if(b1) b1.onclick = function(){ window.location.href='sell'; };" +
                 "var b2 = document.getElementById('btn-cta-daftar');" +
-                "if(b2) b2.onclick = function(){ alert('Halaman pendaftaran akan segera tersedia!'); };"
+                "if(b2) b2.onclick = function(){ window.location.href='register'; };"
             );
         });
 
@@ -485,65 +491,234 @@ public class HomeView extends VerticalLayout {
     /* -----------------------------------------------------------------
        6. FOOTER (Light Blue #EFF4FF, 4 Columns + Bottom Bar - Figma Exact)
        ----------------------------------------------------------------- */
+    private Component createMobileHeaderBar() {
+        Div mobileHeaderBar = new Div();
+        mobileHeaderBar.addClassName("rw-mobile-home-header");
+        mobileHeaderBar.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "10px")
+            .set("padding", "10px 16px")
+            .set("background", "#001934")
+            .set("width", "100%")
+            .set("box-sizing", "border-box")
+            .set("position", "sticky")
+            .set("top", "0")
+            .set("z-index", "98");
+
+        Div searchWrap = new Div();
+        searchWrap.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "8px")
+            .set("background", "rgba(255, 255, 255, 0.12)")
+            .set("border", "1px solid rgba(255, 255, 255, 0.2)")
+            .set("border-radius", "10px")
+            .set("padding", "8px 12px")
+            .set("flex", "1");
+
+        Icon searchIcon = VaadinIcon.SEARCH.create();
+        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px");
+
+        Input mobSearchInput = new Input();
+        mobSearchInput.setPlaceholder("Cari barang thrift impianmu...");
+        mobSearchInput.getElement().getStyle()
+            .set("background", "transparent")
+            .set("border", "none")
+            .set("outline", "none")
+            .set("color", "#FFFFFF")
+            .set("font-size", "13px")
+            .set("width", "100%");
+
+        mobSearchInput.getElement().addEventListener("keydown", e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
+            ).then(String.class, query -> {
+                if (query != null && !query.isBlank()) {
+                    UI.getCurrent().navigate("pasar-smkn24", new QueryParameters(java.util.Map.of("q", List.of(query))));
+                } else {
+                    UI.getCurrent().navigate("pasar-smkn24");
+                }
+            });
+        }).setFilter("event.key === 'Enter'");
+
+        searchWrap.add(searchIcon, mobSearchInput);
+
+        Button filterBtn = new Button(VaadinIcon.SLIDERS.create());
+        filterBtn.getElement().getStyle()
+            .set("background", "#F5C45E")
+            .set("color", "#001934")
+            .set("border", "none")
+            .set("border-radius", "10px")
+            .set("width", "38px")
+            .set("height", "38px")
+            .set("min-width", "38px")
+            .set("cursor", "pointer")
+            .set("flex-shrink", "0");
+
+        filterBtn.addClickListener(e -> {
+            UI.getCurrent().getPage().executeJs("var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
+        });
+
+        mobileHeaderBar.add(searchWrap, filterBtn);
+        return mobileHeaderBar;
+    }
+
+    /* -----------------------------------------------------------------
+       6. FOOTER (Light Blue #EFF4FF, 4 Columns + Bottom Bar - Figma Exact)
+       ----------------------------------------------------------------- */
     private Component createFooter() {
+        Div footerContainer = new Div();
+        footerContainer.setWidthFull();
+        footerContainer.addClassName("rw-footer-outer");
+
         Div footer = new Div();
         footer.setWidthFull();
-        footer.getElement().setProperty("innerHTML",
-            "<footer class='rw-footer'>" +
-            "<div class='rw-footer-inner'>" +
+        footer.addClassName("rw-footer");
 
-            // Col 1 — Brand
-            "<div class='rw-footer-col'>" +
-            "<span class='rw-footer-brand'>ReWear</span>" +
-            "<p class='rw-footer-desc'>Platform marketplace komunitas SMKN 24 Jakarta. Mendorong ekonomi sirkular dan keberlanjutan di lingkungan sekolah.</p>" +
-            "<div class='rw-footer-socials'>" +
-            "<a href='#' class='rw-social-btn' title='Web'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8'/><path d='M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
-            "<a href='#' class='rw-social-btn' title='Email'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' stroke='currentColor' stroke-width='1.8'/><polyline points='22,6 12,13 2,6' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
-            "<a href='#' class='rw-social-btn' title='Kontak'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
-            "</div></div>" +
+        Div inner = new Div();
+        inner.addClassName("rw-footer-inner");
 
-            // Col 2 — Belanja
-            "<div class='rw-footer-col'>" +
-            "<h4 class='rw-footer-heading'>Belanja</h4>" +
-            "<ul class='rw-footer-links'>" +
-            "<li><a href='#'>Semua Kategori</a></li>" +
-            "<li><a href='#'>Pasar SMKN 24</a></li>" +
-            "<li><a href='#'>Promo Hari Ini</a></li>" +
-            "<li><a href='#'>Barang Thrift</a></li>" +
-            "</ul></div>" +
+        // Col 1 — Brand
+        Div col1 = new Div();
+        col1.addClassName("rw-footer-col");
+        Span brand = new Span("ReWear");
+        brand.addClassName("rw-footer-brand");
+        Paragraph desc = new Paragraph("Platform marketplace komunitas SMKN 24 Jakarta. Mendorong ekonomi sirkular dan keberlanjutan di lingkungan sekolah.");
+        desc.addClassName("rw-footer-desc");
 
-            // Col 3 — Dukungan
-            "<div class='rw-footer-col'>" +
-            "<h4 class='rw-footer-heading'>Dukungan</h4>" +
-            "<ul class='rw-footer-links'>" +
-            "<li><a href='#'>Pusat Bantuan</a></li>" +
-            "<li><a href='#'>Cara Berjualan</a></li>" +
-            "<li><a href='#'>Kebijakan Privasi</a></li>" +
-            "<li><a href='#'>Syarat &amp; Ketentuan</a></li>" +
-            "</ul></div>" +
-
-            // Col 4 — Tentang Kami
-            "<div class='rw-footer-col'>" +
-            "<h4 class='rw-footer-heading'>Tentang Kami</h4>" +
-            "<ul class='rw-footer-links'>" +
-            "<li><a href='#'>Tentang ReWear</a></li>" +
-            "<li><a href='#'>Komunitas Kami</a></li>" +
-            "<li><a href='#'>Blog</a></li>" +
-            "<li><a href='#'>Kontak</a></li>" +
-            "</ul></div>" +
-
-            "</div>" +
-
-            // Footer Bottom Bar
-            "<div class='rw-footer-bottom-bar'>" +
-            "<div class='rw-footer-bottom-inner'>" +
-            "<span>&copy; 2024 ReWear SMKN 24 Jakarta. Sustainable Community Commerce.</span>" +
-            "<span style='display:flex;align-items:center;gap:6px;'><svg width='14' height='14' viewBox='0 0 24 24' fill='none'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8'/><path d='M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z' stroke='currentColor' stroke-width='1.8'/></svg> Bahasa Indonesia</span>" +
-            "</div></div>" +
-
-            "</footer>"
+        Div socials = new Div();
+        socials.addClassName("rw-footer-socials");
+        socials.getElement().setProperty("innerHTML",
+            "<a href='javascript:void(0)' class='rw-social-btn' title='Web'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8'/><path d='M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
+            "<a href='javascript:void(0)' class='rw-social-btn' title='Email'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' stroke='currentColor' stroke-width='1.8'/><polyline points='22,6 12,13 2,6' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
+            "<a href='javascript:void(0)' class='rw-social-btn' title='Kontak'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z' stroke='currentColor' stroke-width='1.8'/></svg></a>"
         );
-        return footer;
+        col1.add(brand, desc, socials);
+
+        // Col 2 — Belanja
+        Div col2 = new Div();
+        col2.addClassName("rw-footer-col");
+        H4 hBelanja = new H4("Belanja");
+        hBelanja.addClassName("rw-footer-heading");
+        Div listBelanja = new Div();
+        listBelanja.addClassName("rw-footer-links");
+
+        listBelanja.add(
+            createFooterLink("Semua Kategori", () -> UI.getCurrent().navigate("pasar-smkn24")),
+            createFooterLink("Pasar SMKN 24", () -> UI.getCurrent().navigate("pasar-smkn24")),
+            createFooterLink("Promo Hari Ini", () -> {
+                UI.getCurrent().navigate("pasar-smkn24");
+                Notification.show("Menampilkan barang promo menarik di Pasar SMKN 24!", 3000, Notification.Position.TOP_CENTER);
+            }),
+            createFooterLink("Barang Thrift", () -> filterAndRenderProducts("Pakaian", true))
+        );
+        col2.add(hBelanja, listBelanja);
+
+        // Col 3 — Dukungan
+        Div col3 = new Div();
+        col3.addClassName("rw-footer-col");
+        H4 hDukungan = new H4("Dukungan");
+        hDukungan.addClassName("rw-footer-heading");
+        Div listDukungan = new Div();
+        listDukungan.addClassName("rw-footer-links");
+
+        listDukungan.add(
+            createFooterLink("Pusat Bantuan", () -> openFooterInfoModal("Pusat Bantuan ReWear SMKN 24",
+                "<p>Butuh bantuan transaksi atau penggunaan aplikasi?</p>" +
+                "<ul>" +
+                "<li><b>Jam Operasional:</b> Senin - Jumat (07.00 - 16.00 WIB)</li>" +
+                "<li><b>Email Support:</b> support@rewear.smkn24.sch.id</li>" +
+                "<li><b>Lokasi Layanan:</b> Sekretariat OSIS / Lab RPL SMKN 24 Jakarta</li>" +
+                "</ul>")),
+            createFooterLink("Cara Berjualan", () -> openFooterInfoModal("Panduan Berjualan di ReWear",
+                "<ol style='padding-left:18px;'>" +
+                "<li>Pastikan akun Anda sudah terverifikasi sebagai <b>Warga SMKN 24</b>.</li>" +
+                "<li>Klik tombol <b>+ Jual</b> di menu navigasi utama.</li>" +
+                "<li>Unggah foto produk yang jelas, isi judul, deskripsi, dan harga pas.</li>" +
+                "<li>Pilih opsi pengiriman (COD Lingkungan Sekolah atau Escrow Safe Pay).</li>" +
+                "<li>Klik <b>Tayangkan Produk</b>!</li>" +
+                "</ol>")),
+            createFooterLink("Kebijakan Privasi", () -> openFooterInfoModal("Kebijakan Privasi",
+                "<p>ReWear SMKN 24 menghargai kerahasiaan data pengguna kami. Semua data pribadi (nama, nomor telepon, transaksi) dilindungi dan hanya dipergunakan untuk keperluan verifikasi komunitas sekolah SMKN 24 Jakarta.</p>")),
+            createFooterLink("Syarat & Ketentuan", () -> openFooterInfoModal("Syarat & Ketentuan Komunitas",
+                "<p>Ketentuan utama bertransaksi di ReWear SMKN 24:</p>" +
+                "<ul>" +
+                "<li>Dilarang menjual barang terlarang / senjata / zat berbahaya.</li>" +
+                "<li>Hanya barang thrift/preloved layak pakai yang diizinkan.</li>" +
+                "<li>Segala bentuk penipuan akan berakibat pembekuan akun dan tindakan disiplin sekolah.</li>" +
+                "</ul>"))
+        );
+        col3.add(hDukungan, listDukungan);
+
+        // Col 4 — Tentang Kami
+        Div col4 = new Div();
+        col4.addClassName("rw-footer-col");
+        H4 hTentang = new H4("Tentang Kami");
+        hTentang.addClassName("rw-footer-heading");
+        Div listTentang = new Div();
+        listTentang.addClassName("rw-footer-links");
+
+        listTentang.add(
+            createFooterLink("Tentang ReWear", () -> openFooterInfoModal("Tentang ReWear SMKN 24",
+                "<p>ReWear adalah platform marketplace barang preloved/thrift yang dirancang khusus untuk seluruh siswa, guru, dan staf SMKN 24 Jakarta demi mendukung ekonomi sirkular dan ramah lingkungan.</p>")),
+            createFooterLink("Komunitas Kami", () -> openFooterInfoModal("Komunitas ReWear SMKN 24",
+                "<p>Bergabunglah bersama 1.000+ anggota aktif komunitas SMKN 24 Jakarta yang saling berbagi dan menghemat dengan gaya hidup sustainable fashion.</p>")),
+            createFooterLink("Blog & Edukasi", () -> openFooterInfoModal("Blog ReWear",
+                "<p>Temukan tips seputar perawatan baju preloved, tren thrift fashion 2026, dan artikel keberlanjutan lingkungan di buletin ReWear SMKN 24.</p>")),
+            createFooterLink("Kontak", () -> openFooterInfoModal("Hubungi Kami",
+                "<p>Tim Pengembang & Moderator ReWear SMKN 24 Jakarta:</p>" +
+                "<p>📍 Jl. Bambu Hitam, Bambu Apus, Cipayung, Jakarta Timur<br>" +
+                "📧 rewear@smkn24.sch.id<br>" +
+                "📞 +62 812-3456-7890</p>"))
+        );
+        col4.add(hTentang, listTentang);
+
+        inner.add(col1, col2, col3, col4);
+
+        // Footer Bottom Bar
+        Div bottomBar = new Div();
+        bottomBar.addClassName("rw-footer-bottom-bar");
+        Div bottomInner = new Div();
+        bottomInner.addClassName("rw-footer-bottom-inner");
+        Span copy = new Span("© 2026 ReWear SMKN 24 Jakarta. Sustainable Community Commerce.");
+        Span lang = new Span("Bahasa Indonesia");
+        lang.getElement().getStyle().set("display", "flex").set("align-items", "center").set("gap", "6px");
+        bottomInner.add(copy, lang);
+        bottomBar.add(bottomInner);
+
+        footer.add(inner, bottomBar);
+        footerContainer.add(footer);
+        return footerContainer;
+    }
+
+    private Component createFooterLink(String text, Runnable onClick) {
+        Span link = new Span(text);
+        link.getElement().getStyle()
+            .set("cursor", "pointer")
+            .set("font-size", "13px")
+            .set("color", "#43474E")
+            .set("display", "block")
+            .set("transition", "color 0.15s ease");
+        link.addClickListener(e -> onClick.run());
+        return link;
+    }
+
+    private void openFooterInfoModal(String titleStr, String bodyHtml) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(titleStr);
+        dialog.setWidth("500px");
+
+        Div content = new Div();
+        content.getElement().setProperty("innerHTML", bodyHtml);
+        content.getElement().getStyle().set("line-height", "1.6").set("color", "#334155").set("font-size", "14px");
+
+        Button closeBtn = new Button("Tutup", e -> dialog.close());
+        closeBtn.getElement().getStyle().set("background", "#001934").set("color", "#FFFFFF").set("border-radius", "8px").set("font-weight", "700");
+        dialog.getFooter().add(closeBtn);
+
+        dialog.add(content);
+        dialog.open();
     }
 
     private String extractImgUrl(String imagesJson, String fallback) {
