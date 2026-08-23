@@ -326,13 +326,19 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             Div thumb = new Div();
             thumb.getElement().getStyle()
                 .set("width", "54px").set("height", "54px").set("border-radius", "10px")
-                .set("background", "#F1F5F9").set("flex-shrink", "0")
-                .set("display", "flex").set("align-items", "center").set("justify-content", "center");
+                .set("background", "#F1F5F9").set("flex-shrink", "0").set("overflow", "hidden")
+                .set("display", "flex").set("align-items", "center").set("justify-content", "center")
+                .set("border", "1px solid #E2E8F0");
+
+            String rawImg = null;
             if (firstItem.getProduct() != null && firstItem.getProduct().getImages() != null && !firstItem.getProduct().getImages().isBlank()) {
-                String firstImg = firstItem.getProduct().getImages().split(",")[0].trim();
-                thumb.getElement().getStyle()
-                    .set("background-image", "url('" + firstImg + "')")
-                    .set("background-size", "cover").set("background-position", "center");
+                rawImg = firstItem.getProduct().getImages().split(",")[0].trim();
+            }
+            if (rawImg != null && !rawImg.isBlank()) {
+                String imgUrl = rawImg.startsWith("/") ? rawImg : "/" + rawImg;
+                Image pImg = new Image(imgUrl, firstItem.getProductNameSnapshot());
+                pImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
+                thumb.add(pImg);
             } else {
                 thumb.getElement().setProperty("innerHTML", "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>");
             }
@@ -406,8 +412,31 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             btnDetailTrx.addClickListener(e -> openOrderDetailModal(order));
 
             actionContainer.add(btnDetailKomplain, btnDetailTrx);
+        } else if (order.getStatus() == OrderStatus.SELESAI) {
+            // Pesanan sudah selesai -> Pembeli bisa Beri Ulasan DAN tetap bisa Ajukan Komplain (Garansi Escrow)
+            boolean alreadyReviewed = moderationService.hasReviewed(order.getId(), user.getId());
+            Button btnReview = new Button(alreadyReviewed ? "Sudah Diulas" : "Beri Ulasan", VaadinIcon.STAR.create());
+            btnReview.getElement().getStyle()
+                .set("background", alreadyReviewed ? "#E2E8F0" : "#F59E0B")
+                .set("color", alreadyReviewed ? "#64748B" : "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", alreadyReviewed ? "default" : "pointer");
+            if (!alreadyReviewed) {
+                btnReview.addClickListener(e -> openReviewModal(order, user));
+            }
+
+            Button btnKomplain = new Button("Ajukan Komplain / Retur", VaadinIcon.EXCLAMATION_CIRCLE.create());
+            btnKomplain.getElement().getStyle()
+                .set("background", "#FFFFFF").set("color", "#991B1B")
+                .set("border", "1.5px solid #FCA5A5").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnKomplain.addClickListener(e -> openComplainModal(order, user));
+
+            actionContainer.add(btnKomplain, btnReview);
         } else if (order.getStatus() == OrderStatus.DITERIMA || (order.getStatus() == OrderStatus.DIKIRIM && isCod)) {
-            // Barang sudah tiba / COD siap serah terima -> Pembeli bisa komplain jika ada cacat fisik atau konfirmasi selesai
+            // COD Siap / Barang tiba -> Pembeli bisa selesaikan atau komplain
             Button btnKomplain = new Button("Ajukan Komplain", VaadinIcon.EXCLAMATION_CIRCLE.create());
             btnKomplain.getElement().getStyle()
                 .set("background", "#FFFFFF").set("color", "#991B1B")
@@ -431,7 +460,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
 
             actionContainer.add(btnKomplain, btnSelesai);
         } else if (order.getStatus() == OrderStatus.DIKIRIM) {
-            // Paket dalam perjalanan kurir
+            // Paket dalam perjalanan kurir ekspedisi
             Button btnLacak = new Button("Lacak & Rincian Paket", VaadinIcon.TRUCK.create());
             btnLacak.getElement().getStyle()
                 .set("background", "#001934").set("color", "#FFFFFF")

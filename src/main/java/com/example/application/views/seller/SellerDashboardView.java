@@ -583,32 +583,49 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
             actionBtns.setSpacing(true);
 
             // Tombol Penjual berdasarkan Status
-            if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN || order.getStatus() == OrderStatus.DIBAYAR) {
-                Button btnProses = new Button("Proses Pesanan", e -> {
-                    orderService.updateOrderStatus(order, OrderStatus.DIPROSES, "Pesanan diterima dan sedang diproses penjual.", sellerActor);
-                    Notification success = Notification.show("Pesanan #" + order.getOrderNumber() + " sedang diproses.", 2500, Notification.Position.TOP_CENTER);
-                    success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    buildMainLayout();
-                });
-                btnProses.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
-                actionBtns.add(btnProses);
-            }
+            boolean isCod = order.getShippingMethod() == ShippingMethod.COD_SEKOLAH;
 
-            if (order.getStatus() == OrderStatus.DIPROSES) {
-                Button btnKirim = new Button("Atur Pengiriman", VaadinIcon.TRUCK.create(), e -> {
-                    openShipOrderDialog(order, sellerActor);
-                });
-                btnKirim.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
-                actionBtns.add(btnKirim);
-            }
+            if (isCod) {
+                if (order.getStatus() == OrderStatus.DIBAYAR || order.getStatus() == OrderStatus.DIPROSES) {
+                    Button btnJadwalCod = new Button("Atur Titik Temu & Jam COD", VaadinIcon.CALENDAR.create(), e -> {
+                        openShipOrderDialog(order, sellerActor);
+                    });
+                    btnJadwalCod.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
+                    actionBtns.add(btnJadwalCod);
+                } else if (order.getStatus() == OrderStatus.DIKIRIM) {
+                    Div codInfo = new Div();
+                    codInfo.getStyle().set("font-size", "12px").set("color", "#92400E").set("background", "#FEF3C7").set("padding", "6px 12px").set("border-radius", "6px").set("font-weight", "600");
+                    codInfo.setText("Jadwal COD: " + (order.getShippingAddress() != null ? order.getShippingAddress() : "SMKN 24"));
+                    actionBtns.add(codInfo);
+                }
+            } else {
+                if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN || order.getStatus() == OrderStatus.DIBAYAR) {
+                    Button btnProses = new Button("Proses Pesanan", e -> {
+                        orderService.updateOrderStatus(order, OrderStatus.DIPROSES, "Pesanan diterima dan sedang diproses penjual.", sellerActor);
+                        Notification success = Notification.show("Pesanan #" + order.getOrderNumber() + " sedang diproses.", 2500, Notification.Position.TOP_CENTER);
+                        success.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                        buildMainLayout();
+                    });
+                    btnProses.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
+                    actionBtns.add(btnProses);
+                }
 
-            if (order.getStatus() == OrderStatus.DIKIRIM) {
-                Div shipInfo = new Div();
-                shipInfo.getStyle().set("font-size", "12px").set("color", "#475569").set("background", "#F1F5F9").set("padding", "6px 12px").set("border-radius", "6px");
-                String courier = order.getCourierName() != null ? order.getCourierName().name() : "Kurir";
-                String tracking = order.getTrackingNumber() != null ? order.getTrackingNumber() : "-";
-                shipInfo.setText("Pengiriman: " + courier + " (" + tracking + ")");
-                actionBtns.add(shipInfo);
+                if (order.getStatus() == OrderStatus.DIPROSES) {
+                    Button btnKirim = new Button("Atur Pengiriman Ekspedisi", VaadinIcon.TRUCK.create(), e -> {
+                        openShipOrderDialog(order, sellerActor);
+                    });
+                    btnKirim.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
+                    actionBtns.add(btnKirim);
+                }
+
+                if (order.getStatus() == OrderStatus.DIKIRIM) {
+                    Div shipInfo = new Div();
+                    shipInfo.getStyle().set("font-size", "12px").set("color", "#475569").set("background", "#F1F5F9").set("padding", "6px 12px").set("border-radius", "6px");
+                    String courier = order.getCourierName() != null ? order.getCourierName().name() : "Kurir";
+                    String tracking = order.getTrackingNumber() != null ? order.getTrackingNumber() : "-";
+                    shipInfo.setText("Pengiriman: " + courier + " (" + tracking + ")");
+                    actionBtns.add(shipInfo);
+                }
             }
 
             if (order.getStatus() == OrderStatus.KOMPLAIN) {
