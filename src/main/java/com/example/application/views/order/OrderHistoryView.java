@@ -282,12 +282,22 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         headerLeft.getElement().getStyle()
             .set("display", "flex").set("align-items", "center").set("gap", "10px");
 
-        Div truckBox = new Div();
-        truckBox.getElement().setProperty("innerHTML",
-            "<div style='width:34px;height:34px;border-radius:50%;background:#DBEAFE;display:flex;align-items:center;justify-content:center;'>" +
-            "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M1 3h15v13H1z'/><path d='M16 8h4l3 3v5h-7V8z'/><circle cx='5.5' cy='18.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/></svg>" +
-            "</div>"
-        );
+        boolean isCod = order.getShippingMethod() == ShippingMethod.COD_SEKOLAH;
+
+        Div methodIconBox = new Div();
+        if (isCod) {
+            methodIconBox.getElement().setProperty("innerHTML",
+                "<div style='width:34px;height:34px;border-radius:50%;background:#FEF3C7;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2'><path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>" +
+                "</div>"
+            );
+        } else {
+            methodIconBox.getElement().setProperty("innerHTML",
+                "<div style='width:34px;height:34px;border-radius:50%;background:#DBEAFE;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M1 3h15v13H1z'/><path d='M16 8h4l3 3v5h-7V8z'/><circle cx='5.5' cy='18.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/></svg>" +
+                "</div>"
+            );
+        }
 
         Div orderMeta = new Div();
         Span orderNum = new Span("TRX-" + order.getOrderNumber());
@@ -295,60 +305,58 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("font-size", "14px").set("font-weight", "800")
             .set("color", "#001934").set("display", "block");
         String dateStr = order.getCreatedAt() != null
-            ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy • HH:mm")) : "12 Mei 2024 • 14:20";
-        Span orderDate = new Span(dateStr);
+            ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy • HH:mm")) : "-";
+        Span orderDate = new Span(dateStr + (isCod ? " • COD SMKN 24" : " • Ekspedisi"));
         orderDate.getElement().getStyle().set("font-size", "12px").set("color", "#64748B");
         orderMeta.add(orderNum, orderDate);
-        headerLeft.add(truckBox, orderMeta);
+        headerLeft.add(methodIconBox, orderMeta);
 
         Span statusBadge = buildStatusBadge(order.getStatus());
         header.add(headerLeft, statusBadge);
         card.add(header);
 
-        // Product Summary Box
+        // Product Snippet Row
         if (!items.isEmpty()) {
-            OrderItem item = items.get(0);
-            Div pBox = new Div();
-            pBox.getElement().getStyle()
+            OrderItem firstItem = items.get(0);
+            Div pRow = new Div();
+            pRow.getElement().getStyle()
                 .set("display", "flex").set("align-items", "center").set("gap", "12px")
-                .set("margin-bottom", "12px");
+                .set("margin-bottom", "14px");
 
             Div thumb = new Div();
             thumb.getElement().getStyle()
-                .set("width", "56px").set("height", "56px").set("border-radius", "10px")
+                .set("width", "54px").set("height", "54px").set("border-radius", "10px")
                 .set("background", "#F1F5F9").set("flex-shrink", "0")
                 .set("display", "flex").set("align-items", "center").set("justify-content", "center");
-            if (item.getProduct() != null && item.getProduct().getImages() != null && !item.getProduct().getImages().isBlank()) {
+            if (firstItem.getProduct() != null && firstItem.getProduct().getImages() != null && !firstItem.getProduct().getImages().isBlank()) {
+                String firstImg = firstItem.getProduct().getImages().split(",")[0].trim();
                 thumb.getElement().getStyle()
-                    .set("background-image", "url('" + item.getProduct().getImages() + "')")
+                    .set("background-image", "url('" + firstImg + "')")
                     .set("background-size", "cover").set("background-position", "center");
             } else {
                 thumb.getElement().setProperty("innerHTML", "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>");
             }
 
-            Div pDetails = new Div();
-            pDetails.getElement().getStyle().set("flex", "1");
-            Span pName = new Span(item.getProductNameSnapshot());
-            pName.getElement().getStyle()
-                .set("font-size", "14px").set("font-weight", "800")
-                .set("color", "#001934").set("display", "block");
-            Span pSpecs = new Span("Ukuran L • Kondisi Bekas");
-            pSpecs.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block").set("margin-top", "2px");
-            Span pPrice = new Span("Rp " + String.format("%,.0f", order.getTotalAmount()));
-            pPrice.getElement().getStyle().set("font-size", "13px").set("font-weight", "800").set("color", "#001934").set("display", "block").set("margin-top", "2px");
+            Div pInfo = new Div();
+            pInfo.getElement().getStyle().set("flex", "1");
+            Span pTitle = new Span(firstItem.getProductNameSnapshot());
+            pTitle.getElement().getStyle().set("font-size", "14px").set("font-weight", "800").set("color", "#001934").set("display", "block");
+            Span pMeta = new Span("Qty: " + firstItem.getQuantity() + " • Rp " + String.format("%,.0f", order.getTotalAmount()));
+            pMeta.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("margin-top", "2px").set("display", "block");
+            pInfo.add(pTitle, pMeta);
 
-            pDetails.add(pName, pSpecs, pPrice);
-            pBox.add(thumb, pDetails);
-            card.add(pBox);
+            pRow.add(thumb, pInfo);
+            card.add(pRow);
         }
 
-        // ReWear Escrow Security Banner
+        // ReWear Escrow Protection Banner
         Div escrowBanner = new Div();
         escrowBanner.getElement().getStyle()
-            .set("background", order.getStatus() == OrderStatus.KOMPLAIN ? "#FEF2F2" : "#EFF6FF")
-            .set("border-radius", "10px")
-            .set("padding", "8px 12px").set("margin-bottom", "16px")
             .set("display", "flex").set("align-items", "center").set("gap", "8px")
+            .set("padding", "8px 12px")
+            .set("background", order.getStatus() == OrderStatus.KOMPLAIN ? "#FEF2F2" : "#EFF6FF")
+            .set("border-radius", "8px")
+            .set("margin-bottom", "14px")
             .set("font-size", "12px")
             .set("color", order.getStatus() == OrderStatus.KOMPLAIN ? "#991B1B" : "#1E3A8A")
             .set("font-weight", "600")
@@ -398,7 +406,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             btnDetailTrx.addClickListener(e -> openOrderDetailModal(order));
 
             actionContainer.add(btnDetailKomplain, btnDetailTrx);
-        } else if (order.getStatus() == OrderStatus.DITERIMA || (order.getStatus() == OrderStatus.DIKIRIM && order.getShippingMethod() == ShippingMethod.COD_SEKOLAH)) {
+        } else if (order.getStatus() == OrderStatus.DITERIMA || (order.getStatus() == OrderStatus.DIKIRIM && isCod)) {
             // Barang sudah tiba / COD siap serah terima -> Pembeli bisa komplain jika ada cacat fisik atau konfirmasi selesai
             Button btnKomplain = new Button("Ajukan Komplain", VaadinIcon.EXCLAMATION_CIRCLE.create());
             btnKomplain.getElement().getStyle()
@@ -482,6 +490,10 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("margin", "12px 0 16px 4px");
 
         OrderStatus s = order.getStatus();
+        boolean isCod = order.getShippingMethod() == ShippingMethod.COD_SEKOLAH;
+
+        String createdTime = order.getCreatedAt() != null ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("d MMM, HH:mm")) : "-";
+        String updatedTime = order.getUpdatedAt() != null ? order.getUpdatedAt().format(DateTimeFormatter.ofPattern("d MMM, HH:mm")) : createdTime;
 
         // Connecting vertical line
         Div line = new Div();
@@ -491,16 +503,58 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         tracker.add(line);
 
         // Step 1: Pesanan Dibuat
-        tracker.add(buildTimelineNode(true, false, "check", "Pesanan Dibuat", "Menunggu pembayaran dikonfirmasi", "12 Mei, 14:22"));
+        tracker.add(buildTimelineNode(true, false, "check", "Pesanan Dibuat", "Pesanan tercatat di ReWear", createdTime));
 
-        // Step 2: Pembayaran Berhasil
+        // Step 2: Pembayaran / Dana Escrow
         boolean step2Done = s != OrderStatus.MENUNGGU_PEMBAYARAN && s != OrderStatus.DIBATALKAN;
-        tracker.add(buildTimelineNode(step2Done, false, "check", "Pembayaran Berhasil", "Saldo ditahan oleh sistem escrow", step2Done ? "12 Mei, 14:30" : "-"));
+        boolean step2Active = s == OrderStatus.MENUNGGU_PEMBAYARAN;
+        String step2Subtitle = step2Done ? "Saldo diamankan di ReWear Escrow" : "Menunggu konfirmasi pembayaran";
+        tracker.add(buildTimelineNode(step2Done, step2Active, "check", "Pembayaran Berhasil", step2Subtitle, step2Done ? createdTime : "-"));
 
-        // Step 3: Sedang Dikirim
-        boolean step3Active = s == OrderStatus.DIKIRIM || s == OrderStatus.DIPROSES;
+        // Step 3: Pemrosesan & Pengiriman / COD Sekolah
         boolean step3Done = s == OrderStatus.DITERIMA || s == OrderStatus.SELESAI;
-        tracker.add(buildTimelineNode(step3Done, step3Active, "truck", "Sedang Dikirim", "Kurir sedang menuju lokasi drop-off sekolah", step3Active ? "Hari ini, 09:15" : "-"));
+        boolean step3Active = s == OrderStatus.DIPROSES || s == OrderStatus.DIKIRIM || s == OrderStatus.KOMPLAIN;
+
+        String step3Title;
+        String step3Subtitle;
+
+        if (s == OrderStatus.KOMPLAIN) {
+            step3Title = "Komplain / Sengketa Diajukan";
+            step3Subtitle = "Dana Escrow tertahan menunggu putusan Admin";
+        } else if (isCod) {
+            if (s == OrderStatus.DIPROSES) {
+                step3Title = "Penjual Menyiapkan Barang";
+                step3Subtitle = "Penjual sedang menyiapkan barang untuk COD di SMKN 24";
+            } else if (s == OrderStatus.DIKIRIM) {
+                step3Title = "Siap COD di SMKN 24";
+                step3Subtitle = order.getShippingAddress() != null && !order.getShippingAddress().isBlank()
+                    ? order.getShippingAddress() : "Titik temu serah terima di lingkungan SMKN 24";
+            } else if (step3Done) {
+                step3Title = "Serah Terima COD";
+                step3Subtitle = "Barang telah diserahkan di titik temu sekolah";
+            } else {
+                step3Title = "Jadwal & Titik Temu COD";
+                step3Subtitle = "Menunggu penjual memproses pesanan";
+            }
+        } else {
+            if (s == OrderStatus.DIPROSES) {
+                step3Title = "Pesanan Sedang Dikemas";
+                step3Subtitle = "Penjual sedang menyiapkan paket untuk kurir";
+            } else if (s == OrderStatus.DIKIRIM) {
+                step3Title = "Dalam Pengiriman Ekspedisi";
+                String courier = order.getCourierName() != null ? order.getCourierName().name() : "Kurir";
+                String tracking = order.getTrackingNumber() != null ? order.getTrackingNumber() : "-";
+                step3Subtitle = "Kurir " + courier + " (Resi: " + tracking + ")";
+            } else if (step3Done) {
+                step3Title = "Pengiriman Selesai";
+                step3Subtitle = "Paket telah diterima oleh pembeli";
+            } else {
+                step3Title = "Pengiriman Ekspedisi";
+                step3Subtitle = "Menunggu pengemasan oleh penjual";
+            }
+        }
+
+        tracker.add(buildTimelineNode(step3Done, step3Active, isCod ? "users" : "truck", step3Title, step3Subtitle, step3Active || step3Done ? updatedTime : "-"));
 
         // Step 4: Pesanan Selesai
         boolean step4Done = s == OrderStatus.SELESAI;
