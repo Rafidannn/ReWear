@@ -555,10 +555,21 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         HorizontalLayout actionBtns = new HorizontalLayout();
         actionBtns.setSpacing(true);
 
-        if (order.getStatus() == com.example.application.model.order.OrderStatus.DIPROSES ||
+        if (order.getStatus() == com.example.application.model.order.OrderStatus.KOMPLAIN) {
+            Button btnDetailKomplain = new Button("Detail Komplain", VaadinIcon.INFO_CIRCLE.create());
+            btnDetailKomplain.getStyle().set("background", "#FEF2F2").set("color", "#991B1B").set("font-weight", "700").set("font-size", "12px").set("border-radius", "8px").set("border", "1px solid #FCA5A5").set("cursor", "pointer");
+            btnDetailKomplain.addClickListener(e -> openComplainDetailModal(order));
+            actionBtns.add(btnDetailKomplain);
+        } else if (order.getStatus() == com.example.application.model.order.OrderStatus.DIPROSES ||
             order.getStatus() == com.example.application.model.order.OrderStatus.DIBAYAR ||
             order.getStatus() == com.example.application.model.order.OrderStatus.DIKIRIM ||
             order.getStatus() == com.example.application.model.order.OrderStatus.DITERIMA) {
+
+            Button btnKomplain = new Button("Ajukan Komplain", VaadinIcon.EXCLAMATION_CIRCLE.create());
+            btnKomplain.getStyle().set("background", "#FFFFFF").set("color", "#991B1B").set("font-weight", "700").set("font-size", "12px").set("border-radius", "8px").set("border", "1px solid #FCA5A5").set("cursor", "pointer");
+            btnKomplain.addClickListener(e -> openComplainDialogForOrder(order));
+            actionBtns.add(btnKomplain);
+
             Button btnTerima = new Button("Konfirmasi Diterima", VaadinIcon.CHECK.create());
             btnTerima.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-weight", "700").set("font-size", "12px").set("border-radius", "8px");
             btnTerima.addClickListener(e -> {
@@ -990,9 +1001,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         return card;
     }
 
-    private void openComplainDialog() {
+    private void openComplainDialogForOrder(com.example.application.model.order.Order order) {
+        if (order == null) return;
         Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Ajukan Komplain Pesanan");
+        dialog.setHeaderTitle("Ajukan Komplain Pesanan #" + order.getOrderNumber());
         dialog.setWidth("500px");
 
         Div body = new Div();
@@ -1001,23 +1013,88 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         Paragraph desc = new Paragraph("Sampaikan kendala barang (rusak/tidak sesuai deskripsi). Tim Escrow ReWear akan menahan pencairan dana hingga kendala terselesaikan.");
         desc.getElement().getStyle().set("font-size", "13px").set("color", "#64748B");
 
-        TextField reasonField = new TextField("Alasan Komplain");
-        reasonField.setPlaceholder("Contoh: Ukuran tidak sesuai / Cacat robek");
-        reasonField.setWidthFull();
+        ComboBox<String> reasonBox = new ComboBox<>("Kategori Kendala");
+        reasonBox.setItems(
+            "Barang Rusak / Cacat Fisik",
+            "Barang Tidak Sesuai Foto / Deskripsi",
+            "Ukuran / Varian Salah Kirim",
+            "Barang Kurang / Paket Kosong",
+            "Pesanan Tidak Kunjung Sampai",
+            "Lainnya"
+        );
+        reasonBox.setValue("Barang Tidak Sesuai Foto / Deskripsi");
+        reasonBox.setWidthFull();
 
-        body.add(desc, reasonField);
+        TextArea reasonDesc = new TextArea("Rincian Kendala yang Dialami");
+        reasonDesc.setPlaceholder("Jelaskan kondisi barang secara lengkap...");
+        reasonDesc.setWidthFull();
+
+        TextField evidenceField = new TextField("Link / URL Foto Bukti (Opsional)");
+        evidenceField.setPlaceholder("https://... (Foto kendala / paket)");
+        evidenceField.setWidthFull();
+
+        body.add(desc, reasonBox, reasonDesc, evidenceField);
         dialog.add(body);
 
         Button btnClose = new Button("Batal", e -> dialog.close());
-        Button btnSubmit = new Button("Kirim Komplain", e -> {
-            dialog.close();
-            Notification.show("Komplain berhasil diajukan! Tim ReWear akan menghubungi penjual.", 3000, Notification.Position.TOP_CENTER);
+        Button btnSubmit = new Button("Kirim Pengajuan Komplain", e -> {
+            String cat = reasonBox.getValue();
+            String detail = reasonDesc.getValue();
+            if (detail == null || detail.isBlank()) {
+                Notification.show("Silakan isi rincian kendala yang dialami.", 2500, Notification.Position.TOP_CENTER);
+                return;
+            }
+            try {
+                String fullReason = (cat != null ? cat : "Komplain") + ": " + detail.trim();
+                orderService.createOrderReturn(order, targetUser, fullReason, evidenceField.getValue(), order.getTotalAmount());
+                dialog.close();
+                Notification notif = Notification.show("Komplain berhasil diajukan! Dana Escrow ditahan untuk verifikasi Admin.", 3500, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                renderRightTabContent();
+            } catch (Exception ex) {
+                Notification.show("Gagal mengajukan komplain: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
         });
         btnSubmit.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        btnSubmit.getElement().getStyle().set("background", "#B91C1C");
+        btnSubmit.getElement().getStyle().set("background", "#DC2626");
 
         dialog.getFooter().add(btnClose, btnSubmit);
         dialog.open();
+    }
+
+    private void openComplainDetailModal(com.example.application.model.order.Order order) {
+        if (order == null) return;
+        var retOpt = orderService.getReturnByOrder(order);
+        var ret = retOpt.orElse(null);
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Status Komplain & Retur #" + order.getOrderNumber());
+        dialog.setWidth("480px");
+
+        Div body = new Div();
+        body.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "12px").set("font-size", "13px").set("color", "#334155");
+
+        String statusStr = ret != null ? ret.getStatus().name() : "PENDING";
+        body.add(new Div(new Span("Status Peninjauan: "), new Span(statusStr.equals("PENDING") ? "Menunggu Keputusan Admin" : statusStr)));
+        body.add(new Div(new Span("Alasan Komplain: "), new Span(ret != null ? ret.getReason() : "-")));
+        if (ret != null && ret.getEvidenceUrl() != null && !ret.getEvidenceUrl().isBlank()) {
+            body.add(new Div(new Span("Bukti Foto: "), new Span(ret.getEvidenceUrl())));
+        }
+        body.add(new Div(new Span("Nominal Tertahan di Escrow: "), new Span("Rp " + String.format("%,.0f", order.getTotalAmount()))));
+
+        dialog.add(body);
+        Button btnClose = new Button("Tutup", e -> dialog.close());
+        dialog.getFooter().add(btnClose);
+        dialog.open();
+    }
+
+    private void openComplainDialog() {
+        List<com.example.application.model.order.Order> buyerOrders = orderService.getBuyerOrders(targetUser);
+        if (!buyerOrders.isEmpty()) {
+            openComplainDialogForOrder(buyerOrders.get(0));
+        } else {
+            Notification.show("Tidak ada pesanan aktif untuk diajukan komplain.", 2500, Notification.Position.TOP_CENTER);
+        }
     }
 
     private void openReviewDialog() {

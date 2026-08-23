@@ -3,7 +3,9 @@ package com.example.application.views.admin;
 import com.example.application.model.moderation.Report;
 import com.example.application.model.moderation.ReportStatus;
 import com.example.application.model.order.Order;
+import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.OrderStatus;
+import com.example.application.model.order.ReturnStatus;
 import com.example.application.model.payment.PayoutStatus;
 import com.example.application.model.payment.SellerPayout;
 import com.example.application.model.product.Product;
@@ -34,6 +36,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 
@@ -64,6 +67,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
     private Button tabReportsBtn;
     private Button tabOrdersBtn;
     private Button tabPayoutsBtn;
+    private Button tabDisputesBtn;
 
     public AdminDashboardView(ModerationService moderationService,
                               UserService userService,
@@ -150,10 +154,11 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         tabUsersBtn = createTabButton("Manajemen Pengguna", VaadinIcon.USERS, "users");
         tabProductsBtn = createTabButton("Moderasi Produk", VaadinIcon.PACKAGE, "products");
         tabReportsBtn = createTabButton("Laporan & Pengaduan", VaadinIcon.WARNING, "reports");
+        tabDisputesBtn = createTabButton("Komplain & Retur", VaadinIcon.EXCLAMATION_CIRCLE, "disputes");
         tabOrdersBtn = createTabButton("Transaksi Global", VaadinIcon.MONEY_EXCHANGE, "orders");
         tabPayoutsBtn = createTabButton("Pencairan Dana", VaadinIcon.MONEY_WITHDRAW, "payouts");
 
-        tabsBar.add(tabOverviewBtn, tabUsersBtn, tabProductsBtn, tabReportsBtn, tabOrdersBtn, tabPayoutsBtn);
+        tabsBar.add(tabOverviewBtn, tabUsersBtn, tabProductsBtn, tabReportsBtn, tabDisputesBtn, tabOrdersBtn, tabPayoutsBtn);
         maxWrapper.add(tabsBar);
 
         // 3. Dynamic Tab Content
@@ -204,6 +209,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         updateTabButtonHighlight(tabUsersBtn, "users".equals(activeTab));
         updateTabButtonHighlight(tabProductsBtn, "products".equals(activeTab));
         updateTabButtonHighlight(tabReportsBtn, "reports".equals(activeTab));
+        updateTabButtonHighlight(tabDisputesBtn, "disputes".equals(activeTab));
         updateTabButtonHighlight(tabOrdersBtn, "orders".equals(activeTab));
         updateTabButtonHighlight(tabPayoutsBtn, "payouts".equals(activeTab));
     }
@@ -215,6 +221,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             case "users" -> contentContainer.add(renderUsersTab());
             case "products" -> contentContainer.add(renderProductsTab());
             case "reports" -> contentContainer.add(renderReportsTab());
+            case "disputes" -> contentContainer.add(renderDisputesTab());
             case "orders" -> contentContainer.add(renderOrdersTab());
             case "payouts" -> contentContainer.add(renderPayoutsTab());
             default -> contentContainer.add(renderOverviewTab());
@@ -731,5 +738,207 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         wrapper.add(card);
 
         return wrapper;
+    }
+
+    // ==========================================
+    // TAB 5: SENGKETA & KOMPLAIN PESANAN
+    // ==========================================
+
+    private Component renderDisputesTab() {
+        Div wrapper = new Div();
+        wrapper.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "16px");
+
+        List<OrderReturn> returns = orderService.getAllReturns();
+        long pendingCount = returns.stream().filter(r -> r.getStatus() == ReturnStatus.PENDING).count();
+        long approvedCount = returns.stream().filter(r -> r.getStatus() == ReturnStatus.APPROVED).count();
+        long rejectedCount = returns.stream().filter(r -> r.getStatus() == ReturnStatus.REJECTED).count();
+
+        // 3 Metric Cards
+        Div statsGrid = new Div();
+        statsGrid.getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(3, 1fr)")
+            .set("gap", "14px");
+
+        statsGrid.add(createStatCard("Menunggu Keputusan", String.valueOf(pendingCount), "Sengketa yang memerlukan tindakan admin", "#D97706", "#FEF3C7"));
+        statsGrid.add(createStatCard("Komplain Disetujui (Refund)", String.valueOf(approvedCount), "Dana dikembalikan ke saldo pembeli & barang direstock", "#15803D", "#DCFCE7"));
+        statsGrid.add(createStatCard("Komplain Ditolak", String.valueOf(rejectedCount), "Dana Escrow dicairkan ke saldo penjual", "#991B1B", "#FEE2E2"));
+        wrapper.add(statsGrid);
+
+        Grid<OrderReturn> grid = new Grid<>(OrderReturn.class, false);
+        grid.setWidthFull();
+
+        grid.addColumn(OrderReturn::getId).setHeader("ID").setWidth("60px").setFlexGrow(0);
+        grid.addColumn(r -> r.getCreatedAt() != null ? r.getCreatedAt().format(DATE_FMT) : "-").setHeader("Tgl Diajukan").setWidth("140px").setFlexGrow(0);
+        grid.addColumn(r -> r.getOrder() != null ? "#" + r.getOrder().getOrderNumber() : "-").setHeader("No. Pesanan").setWidth("130px").setFlexGrow(0);
+        grid.addColumn(r -> r.getBuyer() != null ? r.getBuyer().getFullName() : "-").setHeader("Pembeli (Pelapor)").setFlexGrow(1);
+        grid.addColumn(r -> (r.getOrder() != null && r.getOrder().getSeller() != null) ? r.getOrder().getSeller().getFullName() : "-").setHeader("Penjual").setFlexGrow(1);
+
+        grid.addColumn(r -> "Rp " + String.format("%,.0f", r.getRefundAmount() != null ? r.getRefundAmount().doubleValue() : (r.getOrder() != null ? r.getOrder().getTotalAmount().doubleValue() : 0)))
+            .setHeader("Nominal").setWidth("120px").setFlexGrow(0);
+
+        grid.addComponentColumn(r -> {
+            ReturnStatus s = r.getStatus() != null ? r.getStatus() : ReturnStatus.PENDING;
+            Span badge = new Span(s.name());
+            badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+            if (s == ReturnStatus.PENDING) {
+                badge.setText("MENUNGGU KEPUTUSAN");
+                badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+            } else if (s == ReturnStatus.APPROVED) {
+                badge.setText("DISETUJUI (REFUND)");
+                badge.getStyle().set("background", "#DCFCE7").set("color", "#15803D");
+            } else if (s == ReturnStatus.REJECTED) {
+                badge.setText("DITOLAK");
+                badge.getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
+            } else {
+                badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B");
+            }
+            return badge;
+        }).setHeader("Status").setWidth("160px").setFlexGrow(0);
+
+        grid.addComponentColumn(r -> {
+            HorizontalLayout actions = new HorizontalLayout();
+            actions.setSpacing(true);
+
+            if (r.getStatus() == ReturnStatus.PENDING) {
+                Button btnApprove = new Button("Setujui Refund", e -> openApproveReturnDialog(r));
+                btnApprove.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnApprove.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#16A34A");
+
+                Button btnReject = new Button("Tolak", e -> openRejectReturnDialog(r));
+                btnReject.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnReject.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#DC2626");
+
+                actions.add(btnApprove, btnReject);
+            }
+
+            Button btnDetail = new Button("Rincian", e -> openReturnDetailDialog(r));
+            btnDetail.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnDetail.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#0A3D7A");
+            actions.add(btnDetail);
+
+            return actions;
+        }).setHeader("Aksi Putusan").setWidth("230px").setFlexGrow(0);
+
+        grid.setItems(returns);
+
+        Div card = createCardContainer("Daftar Sengketa & Retur Pesanan (" + returns.size() + ")", "Tinjau klaim kerusakan/ketidaksesuaian barang dan putuskan pengembalian dana pembeli atau pencairan ke penjual");
+        card.add(grid);
+        wrapper.add(card);
+
+        return wrapper;
+    }
+
+    private void openApproveReturnDialog(OrderReturn ret) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Setujui Komplain & Kembalikan Dana (Refund)");
+        d.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Paragraph info = new Paragraph("Tindakan ini akan:\n1. Mengembalikan saldo sebesar Rp " +
+            String.format("%,.0f", ret.getRefundAmount()) + " ke akun pembeli (" + (ret.getBuyer() != null ? ret.getBuyer().getFullName() : "-") + ").\n" +
+            "2. Mengubah status pesanan menjadi DIBATALKAN (Refunded).\n" +
+            "3. Mengembalikan jumlah stok barang ke inventaris produk.");
+        info.getStyle().set("font-size", "13px").set("color", "#334155").set("line-height", "1.5");
+
+        TextArea adminNotes = new TextArea("Catatan Admin (Opsional)");
+        adminNotes.setPlaceholder("Contoh: Bukti foto cacat terverifikasi jelas.");
+        adminNotes.setWidthFull();
+
+        layout.add(info, adminNotes);
+        d.add(layout);
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        Button btnConfirm = new Button("Setujui & Proses Refund", e -> {
+            try {
+                orderService.approveOrderReturn(ret, adminNotes.getValue(), AuthGuard.getCurrentUser());
+                Notification notif = Notification.show("Komplain #" + ret.getId() + " berhasil disetujui. Dana telah direfund ke pembeli.", 3500, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                d.close();
+                renderActiveTab();
+            } catch (Exception ex) {
+                Notification.show("Gagal memproses persetujuan: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnConfirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        btnConfirm.getStyle().set("background", "#16A34A");
+
+        d.getFooter().add(btnCancel, btnConfirm);
+        d.open();
+    }
+
+    private void openRejectReturnDialog(OrderReturn ret) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Tolak Komplain Pesanan");
+        d.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Paragraph info = new Paragraph("Tindakan ini akan:\n1. Menolak pengajuan komplain pembeli.\n" +
+            "2. Menyelesaikan pesanan (status SELESAI).\n" +
+            "3. Meneruskan & mencairkan dana Escrow sebesar Rp " +
+            String.format("%,.0f", ret.getRefundAmount()) + " ke saldo penjual.");
+        info.getStyle().set("font-size", "13px").set("color", "#334155").set("line-height", "1.5");
+
+        TextArea rejectionNotes = new TextArea("Alasan Penolakan (Wajib Diisi)");
+        rejectionNotes.setPlaceholder("Contoh: Barang sesuai deskripsi atau kendala disebabkan oleh pembeli.");
+        rejectionNotes.setWidthFull();
+        rejectionNotes.setRequired(true);
+
+        layout.add(info, rejectionNotes);
+        d.add(layout);
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        Button btnConfirm = new Button("Tolak Komplain & Cairkan Dana", e -> {
+            String note = rejectionNotes.getValue();
+            if (note == null || note.isBlank()) {
+                Notification.show("Silakan isi alasan penolakan komplain.", 2500, Notification.Position.TOP_CENTER);
+                return;
+            }
+            try {
+                orderService.rejectOrderReturn(ret, note.trim(), AuthGuard.getCurrentUser());
+                Notification notif = Notification.show("Komplain #" + ret.getId() + " ditolak. Dana Escrow dicairkan ke penjual.", 3500, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_PRIMARY);
+                d.close();
+                renderActiveTab();
+            } catch (Exception ex) {
+                Notification.show("Gagal menolak komplain: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnConfirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        btnConfirm.getStyle().set("background", "#DC2626");
+
+        d.getFooter().add(btnCancel, btnConfirm);
+        d.open();
+    }
+
+    private void openReturnDetailDialog(OrderReturn ret) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Rincian Sengketa Pesanan #" + (ret.getOrder() != null ? ret.getOrder().getOrderNumber() : "-"));
+        d.setWidth("500px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        layout.add(new Paragraph("Tanggal Pengajuan: " + (ret.getCreatedAt() != null ? ret.getCreatedAt().format(DATE_FMT) : "-")));
+        layout.add(new Paragraph("Pembeli (Pelapor): " + (ret.getBuyer() != null ? ret.getBuyer().getFullName() + " (" + ret.getBuyer().getEmail() + ")" : "-")));
+        layout.add(new Paragraph("Penjual: " + (ret.getOrder() != null && ret.getOrder().getSeller() != null ? ret.getOrder().getSeller().getFullName() : "-")));
+        layout.add(new Paragraph("Alasan Komplain: " + (ret.getReason() != null ? ret.getReason() : "-")));
+        if (ret.getEvidenceUrl() != null && !ret.getEvidenceUrl().isBlank()) {
+            layout.add(new Paragraph("Bukti Foto/URL: " + ret.getEvidenceUrl()));
+        }
+        layout.add(new Paragraph("Nominal Refund: Rp " + String.format("%,.0f", ret.getRefundAmount() != null ? ret.getRefundAmount().doubleValue() : 0)));
+        layout.add(new Paragraph("Status Saat Ini: " + (ret.getStatus() != null ? ret.getStatus().name() : "-")));
+
+        d.add(layout);
+        Button btnClose = new Button("Tutup", e -> d.close());
+        d.getFooter().add(btnClose);
+        d.open();
     }
 }

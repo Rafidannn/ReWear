@@ -3,7 +3,9 @@ package com.example.application.views.order;
 import com.example.application.model.moderation.Review;
 import com.example.application.model.order.Order;
 import com.example.application.model.order.OrderItem;
+import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.OrderStatus;
+import com.example.application.model.order.ReturnStatus;
 import com.example.application.model.user.User;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.order.OrderService;
@@ -12,18 +14,22 @@ import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @PageTitle("Riwayat Pesanan — ReWear")
 @Route(value = "orders", layout = MainLayout.class)
@@ -332,14 +338,26 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         // ReWear Escrow Security Banner
         Div escrowBanner = new Div();
         escrowBanner.getElement().getStyle()
-            .set("background", "#EFF6FF").set("border-radius", "10px")
+            .set("background", order.getStatus() == OrderStatus.KOMPLAIN ? "#FEF2F2" : "#EFF6FF")
+            .set("border-radius", "10px")
             .set("padding", "8px 12px").set("margin-bottom", "16px")
             .set("display", "flex").set("align-items", "center").set("gap", "8px")
-            .set("font-size", "12px").set("color", "#1E3A8A").set("font-weight", "600");
-        escrowBanner.getElement().setProperty("innerHTML",
-            "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" +
-            "<span>Dana aman di <strong style='color:#B45309;'>ReWear Escrow</strong></span>"
-        );
+            .set("font-size", "12px")
+            .set("color", order.getStatus() == OrderStatus.KOMPLAIN ? "#991B1B" : "#1E3A8A")
+            .set("font-weight", "600")
+            .set("border", order.getStatus() == OrderStatus.KOMPLAIN ? "1px solid #FECACA" : "none");
+
+        if (order.getStatus() == OrderStatus.KOMPLAIN) {
+            escrowBanner.getElement().setProperty("innerHTML",
+                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#DC2626' stroke-width='2'><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>" +
+                "<span><strong>Dana Escrow Ditahan:</strong> Komplain pesanan sedang ditinjau oleh Admin ReWear.</span>"
+            );
+        } else {
+            escrowBanner.getElement().setProperty("innerHTML",
+                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" +
+                "<span>Dana aman di <strong style='color:#B45309;'>ReWear Escrow</strong></span>"
+            );
+        }
         card.add(escrowBanner);
 
         // Vertical Timeline Tracker
@@ -354,31 +372,53 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             .set("border-radius", "0 0 18px 18px")
             .set("display", "flex").set("gap", "10px");
 
-        Button btnKomplain = new Button("Ajukan Komplain");
-        btnKomplain.getElement().getStyle()
-            .set("background", "#FFFFFF").set("color", "#001934")
-            .set("border", "1.5px solid #001934").set("border-radius", "10px")
-            .set("font-weight", "800").set("font-size", "13px")
-            .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
-        btnKomplain.addClickListener(e -> Notification.show("Fitur Pusat Bantuan / Komplain dibuka.", 2000, Notification.Position.TOP_CENTER));
+        if (order.getStatus() == OrderStatus.KOMPLAIN) {
+            Optional<OrderReturn> retOpt = orderService.getReturnByOrder(order);
+            Button btnDetailKomplain = new Button("Detail Komplain & Sengketa", VaadinIcon.INFO_CIRCLE.create());
+            btnDetailKomplain.getElement().getStyle()
+                .set("background", "#FEF2F2").set("color", "#991B1B")
+                .set("border", "1.5px solid #F87171").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnDetailKomplain.addClickListener(e -> openComplainDetailModal(order, retOpt.orElse(null)));
 
-        Button btnLacak = new Button(order.getStatus() == OrderStatus.DIKIRIM ? "Lacak Paket" : "Konfirmasi Diterima");
-        btnLacak.getElement().getStyle()
-            .set("background", "#001934").set("color", "#FFFFFF")
-            .set("border", "none").set("border-radius", "10px")
-            .set("font-weight", "800").set("font-size", "13px")
-            .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
-        btnLacak.addClickListener(e -> {
-            if (order.getStatus() == OrderStatus.DIKIRIM) {
-                openOrderDetailModal(order);
-            } else {
-                orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Dikonfirmasi diterima pembeli.", user);
-                Notification.show("Pesanan Selesai!", 2500, Notification.Position.TOP_CENTER);
-                buildView();
-            }
-        });
+            Button btnDetailTrx = new Button("Rincian Pesanan", VaadinIcon.FILE_TEXT_O.create());
+            btnDetailTrx.getElement().getStyle()
+                .set("background", "#001934").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnDetailTrx.addClickListener(e -> openOrderDetailModal(order));
 
-        actionContainer.add(btnKomplain, btnLacak);
+            actionContainer.add(btnDetailKomplain, btnDetailTrx);
+        } else {
+            Button btnKomplain = new Button("Ajukan Komplain");
+            btnKomplain.getElement().getStyle()
+                .set("background", "#FFFFFF").set("color", "#991B1B")
+                .set("border", "1.5px solid #FCA5A5").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnKomplain.addClickListener(e -> openComplainModal(order, user));
+
+            Button btnLacak = new Button(order.getStatus() == OrderStatus.DIKIRIM ? "Lacak Paket" : "Konfirmasi Diterima");
+            btnLacak.getElement().getStyle()
+                .set("background", "#001934").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnLacak.addClickListener(e -> {
+                if (order.getStatus() == OrderStatus.DIKIRIM) {
+                    openOrderDetailModal(order);
+                } else {
+                    orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Dikonfirmasi diterima pembeli.", user);
+                    Notification notif = Notification.show("Pesanan Selesai! Terima kasih telah bertransaksi.", 3000, Notification.Position.TOP_CENTER);
+                    notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    buildView();
+                }
+            });
+
+            actionContainer.add(btnKomplain, btnLacak);
+        }
         card.add(actionContainer);
 
         return card;
@@ -636,6 +676,192 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         });
 
         footer.add(btnCancel, btnSubmit);
+        d.getElement().getStyle().set("border-radius", "24px").set("overflow", "hidden").set("padding", "0");
+        d.add(header, body, footer);
+        d.open();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // COMPLAIN / DISPUTE MODAL (ORDER RETURN)
+    // ══════════════════════════════════════════════════════════
+
+    private void openComplainModal(Order order, User buyer) {
+        Dialog d = new Dialog();
+        d.setWidth("520px");
+        d.setCloseOnOutsideClick(false);
+
+        // Header
+        Div header = new Div();
+        header.getElement().getStyle()
+            .set("display", "flex").set("align-items", "center").set("gap", "12px")
+            .set("padding", "24px 24px 16px")
+            .set("border-bottom", "1px solid #E8EEF8");
+
+        Div iconBox = new Div();
+        iconBox.getElement().setProperty("innerHTML",
+            "<div style='width:40px;height:40px;border-radius:12px;" +
+            "background:linear-gradient(135deg,#DC2626,#991B1B);" +
+            "display:flex;align-items:center;justify-content:center;'>" +
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#FFFFFF' stroke-width='2'><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>" +
+            "</div>");
+
+        Div titleBlock = new Div();
+        Span modalTitle = new Span("Ajukan Komplain / Retur");
+        modalTitle.getElement().getStyle()
+            .set("font-size", "17px").set("font-weight", "900")
+            .set("color", "#001934").set("display", "block");
+        Span sub = new Span("Pesanan #" + order.getOrderNumber());
+        sub.getElement().getStyle().set("font-size", "12px").set("color", "#94A3B8").set("font-family", "monospace");
+        titleBlock.add(modalTitle, sub);
+        header.add(iconBox, titleBlock);
+
+        // Body
+        Div body = new Div();
+        body.getElement().getStyle()
+            .set("padding", "20px 24px").set("display", "flex")
+            .set("flex-direction", "column").set("gap", "16px");
+
+        // Escrow Alert
+        Div alertBox = new Div();
+        alertBox.getElement().getStyle()
+            .set("background", "#FEF2F2").set("border", "1px solid #FECACA")
+            .set("border-radius", "12px").set("padding", "12px 14px")
+            .set("font-size", "13px").set("color", "#991B1B").set("line-height", "1.5");
+        alertBox.setText("Pengajuan ini akan menahan dana ReWear Escrow sebesar Rp " +
+            String.format("%,.0f", order.getTotalAmount()) +
+            ". Penjual tidak dapat mencairkan dana sampai Admin menyelesaikan sengketa.");
+        body.add(alertBox);
+
+        // Reason Selector
+        ComboBox<String> reasonBox = new ComboBox<>("Kategori Kendala");
+        reasonBox.setItems(
+            "Barang Rusak / Cacat Fisik",
+            "Barang Tidak Sesuai Foto / Deskripsi",
+            "Ukuran / Varian Salah Kirim",
+            "Barang Kurang / Paket Kosong",
+            "Pesanan Tidak Kunjung Sampai",
+            "Lainnya"
+        );
+        reasonBox.setValue("Barang Tidak Sesuai Foto / Deskripsi");
+        reasonBox.setWidthFull();
+        reasonBox.setRequired(true);
+        body.add(reasonBox);
+
+        // Problem Description
+        TextArea descArea = new TextArea("Rincian Kendala yang Dialami");
+        descArea.setPlaceholder("Jelaskan kondisi barang secara lengkap dan alasan mengapa barang ingin diretur...");
+        descArea.setWidthFull();
+        descArea.setRequired(true);
+        descArea.getElement().getStyle().set("min-height", "90px");
+        body.add(descArea);
+
+        // Photo Evidence URL
+        TextField evidenceField = new TextField("Link / URL Foto Bukti (Opsional)");
+        evidenceField.setPlaceholder("https://... (Foto kondisi cacat/resi paket)");
+        evidenceField.setWidthFull();
+        evidenceField.setHelperText("Unggah foto ke cloud/drive atau masukkan URL gambar bukti fisik.");
+        body.add(evidenceField);
+
+        // Refund Amount Readonly
+        TextField refundDisplay = new TextField("Nominal Pengembalian Dana (Refund)");
+        refundDisplay.setValue("Rp " + String.format("%,.0f", order.getTotalAmount()));
+        refundDisplay.setReadOnly(true);
+        refundDisplay.setWidthFull();
+        body.add(refundDisplay);
+
+        // Footer
+        Div footer = new Div();
+        footer.getElement().getStyle()
+            .set("padding", "12px 24px 20px")
+            .set("display", "flex").set("justify-content", "flex-end")
+            .set("gap", "10px").set("border-top", "1px solid #E8EEF8");
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        btnCancel.getElement().getStyle()
+            .set("background", "transparent").set("color", "#64748B")
+            .set("border", "1.5px solid #E2E8F0").set("border-radius", "10px")
+            .set("font-weight", "700").set("padding", "10px 20px").set("cursor", "pointer");
+
+        Button btnSubmit = new Button("Kirim Pengajuan Komplain");
+        btnSubmit.getElement().getStyle()
+            .set("background", "#DC2626").set("color", "#FFFFFF").set("border", "none")
+            .set("border-radius", "10px").set("font-weight", "800")
+            .set("padding", "10px 24px").set("cursor", "pointer");
+
+        btnSubmit.addClickListener(e -> {
+            String selectedReason = reasonBox.getValue();
+            String desc = descArea.getValue();
+            String evidence = evidenceField.getValue();
+
+            if (selectedReason == null || selectedReason.isBlank()) {
+                Notification.show("Silakan pilih kategori kendala.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (desc == null || desc.isBlank()) {
+                Notification.show("Silakan tuliskan rincian kendala yang dialami.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            try {
+                String fullReason = selectedReason + ": " + desc.trim();
+                orderService.createOrderReturn(order, buyer, fullReason, evidence, order.getTotalAmount());
+
+                Notification notif = Notification.show("Komplain berhasil diajukan! Dana Escrow telah ditahan untuk peninjauan Admin.", 4000, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                d.close();
+                buildView();
+            } catch (Exception ex) {
+                Notification.show("Gagal mengajukan komplain: " + ex.getMessage(), 3500, Notification.Position.TOP_CENTER);
+            }
+        });
+
+        footer.add(btnCancel, btnSubmit);
+        d.getElement().getStyle().set("border-radius", "24px").set("overflow", "hidden").set("padding", "0");
+        d.add(header, body, footer);
+        d.open();
+    }
+
+    private void openComplainDetailModal(Order order, OrderReturn ret) {
+        Dialog d = new Dialog();
+        d.setWidth("500px");
+
+        Div header = new Div();
+        header.getElement().getStyle()
+            .set("display", "flex").set("align-items", "center").set("gap", "12px")
+            .set("padding", "24px 24px 16px")
+            .set("border-bottom", "1px solid #E8EEF8");
+
+        Div iconBox = new Div();
+        iconBox.getElement().setProperty("innerHTML",
+            "<div style='width:40px;height:40px;border-radius:12px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;'>" +
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#DC2626' stroke-width='2'><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/></svg>" +
+            "</div>");
+
+        Div titleBlock = new Div();
+        Span modalTitle = new Span("Status Komplain & Retur");
+        modalTitle.getElement().getStyle().set("font-size", "17px").set("font-weight", "900").set("color", "#001934").set("display", "block");
+        Span sub = new Span("Pesanan #" + order.getOrderNumber());
+        sub.getElement().getStyle().set("font-size", "12px").set("color", "#94A3B8").set("font-family", "monospace");
+        titleBlock.add(modalTitle, sub);
+        header.add(iconBox, titleBlock);
+
+        Div body = new Div();
+        body.getElement().getStyle().set("padding", "20px 24px").set("display", "flex").set("flex-direction", "column").set("gap", "14px");
+
+        String statusStr = ret != null ? ret.getStatus().name() : "PENDING";
+        body.add(buildDetailRow(VaadinIcon.SHIELD, "Status Peninjauan", statusStr.equals("PENDING") ? "Menunggu Keputusan Admin" : statusStr));
+        body.add(buildDetailRow(VaadinIcon.EXCLAMATION_CIRCLE, "Alasan Komplain", ret != null ? ret.getReason() : "Dalam proses peninjauan"));
+        if (ret != null && ret.getEvidenceUrl() != null && !ret.getEvidenceUrl().isBlank()) {
+            body.add(buildDetailRow(VaadinIcon.PICTURE, "Bukti Foto", ret.getEvidenceUrl()));
+        }
+        body.add(buildDetailRow(VaadinIcon.MONEY, "Nominal Tertahan di Escrow", "Rp " + String.format("%,.0f", order.getTotalAmount())));
+
+        Div footer = new Div();
+        footer.getElement().getStyle().set("padding", "12px 24px 20px").set("display", "flex").set("justify-content", "flex-end").set("border-top", "1px solid #E8EEF8");
+        Button btnClose = new Button("Tutup", e -> d.close());
+        btnClose.getElement().getStyle().set("background", "#001934").set("color", "#FFFFFF").set("border", "none").set("border-radius", "10px").set("font-weight", "700").set("padding", "10px 24px").set("cursor", "pointer");
+        footer.add(btnClose);
+
         d.getElement().getStyle().set("border-radius", "24px").set("overflow", "hidden").set("padding", "0");
         d.add(header, body, footer);
         d.open();

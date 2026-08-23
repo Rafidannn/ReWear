@@ -176,7 +176,146 @@ public class OrderService {
         return statusLogRepository.findByOrderOrderByCreatedAtAsc(order);
     }
 
-    public OrderReturn requestReturn(OrderReturn orderReturn) {
-        return returnRepository.save(orderReturn);
+    public Optional<OrderReturn> getReturnByOrder(Order order) {
+        if (order == null) return Optional.empty();
+        return returnRepository.findByOrder(order);
+    }
+
+    public List<OrderReturn> getAllReturns() {
+        return returnRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public List<OrderReturn> getPendingReturns() {
+        return returnRepository.findByStatusOrderByCreatedAtDesc(ReturnStatus.PENDING);
+    }
+
+    public List<OrderReturn> getReturnsByBuyer(User buyer) {
+        if (buyer == null) return List.of();
+        return returnRepository.findByBuyerOrderByCreatedAtDesc(buyer);
+    }
+
+    @Transactional
+    public OrderReturn createOrderReturn(Order order, User buyer, String reason, String evidenceUrl, java.math.BigDecimal refundAmount) {
+        if (order == null) throw new IllegalArgumentException("Order tidak ditemukan");
+        if (buyer == null) throw new IllegalArgumentException("User pembeli tidak valid");
+
+        // Cek jika sudah pernah diajukan
+        Optional<OrderReturn> existing = returnRepository.findByOrder(order);
+        if (existing.isPresent()) {
+            OrderReturn r = existing.get();
+            r.setReason(reason);
+            r.setEvidenceUrl(evidenceUrl);
+            r.setRefundAmount(refundAmount != null ? refundAmount : order.getTotalAmount());
+            r.setStatus(ReturnStatus.PENDING);
+            return returnRepository.save(r);
+        }
+
+        OrderReturn orderReturn = new OrderReturn();
+        orderReturn.setOrder(order);
+        orderReturn.setBuyer(buyer);
+        orderReturn.setReason(reason != null ? reason.trim() : "Komplain pesanan");
+        orderReturn.setEvidenceUrl(evidenceUrl != null ? evidenceUrl.trim() : null);
+        orderReturn.setRefundAmount(refundAmount != null ? refundAmount : order.getTotalAmount());
+        orderReturn.setStatus(ReturnStatus.PENDING);
+
+        OrderReturn savedReturn = returnRepository.save(orderReturn);
+
+        // Update status pesanan menjadi KOMPLAIN sehingga dana Escrow ditahan
+        order.setStatus(OrderStatus.KOMPLAIN);
+        orderRepository.save(order);
+
+        // Catat di log status pesanan
+        OrderStatusLog log = new OrderStatusLog();
+        log.setOrder(order);
+        log.setStatus(OrderStatus.KOMPLAIN);
+        log.setNotes("Pembeli mengajukan komplain/retur: " + reason);
+        log.setActor(buyer);
+        statusLogRepository.save(log);
+
+        return savedReturn;
+    }
+
+    @Transactional
+    public OrderReturn approveOrderReturn(OrderReturn ret, String adminNotes, User admin) {
+        if (ret == null) throw new IllegalArgumentException("Data komplain tidak ditemukan");
+
+        ret.setStatus(ReturnStatus.APPROVED);
+        OrderReturn updatedReturn = returnRepository.save(ret);
+
+        Order order = ret.getOrder();
+        if (order != null) {
+            // 1. Ubah status pesanan menjadi DIBATALKAN (Refunded)
+            order.setStatus(OrderStatus.DIBATALKAN);
+            orderRepository.save(order);
+
+            // 2. Kembalikan dana ke saldo ReWear Pay pembeli
+            User buyer = ret.getBuyer();
+            if (buyer != null) {
+                java.math.BigDecimal refund = ret.getRefundAmount() != null ? ret.getRefundAmount() : order.getTotalAmount();
+                buyer.setBalance(buyer.getBalance().add(refund));
+                userRepository.save(buyer);
+            }
+
+            // 3. Restock barang kembali ke inventaris produk
+            List<OrderItem> items = orderItemRepository.findByOrder(order);
+            for (OrderItem item : items) {
+                if (item.getProduct() != null) {
+                    com.example.application.model.product.Product product = item.getProduct();
+                    int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+                    int currentStock = product.getStock() != null ? product.getStock() : 0;
+                    int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+
+                    product.setStock(currentStock + qty);
+                    product.setSoldCount(Math.max(0, currentSold - qty));
+                    if (product.getStatus() == com.example.application.model.product.ProductStatus.SOLD_OUT) {
+                        product.setStatus(com.example.application.model.product.ProductStatus.ACTIVE);
+                    }
+                    productRepository.save(product);
+                }
+            }
+
+            // 4. Catat riwayat log
+            OrderStatusLog log = new OrderStatusLog();
+            log.setOrder(order);
+            log.setStatus(OrderStatus.DIBATALKAN);
+            log.setNotes("Komplain disetujui Admin. Dana sebesar Rp " + String.format("%,.0f", ret.getRefundAmount()) + " dikembalikan ke pembeli. Catatan: " + (adminNotes != null ? adminNotes : "-"));
+            log.setActor(admin);
+            statusLogRepository.save(log);
+        }
+
+        return updatedReturn;
+    }
+
+    @Transactional
+    public OrderReturn rejectOrderReturn(OrderReturn ret, String adminNotes, User admin) {
+        if (ret == null) throw new IllegalArgumentException("Data komplain tidak ditemukan");
+
+        ret.setStatus(ReturnStatus.REJECTED);
+        OrderReturn updatedReturn = returnRepository.save(ret);
+
+        Order order = ret.getOrder();
+        if (order != null) {
+            // 1. Ubah status pesanan menjadi SELESAI
+            order.setStatus(OrderStatus.SELESAI);
+            orderRepository.save(order);
+
+            // 2. Cairkan dana Escrow ke saldo penjual
+            User seller = order.getSeller();
+            if (seller != null) {
+                java.math.BigDecimal amount = order.getTotalAmount() != null ? order.getTotalAmount() : java.math.BigDecimal.ZERO;
+                seller.setBalance(seller.getBalance().add(amount));
+                userRepository.save(seller);
+            }
+
+            // 3. Catat riwayat log
+            OrderStatusLog log = new OrderStatusLog();
+            log.setOrder(order);
+            log.setStatus(OrderStatus.SELESAI);
+            log.setNotes("Komplain ditolak Admin. Alasan penolakan: " + (adminNotes != null ? adminNotes : "-") + ". Dana Escrow dicairkan ke penjual.");
+            log.setActor(admin);
+            statusLogRepository.save(log);
+        }
+
+        return updatedReturn;
     }
 }
