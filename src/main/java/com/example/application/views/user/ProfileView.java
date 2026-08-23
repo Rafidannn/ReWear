@@ -19,14 +19,22 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.example.application.config.WebMvcConfig;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -1029,11 +1037,59 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         reasonDesc.setPlaceholder("Jelaskan kondisi barang secara lengkap...");
         reasonDesc.setWidthFull();
 
-        TextField evidenceField = new TextField("Link / URL Foto Bukti (Opsional)");
-        evidenceField.setPlaceholder("https://... (Foto kendala / paket)");
-        evidenceField.setWidthFull();
+        // Photo Upload
+        Span uploadLabel = new Span("Unggah Foto Bukti Fisik / Cacat Barang");
+        uploadLabel.getElement().getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
 
-        body.add(desc, reasonBox, reasonDesc, evidenceField);
+        MemoryBuffer buffer = new MemoryBuffer();
+        Upload upload = new Upload(buffer);
+        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp");
+        upload.setMaxFileSize(5 * 1024 * 1024);
+
+        Button uploadBtn = new Button("Pilih Foto Bukti", VaadinIcon.UPLOAD.create());
+        uploadBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        uploadBtn.getElement().getStyle().set("font-weight", "700").set("color", "#0A3D7A");
+        upload.setUploadButton(uploadBtn);
+
+        String[] uploadedEvidencePath = new String[1];
+        Div previewWrap = new Div();
+        previewWrap.getElement().getStyle().set("display", "none").set("align-items", "center").set("gap", "10px").set("margin-top", "4px");
+
+        Image previewImg = new Image();
+        previewImg.getElement().getStyle().set("width", "60px").set("height", "60px").set("border-radius", "8px").set("object-fit", "cover").set("border", "1px solid #CBD5E1");
+
+        Span previewText = new Span("Foto bukti terunggah");
+        previewText.getElement().getStyle().set("font-size", "12px").set("color", "#16A34A").set("font-weight", "700");
+        previewWrap.add(previewImg, previewText);
+
+        upload.addSucceededListener(event -> {
+            try {
+                InputStream inputStream = buffer.getInputStream();
+                String origName = event.getFileName();
+                String ext = "";
+                int dotIdx = origName.lastIndexOf('.');
+                if (dotIdx > 0) ext = origName.substring(dotIdx);
+
+                String newFileName = "return_" + System.currentTimeMillis() + ext;
+                String relativePath = "images/uploads/" + newFileName;
+
+                File uploadDir = new File(WebMvcConfig.UPLOAD_BASE_DIR);
+                if (!uploadDir.exists()) uploadDir.mkdirs();
+
+                try (FileOutputStream out = new FileOutputStream(new File(uploadDir, newFileName))) {
+                    out.write(inputStream.readAllBytes());
+                }
+
+                uploadedEvidencePath[0] = relativePath;
+                previewImg.setSrc(relativePath);
+                previewWrap.getElement().getStyle().set("display", "flex");
+                Notification.show("Foto bukti berhasil diunggah.", 2500, Notification.Position.TOP_CENTER);
+            } catch (Exception ex) {
+                Notification.show("Gagal menyimpan foto bukti: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+
+        body.add(desc, reasonBox, reasonDesc, uploadLabel, upload, previewWrap);
         dialog.add(body);
 
         Button btnClose = new Button("Batal", e -> dialog.close());
@@ -1046,7 +1102,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             }
             try {
                 String fullReason = (cat != null ? cat : "Komplain") + ": " + detail.trim();
-                orderService.createOrderReturn(order, targetUser, fullReason, evidenceField.getValue(), order.getTotalAmount());
+                orderService.createOrderReturn(order, targetUser, fullReason, uploadedEvidencePath[0], order.getTotalAmount());
                 dialog.close();
                 Notification notif = Notification.show("Komplain berhasil diajukan! Dana Escrow ditahan untuk verifikasi Admin.", 3500, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);

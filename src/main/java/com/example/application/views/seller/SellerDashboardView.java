@@ -2,7 +2,9 @@ package com.example.application.views.seller;
 
 import com.example.application.model.order.Order;
 import com.example.application.model.order.OrderItem;
+import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.OrderStatus;
+import com.example.application.model.order.ReturnStatus;
 import com.example.application.model.product.Product;
 import com.example.application.model.user.User;
 import com.example.application.service.order.OrderService;
@@ -609,6 +611,14 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
                 actionBtns.add(shipInfo);
             }
 
+            if (order.getStatus() == OrderStatus.KOMPLAIN) {
+                Button btnLihatKomplain = new Button("Lihat Komplain Pembeli", VaadinIcon.EXCLAMATION_CIRCLE.create(), e -> {
+                    openSellerComplainDetailDialog(order);
+                });
+                btnLihatKomplain.getStyle().set("background", "#FEF2F2").set("color", "#991B1B").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("border", "1px solid #FCA5A5").set("cursor", "pointer");
+                actionBtns.add(btnLihatKomplain);
+            }
+
             footer.add(totalBox, actionBtns);
             card.add(header, buyerBox, itemsBox, footer);
             container.add(card);
@@ -720,6 +730,54 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
         dialog.add(layout);
         dialog.open();
+    }
+
+    private void openSellerComplainDetailDialog(Order order) {
+        if (order == null) return;
+        var retOpt = orderService.getReturnByOrder(order);
+        var ret = retOpt.orElse(null);
+
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Komplain Pembeli pada Pesanan #" + order.getOrderNumber());
+        d.setWidth("500px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Div alertBox = new Div();
+        alertBox.getElement().getStyle()
+            .set("background", "#FEF2F2").set("border", "1px solid #FECACA")
+            .set("border-radius", "12px").set("padding", "12px 14px")
+            .set("font-size", "13px").set("color", "#991B1B").set("line-height", "1.5");
+        alertBox.setText("Pembeli telah mengajukan klaim ketidaksesuaian/cacat fisik. Dana transaksi sebesar Rp " +
+            String.format("%,.0f", order.getTotalAmount()) + " sedang ditahan di ReWear Escrow menunggu investigasi Admin.");
+        layout.add(alertBox);
+
+        String buyerName = order.getBuyer() != null ? order.getBuyer().getFullName() : "Pembeli";
+        layout.add(new Paragraph("Pembeli: " + buyerName));
+        layout.add(new Paragraph("Kategori & Rincian Kendala:\n" + (ret != null ? ret.getReason() : "-")));
+
+        if (ret != null && ret.getEvidenceUrl() != null && !ret.getEvidenceUrl().isBlank()) {
+            Span proofLbl = new Span("Foto Bukti dari Pembeli:");
+            proofLbl.getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
+
+            Image proofImg = new Image(ret.getEvidenceUrl(), "Foto Bukti Komplain");
+            proofImg.getStyle().set("width", "100%").set("max-height", "220px").set("object-fit", "contain").set("border-radius", "10px").set("border", "1px solid #CBD5E1");
+
+            layout.add(proofLbl, proofImg);
+        }
+
+        Button btnChat = new Button("Hubungi Pembeli", VaadinIcon.CHAT.create(), e -> {
+            d.close();
+            UI.getCurrent().navigate("chat?seller=" + buyerName);
+        });
+        btnChat.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700");
+
+        Button btnClose = new Button("Tutup", e -> d.close());
+        d.getFooter().add(btnChat, btnClose);
+        d.add(layout);
+        d.open();
     }
 
     private Span buildStatusBadge(OrderStatus status) {

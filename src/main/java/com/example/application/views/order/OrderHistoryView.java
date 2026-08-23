@@ -1,11 +1,13 @@
 package com.example.application.views.order;
 
+import com.example.application.config.WebMvcConfig;
 import com.example.application.model.moderation.Review;
 import com.example.application.model.order.Order;
 import com.example.application.model.order.OrderItem;
 import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.OrderStatus;
 import com.example.application.model.order.ReturnStatus;
+import com.example.application.model.order.ShippingMethod;
 import com.example.application.model.user.User;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.order.OrderService;
@@ -25,8 +27,13 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.*;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -391,8 +398,9 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             btnDetailTrx.addClickListener(e -> openOrderDetailModal(order));
 
             actionContainer.add(btnDetailKomplain, btnDetailTrx);
-        } else {
-            Button btnKomplain = new Button("Ajukan Komplain");
+        } else if (order.getStatus() == OrderStatus.DITERIMA || (order.getStatus() == OrderStatus.DIKIRIM && order.getShippingMethod() == ShippingMethod.COD_SEKOLAH)) {
+            // Barang sudah tiba / COD siap serah terima -> Pembeli bisa komplain jika ada cacat fisik atau konfirmasi selesai
+            Button btnKomplain = new Button("Ajukan Komplain", VaadinIcon.EXCLAMATION_CIRCLE.create());
             btnKomplain.getElement().getStyle()
                 .set("background", "#FFFFFF").set("color", "#991B1B")
                 .set("border", "1.5px solid #FCA5A5").set("border-radius", "10px")
@@ -400,24 +408,66 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
             btnKomplain.addClickListener(e -> openComplainModal(order, user));
 
-            Button btnLacak = new Button(order.getStatus() == OrderStatus.DIKIRIM ? "Lacak Paket" : "Konfirmasi Diterima");
+            Button btnSelesai = new Button("Konfirmasi Selesai", VaadinIcon.CHECK.create());
+            btnSelesai.getElement().getStyle()
+                .set("background", "#16A34A").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnSelesai.addClickListener(e -> {
+                orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Dikonfirmasi diterima dan diselesaikan oleh pembeli.", user);
+                Notification notif = Notification.show("Pesanan Selesai! Terima kasih telah bertransaksi di ReWear.", 3000, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                buildView();
+            });
+
+            actionContainer.add(btnKomplain, btnSelesai);
+        } else if (order.getStatus() == OrderStatus.DIKIRIM) {
+            // Paket dalam perjalanan kurir
+            Button btnLacak = new Button("Lacak & Rincian Paket", VaadinIcon.TRUCK.create());
             btnLacak.getElement().getStyle()
                 .set("background", "#001934").set("color", "#FFFFFF")
                 .set("border", "none").set("border-radius", "10px")
                 .set("font-weight", "800").set("font-size", "13px")
                 .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
-            btnLacak.addClickListener(e -> {
-                if (order.getStatus() == OrderStatus.DIKIRIM) {
-                    openOrderDetailModal(order);
-                } else {
-                    orderService.updateOrderStatus(order, OrderStatus.SELESAI, "Dikonfirmasi diterima pembeli.", user);
-                    Notification notif = Notification.show("Pesanan Selesai! Terima kasih telah bertransaksi.", 3000, Notification.Position.TOP_CENTER);
-                    notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    buildView();
-                }
+            btnLacak.addClickListener(e -> openOrderDetailModal(order));
+
+            Button btnTerima = new Button("Paket Sudah Diterima", VaadinIcon.PACKAGE.create());
+            btnTerima.getElement().getStyle()
+                .set("background", "#2563EB").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnTerima.addClickListener(e -> {
+                orderService.updateOrderStatus(order, OrderStatus.DITERIMA, "Paket telah diterima oleh pembeli.", user);
+                Notification notif = Notification.show("Status diperbarui: Paket Diterima. Silakan periksa barang sebelum menyelesaikan pesanan.", 3500, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_PRIMARY);
+                buildView();
             });
 
-            actionContainer.add(btnKomplain, btnLacak);
+            actionContainer.add(btnLacak, btnTerima);
+        } else {
+            // Status DIPROSES / DIBAYAR / MENUNGGU PEMBAYARAN
+            Button btnChat = new Button("Chat Penjual", VaadinIcon.CHAT.create());
+            btnChat.getElement().getStyle()
+                .set("background", "#FFFFFF").set("color", "#001934")
+                .set("border", "1.5px solid #CBD5E1").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnChat.addClickListener(e -> {
+                String sellerName = (order.getSeller() != null && order.getSeller().getFullName() != null) ? order.getSeller().getFullName() : "Penjual";
+                UI.getCurrent().navigate("chat?seller=" + sellerName);
+            });
+
+            Button btnDetailTrx = new Button("Rincian Pesanan", VaadinIcon.FILE_TEXT_O.create());
+            btnDetailTrx.getElement().getStyle()
+                .set("background", "#001934").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnDetailTrx.addClickListener(e -> openOrderDetailModal(order));
+
+            actionContainer.add(btnChat, btnDetailTrx);
         }
         card.add(actionContainer);
 
@@ -755,12 +805,64 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         descArea.getElement().getStyle().set("min-height", "90px");
         body.add(descArea);
 
-        // Photo Evidence URL
-        TextField evidenceField = new TextField("Link / URL Foto Bukti (Opsional)");
-        evidenceField.setPlaceholder("https://... (Foto kondisi cacat/resi paket)");
-        evidenceField.setWidthFull();
-        evidenceField.setHelperText("Unggah foto ke cloud/drive atau masukkan URL gambar bukti fisik.");
-        body.add(evidenceField);
+        // Real Photo Evidence Upload
+        Div uploadSection = new Div();
+        uploadSection.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "8px");
+
+        Span uploadLabel = new Span("Unggah Foto Bukti Fisik / Cacat Barang");
+        uploadLabel.getElement().getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
+
+        MemoryBuffer buffer = new MemoryBuffer();
+        Upload upload = new Upload(buffer);
+        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp");
+        upload.setMaxFileSize(5 * 1024 * 1024); // 5 MB
+
+        Button uploadBtn = new Button("Pilih Foto Bukti", VaadinIcon.UPLOAD.create());
+        uploadBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        uploadBtn.getElement().getStyle().set("font-weight", "700").set("color", "#0A3D7A");
+        upload.setUploadButton(uploadBtn);
+
+        String[] uploadedEvidencePath = new String[1];
+        Div previewWrap = new Div();
+        previewWrap.getElement().getStyle().set("display", "none").set("align-items", "center").set("gap", "10px").set("margin-top", "6px");
+
+        Image previewImg = new Image();
+        previewImg.getElement().getStyle().set("width", "70px").set("height", "70px").set("border-radius", "8px").set("object-fit", "cover").set("border", "1px solid #CBD5E1");
+
+        Span previewText = new Span("Foto bukti terunggah");
+        previewText.getElement().getStyle().set("font-size", "12px").set("color", "#16A34A").set("font-weight", "700");
+
+        previewWrap.add(previewImg, previewText);
+
+        upload.addSucceededListener(event -> {
+            try {
+                InputStream inputStream = buffer.getInputStream();
+                String origName = event.getFileName();
+                String ext = "";
+                int dotIdx = origName.lastIndexOf('.');
+                if (dotIdx > 0) ext = origName.substring(dotIdx);
+
+                String newFileName = "return_" + System.currentTimeMillis() + ext;
+                String relativePath = "images/uploads/" + newFileName;
+
+                File uploadDir = new File(WebMvcConfig.UPLOAD_BASE_DIR);
+                if (!uploadDir.exists()) uploadDir.mkdirs();
+
+                try (FileOutputStream out = new FileOutputStream(new File(uploadDir, newFileName))) {
+                    out.write(inputStream.readAllBytes());
+                }
+
+                uploadedEvidencePath[0] = relativePath;
+                previewImg.setSrc(relativePath);
+                previewWrap.getElement().getStyle().set("display", "flex");
+                Notification.show("Foto bukti berhasil diunggah.", 2500, Notification.Position.TOP_CENTER);
+            } catch (Exception ex) {
+                Notification.show("Gagal menyimpan foto bukti: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+
+        uploadSection.add(uploadLabel, upload, previewWrap);
+        body.add(uploadSection);
 
         // Refund Amount Readonly
         TextField refundDisplay = new TextField("Nominal Pengembalian Dana (Refund)");
@@ -791,7 +893,6 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         btnSubmit.addClickListener(e -> {
             String selectedReason = reasonBox.getValue();
             String desc = descArea.getValue();
-            String evidence = evidenceField.getValue();
 
             if (selectedReason == null || selectedReason.isBlank()) {
                 Notification.show("Silakan pilih kategori kendala.", 3000, Notification.Position.TOP_CENTER);
@@ -804,9 +905,9 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
 
             try {
                 String fullReason = selectedReason + ": " + desc.trim();
-                orderService.createOrderReturn(order, buyer, fullReason, evidence, order.getTotalAmount());
+                orderService.createOrderReturn(order, buyer, fullReason, uploadedEvidencePath[0], order.getTotalAmount());
 
-                Notification notif = Notification.show("Komplain berhasil diajukan! Dana Escrow telah ditahan untuk peninjauan Admin.", 4000, Notification.Position.TOP_CENTER);
+                Notification notif = Notification.show("Komplain berhasil diajukan! Penjual & Admin telah diberitahu, dana Escrow tertahan.", 4000, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 d.close();
                 buildView();

@@ -88,7 +88,4 @@ public class CartItem implements Serializable {
 
     public int getMaxStock() { return maxStock; }
     public void setMaxStock(int maxStock) { this.maxStock = maxStock; }
-
-    public Long getProductId() { return productId; }
-    public void setProductId(Long productId) { this.productId = productId; }
 }

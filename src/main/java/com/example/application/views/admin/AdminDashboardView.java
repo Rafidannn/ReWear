@@ -760,9 +760,9 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             .set("grid-template-columns", "repeat(3, 1fr)")
             .set("gap", "14px");
 
-        statsGrid.add(createStatCard("Menunggu Keputusan", String.valueOf(pendingCount), "Sengketa yang memerlukan tindakan admin", "#D97706", "#FEF3C7"));
-        statsGrid.add(createStatCard("Komplain Disetujui (Refund)", String.valueOf(approvedCount), "Dana dikembalikan ke saldo pembeli & barang direstock", "#15803D", "#DCFCE7"));
-        statsGrid.add(createStatCard("Komplain Ditolak", String.valueOf(rejectedCount), "Dana Escrow dicairkan ke saldo penjual", "#991B1B", "#FEE2E2"));
+        statsGrid.add(createMetricCard("MENUNGGU KEPUTUSAN", String.valueOf(pendingCount), "Sengketa yang memerlukan tindakan admin", "#D97706", "#FEF3C7"));
+        statsGrid.add(createMetricCard("KOMPLAIN DISETUJUI", String.valueOf(approvedCount), "Dana dikembalikan ke pembeli & barang direstock", "#15803D", "#DCFCE7"));
+        statsGrid.add(createMetricCard("KOMPLAIN DITOLAK", String.valueOf(rejectedCount), "Dana Escrow dicairkan ke saldo penjual", "#991B1B", "#FEE2E2"));
         wrapper.add(statsGrid);
 
         Grid<OrderReturn> grid = new Grid<>(OrderReturn.class, false);
