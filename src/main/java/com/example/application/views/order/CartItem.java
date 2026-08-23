@@ -18,7 +18,6 @@ public class CartItem implements Serializable {
     private boolean selected;
     private boolean isSmkn24Item;
     private int maxStock = 99;
-    private Long productId;
 
     public CartItem(String id, String storeName, String storeBadge, String storeBadgeClass,
                     String title, String variant, double price, double originalPrice,

@@ -178,14 +178,14 @@ public class RegisterView extends HorizontalLayout {
                     .set("background", "#FEF3C7")
                     .set("color", "#92400E")
                     .set("border", "1px solid #FCD34D");
-                categoryInfoBadge.setText("✨ Akun Warga Sekolah: Wajib verifikasi NISN/NIP untuk Badge Emas & Fitur COD.");
+                categoryInfoBadge.setText("Akun Warga Sekolah: Wajib verifikasi NISN/NIP untuk Badge Emas & Fitur COD.");
                 emailField.setPlaceholder("nama@smkn24.sch.id atau email pribadi");
             } else {
                 categoryInfoBadge.getElement().getStyle()
                     .set("background", "#F1F5F9")
                     .set("color", "#475569")
                     .set("border", "1px solid #CBD5E1");
-                categoryInfoBadge.setText("🌐 Akun Masyarakat Umum: Terdaftar sebagai pembeli/penjual reguler untuk pengiriman kurir.");
+                categoryInfoBadge.setText("Akun Masyarakat Umum: Terdaftar sebagai pembeli/penjual reguler untuk pengiriman kurir.");
                 emailField.setPlaceholder("nama@email.com");
             }
         };

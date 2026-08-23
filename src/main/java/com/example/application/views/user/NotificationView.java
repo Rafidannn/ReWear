@@ -100,7 +100,7 @@ public class NotificationView extends Div implements BeforeEnterObserver {
             .set("font-size", "22px").set("font-weight", "900")
             .set("color", "#001934").set("margin", "0");
 
-        Button btnMarkAll = new Button("✓✓ Tandai dibaca");
+        Button btnMarkAll = new Button("Tandai Semua Dibaca", VaadinIcon.CHECK.create());
         btnMarkAll.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         btnMarkAll.getElement().getStyle()
             .set("color", "#334155").set("font-weight", "700")

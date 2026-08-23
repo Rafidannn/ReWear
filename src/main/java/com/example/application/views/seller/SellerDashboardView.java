@@ -195,7 +195,7 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
         benefitsGrid.add(createBenefitCard(VaadinIcon.CART, "Langsung Dilihat Pembeli", "Produkmu otomatis tampil di Pasar SMKN 24 dan siap dibeli teman sekolah."));
 
         // Action Button
-        Button btnRegisterSeller = new Button("🚀 Buka Toko & Tambah Produk Pertama", e -> {
+        Button btnRegisterSeller = new Button("Buka Toko & Tambah Produk Pertama", VaadinIcon.PLUS_CIRCLE.create(), e -> {
             isStoreActivated = true;
             UI.getCurrent().navigate("sell");
         });

@@ -668,9 +668,9 @@ public class HomeView extends VerticalLayout {
                 "<p>Temukan tips seputar perawatan baju preloved, tren thrift fashion 2026, dan artikel keberlanjutan lingkungan di buletin ReWear SMKN 24.</p>")),
             createFooterLink("Kontak", () -> openFooterInfoModal("Hubungi Kami",
                 "<p>Tim Pengembang & Moderator ReWear SMKN 24 Jakarta:</p>" +
-                "<p>📍 Jl. Bambu Hitam, Bambu Apus, Cipayung, Jakarta Timur<br>" +
-                "📧 rewear@smkn24.sch.id<br>" +
-                "📞 +62 812-3456-7890</p>"))
+                "<p>Jl. Bambu Hitam, Bambu Apus, Cipayung, Jakarta Timur<br>" +
+                "Email: rewear@smkn24.sch.id<br>" +
+                "Telp/WA: +62 812-3456-7890</p>"))
         );
         col4.add(hTentang, listTentang);
 

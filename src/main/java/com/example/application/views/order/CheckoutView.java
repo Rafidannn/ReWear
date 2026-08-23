@@ -119,7 +119,7 @@ public class CheckoutView extends Div {
         btnBack.addClickListener(e -> {
             VaadinSession s = VaadinSession.getCurrent();
             if (s != null) {
-                s.removeAttribute("DIRECT_CHECKOUT_ITEM");
+                s.setAttribute("DIRECT_CHECKOUT_ITEM", null);
             }
             UI.getCurrent().getPage().getHistory().back();
         });
@@ -1056,11 +1056,16 @@ public class CheckoutView extends Div {
                     oi.setQuantity(cartItem.getQuantity());
 
                     // Link Product entity precisely by Product ID
-                    for (var entity : entities) {
-                        if (entity.getProduct() != null && entity.getProduct().getId() != null
-                                && entity.getProduct().getId().equals(cartItem.getProductId())) {
-                            oi.setProduct(entity.getProduct());
-                            break;
+                    if (cartItem.getProductId() != null) {
+                        productService.findById(cartItem.getProductId()).ifPresent(oi::setProduct);
+                    }
+                    if (oi.getProduct() == null) {
+                        for (var entity : entities) {
+                            if (entity.getProduct() != null && entity.getProduct().getId() != null
+                                    && entity.getProduct().getId().equals(cartItem.getProductId())) {
+                                oi.setProduct(entity.getProduct());
+                                break;
+                            }
                         }
                     }
                     // Fallback to name matching if product ID not matched
@@ -1093,7 +1098,7 @@ public class CheckoutView extends Div {
 
             VaadinSession session = VaadinSession.getCurrent();
             if (session != null) {
-                session.removeAttribute("DIRECT_CHECKOUT_ITEM");
+                session.setAttribute("DIRECT_CHECKOUT_ITEM", null);
             }
 
             // Tampilkan sukses dan redirect
@@ -1114,7 +1119,7 @@ public class CheckoutView extends Div {
         if (cartItem == null) return null;
 
         if (cartItem.getProductId() != null) {
-            Product p = productService.getProductById(cartItem.getProductId()).orElse(null);
+            Product p = productService.findById(cartItem.getProductId()).orElse(null);
             if (p != null && p.getSeller() != null) return p.getSeller();
         }
 

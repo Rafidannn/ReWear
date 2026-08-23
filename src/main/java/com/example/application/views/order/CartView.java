@@ -341,7 +341,7 @@ public class CartView extends Div {
             Div storeFooter = new Div();
             storeFooter.addClassName("rw-cart-store-footer");
 
-            double storeSubtotal = storeItems.stream()
+            storeSubtotal = storeItems.stream()
                 .filter(CartItem::isSelected)
                 .mapToDouble(i -> i.getPrice() * i.getQuantity())
                 .sum();

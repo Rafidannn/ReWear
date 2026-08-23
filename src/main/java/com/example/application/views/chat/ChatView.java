@@ -394,7 +394,7 @@ public class ChatView extends Div implements BeforeEnterObserver {
             txt.addClassName("rw-chat-msg-txt");
 
             String timeFormatted = msg.getCreatedAt() != null ? msg.getCreatedAt().format(TIME_FMT) : "09:15";
-            Span time = new Span(isMe ? timeFormatted + " ✓✓" : timeFormatted);
+            Span time = new Span(timeFormatted);
             time.addClassName("rw-chat-msg-time");
 
             bubbleCard.add(txt, time);

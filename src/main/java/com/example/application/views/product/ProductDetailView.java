@@ -578,11 +578,54 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         if (isOutOfStock) btnBuyNow.setEnabled(false);
 
         btnBuyNow.addClickListener(e -> {
-            if (isOutOfStock) return;
+            if (isOutOfStock) {
+                Notification.show("Produk ini sudah habis (Stok: 0)", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
             if (!AuthGuard.requireLogin(UI.getCurrent())) return;
             User user = AuthGuard.getCurrentUser();
-            cartService.addToCart(user, product, selectedQty[0]);
-            MainLayout.reloadCartBadge(UI.getCurrent());
+            if (product.getSeller() != null && user != null && user.getId().equals(product.getSeller().getId())) {
+                Notification.show("Anda tidak dapat membeli produk yang Anda jual sendiri.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            String mainImg = "images/buku.jpeg";
+            if (product.getImages() != null && !product.getImages().isBlank()) {
+                String trimmed = product.getImages().trim();
+                if (trimmed.startsWith("[")) {
+                    int start = trimmed.indexOf('"');
+                    int end = trimmed.indexOf('"', start + 1);
+                    if (start >= 0 && end > start) mainImg = trimmed.substring(start + 1, end);
+                } else {
+                    mainImg = trimmed;
+                }
+            }
+
+            String sName = (product.getSeller() != null && product.getSeller().getFullName() != null)
+                ? product.getSeller().getFullName() : "Penjual ReWear";
+
+            CartItem directItem = new CartItem(
+                "direct-" + product.getId(),
+                sName,
+                product.isSchoolMarket() ? "Pasar SMKN 24" : "Penjual Umum",
+                product.isSchoolMarket() ? "gold" : "blue",
+                product.getName(),
+                (product.getCategory() != null ? product.getCategory().getName() : "Standar"),
+                product.getPrice() != null ? product.getPrice().doubleValue() : 0.0,
+                product.getPrice() != null ? product.getPrice().doubleValue() : 0.0,
+                mainImg,
+                product.isSchoolMarket() ? "Eksklusif SMKN 24" : "Preloved",
+                selectedQty[0],
+                true,
+                product.isSchoolMarket(),
+                maxStock
+            );
+            directItem.setProductId(product.getId());
+
+            VaadinSession session = VaadinSession.getCurrent();
+            if (session != null) {
+                session.setAttribute("DIRECT_CHECKOUT_ITEM", directItem);
+            }
             UI.getCurrent().navigate("checkout");
         });
 
@@ -1336,12 +1379,53 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             sheet.close();
             if (!AuthGuard.requireLogin(UI.getCurrent())) return;
             User user = AuthGuard.getCurrentUser();
-            cartService.addToCart(user, product, qty[0]);
-            MainLayout.reloadCartBadge(UI.getCurrent());
+            if (product.getSeller() != null && user != null && user.getId().equals(product.getSeller().getId())) {
+                Notification.show("Anda tidak dapat membeli produk yang Anda jual sendiri.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
 
             if (isBuyNow) {
+                String mainImg = "images/buku.jpeg";
+                if (product.getImages() != null && !product.getImages().isBlank()) {
+                    String trimmed = product.getImages().trim();
+                    if (trimmed.startsWith("[")) {
+                        int start = trimmed.indexOf('"');
+                        int end = trimmed.indexOf('"', start + 1);
+                        if (start >= 0 && end > start) mainImg = trimmed.substring(start + 1, end);
+                    } else {
+                        mainImg = trimmed;
+                    }
+                }
+
+                String sName = (product.getSeller() != null && product.getSeller().getFullName() != null)
+                    ? product.getSeller().getFullName() : "Penjual ReWear";
+
+                CartItem directItem = new CartItem(
+                    "direct-" + product.getId(),
+                    sName,
+                    product.isSchoolMarket() ? "Pasar SMKN 24" : "Penjual Umum",
+                    product.isSchoolMarket() ? "gold" : "blue",
+                    product.getName(),
+                    (selectedSize[0] != null ? "Ukuran: " + selectedSize[0] : (product.getCategory() != null ? product.getCategory().getName() : "Standar")),
+                    product.getPrice() != null ? product.getPrice().doubleValue() : 0.0,
+                    product.getPrice() != null ? product.getPrice().doubleValue() : 0.0,
+                    mainImg,
+                    product.isSchoolMarket() ? "Eksklusif SMKN 24" : "Preloved",
+                    qty[0],
+                    true,
+                    product.isSchoolMarket(),
+                    maxStock
+                );
+                directItem.setProductId(product.getId());
+
+                VaadinSession session = VaadinSession.getCurrent();
+                if (session != null) {
+                    session.setAttribute("DIRECT_CHECKOUT_ITEM", directItem);
+                }
                 UI.getCurrent().navigate("checkout");
             } else {
+                cartService.addToCart(user, product, qty[0]);
+                MainLayout.reloadCartBadge(UI.getCurrent());
                 Notification notif = Notification.show("Ditambahkan (" + qty[0] + "x " + selectedSize[0] + ") ke keranjang!", 2500, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             }
@@ -1369,7 +1453,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         Image img = new Image(imageUrl, "Zoomed Image");
         img.getStyle().set("max-width", "95%").set("max-height", "85vh").set("object-fit", "contain").set("border-radius", "12px");
 
-        Button closeBtn = new Button("✕", e -> dialog.close());
+        Button closeBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), e -> dialog.close());
         closeBtn.getStyle()
             .set("position", "absolute")
             .set("top", "20px")
