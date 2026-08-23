@@ -81,14 +81,14 @@ public class PaymentService {
         Order order = payment.getOrder();
         if (order != null) {
             order.setStatus(OrderStatus.DIPROSES);
-            order.setPaidAt(LocalDateTime.now());
+            order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
 
             com.example.application.model.order.OrderStatusLog log = new com.example.application.model.order.OrderStatusLog();
             log.setOrder(order);
             log.setStatus(OrderStatus.DIPROSES);
             log.setNotes("Pembayaran diverifikasi oleh Admin (" + (admin != null ? admin.getFullName() : "Admin") + "). " + (adminNotes != null && !adminNotes.isBlank() ? adminNotes : "Dana masuk ke Escrow."));
-            log.setChangedBy(admin);
+            log.setActor(admin);
             orderStatusLogRepository.save(log);
         }
     }
@@ -104,7 +104,7 @@ public class PaymentService {
             log.setOrder(order);
             log.setStatus(order.getStatus());
             log.setNotes("Bukti pembayaran ditolak Admin: " + (reason != null ? reason : "Bukti tidak valid / nominal tidak cocok."));
-            log.setChangedBy(admin);
+            log.setActor(admin);
             orderStatusLogRepository.save(log);
         }
     }

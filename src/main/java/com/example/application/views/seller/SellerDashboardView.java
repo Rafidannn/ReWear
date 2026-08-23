@@ -6,6 +6,7 @@ import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.OrderStatus;
 import com.example.application.model.order.ReturnStatus;
 import com.example.application.model.product.Product;
+import com.example.application.model.product.ProductStatus;
 import com.example.application.model.user.User;
 import com.example.application.service.order.OrderService;
 import com.example.application.service.product.ProductService;
@@ -851,36 +852,212 @@ public class SellerDashboardView extends VerticalLayout implements BeforeEnterOb
 
     private Component renderProdukSayaTab() {
         Div wrapper = new Div();
+        wrapper.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "16px");
 
         HorizontalLayout top = new HorizontalLayout();
         top.setWidthFull();
         top.setAlignItems(FlexComponent.Alignment.CENTER);
         top.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        top.getElement().getStyle().set("margin-bottom", "20px");
 
+        Div titleBox = new Div();
         H2 title = new H2("Daftar Produk Saya");
-        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0");
+        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
+        Paragraph sub = new Paragraph("Kelola katalog barang, perbarui harga dan stok, atau nonaktifkan produk yang telah habis.");
+        sub.getElement().getStyle().set("font-size", "13px").set("color", "#64748B").set("margin", "0");
+        titleBox.add(title, sub);
 
-        Button btnAdd = new Button("+ Tambah Produk Baru", e -> UI.getCurrent().navigate("sell"));
+        Button btnAdd = new Button("+ Tambah Produk Baru", VaadinIcon.PLUS.create(), e -> UI.getCurrent().navigate("sell"));
         btnAdd.getElement().getStyle()
             .set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700")
-            .set("border-radius", "8px").set("padding", "10px 18px").set("cursor", "pointer");
+            .set("border-radius", "10px").set("padding", "12px 20px").set("cursor", "pointer");
 
-        top.add(title, btnAdd);
+        top.add(titleBox, btnAdd);
         wrapper.add(top);
 
         User seller = AuthGuard.getCurrentUser();
         List<Product> products = seller != null ? productService.findProductsBySeller(seller) : List.of();
 
-        Grid<Product> grid = new Grid<>(Product.class, false);
-        grid.addColumn(Product::getName).setHeader("Nama Produk");
-        grid.addColumn(p -> "Rp " + String.format("%,.0f", p.getPrice() != null ? p.getPrice() : 0)).setHeader("Harga");
-        grid.addColumn(p -> p.getStock() != null ? p.getStock() : 1).setHeader("Stok");
-        grid.addColumn(p -> p.getSoldCount() != null ? p.getSoldCount() : 0).setHeader("Terjual");
-        grid.setItems(products);
+        if (products.isEmpty()) {
+            Div empty = new Div();
+            empty.getElement().setProperty("innerHTML",
+                "<div style='text-align:center;padding:48px 24px;background:#FFFFFF;border-radius:16px;border:1px dashed #CBD5E1;'>" +
+                "<h3 style='color:#001934;font-size:18px;font-weight:800;margin:0 0 6px 0;'>Belum Ada Produk yang Dijual</h3>" +
+                "<p style='color:#64748B;font-size:14px;margin:0 0 16px 0;'>Mulai jual seragam, buku, atau atribut SMKN 24 Anda sekarang!</p>" +
+                "</div>"
+            );
+            wrapper.add(empty);
+            return wrapper;
+        }
 
+        Grid<Product> grid = new Grid<>(Product.class, false);
+        grid.setWidthFull();
+
+        grid.addComponentColumn(p -> {
+            HorizontalLayout row = new HorizontalLayout();
+            row.setAlignItems(FlexComponent.Alignment.CENTER);
+            row.setSpacing(true);
+
+            String imgPath = p.getFirstImage();
+            if (imgPath == null || imgPath.isBlank()) imgPath = "/images/placeholder.png";
+            else if (!imgPath.startsWith("http") && !imgPath.startsWith("/")) imgPath = "/" + imgPath;
+
+            Image img = new Image(imgPath, p.getName());
+            img.getStyle().set("width", "48px").set("height", "48px").set("object-fit", "cover").set("border-radius", "8px").set("border", "1px solid #E2E8F0");
+
+            Div info = new Div();
+            Span name = new Span(p.getName());
+            name.getStyle().set("font-weight", "700").set("color", "#001934").set("font-size", "14px").set("display", "block");
+
+            Span cat = new Span(p.getCategory() != null ? p.getCategory().getName() : "Umum");
+            cat.getStyle().set("font-size", "11px").set("color", "#64748B").set("font-weight", "600");
+            info.add(name, cat);
+
+            row.add(img, info);
+            return row;
+        }).setHeader("Produk").setFlexGrow(2);
+
+        grid.addColumn(p -> "Rp " + String.format("%,.0f", p.getPrice() != null ? p.getPrice().doubleValue() : 0)).setHeader("Harga").setWidth("120px").setFlexGrow(0);
+        grid.addColumn(p -> (p.getStock() != null ? p.getStock() : 1) + " unit").setHeader("Stok").setWidth("100px").setFlexGrow(0);
+        grid.addColumn(p -> (p.getSoldCount() != null ? p.getSoldCount() : 0) + " terjual").setHeader("Terjual").setWidth("100px").setFlexGrow(0);
+
+        grid.addComponentColumn(p -> {
+            Span badge = new Span();
+            badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+            if (p.getStatus() == ProductStatus.ACTIVE) {
+                badge.setText("Aktif");
+                badge.getStyle().set("background", "#DCFCE7").set("color", "#15803D");
+            } else if (p.getStatus() == ProductStatus.SOLD_OUT) {
+                badge.setText("Habis / Terjual");
+                badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B");
+            } else {
+                badge.setText("Nonaktif");
+                badge.getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
+            }
+            return badge;
+        }).setHeader("Status").setWidth("120px").setFlexGrow(0);
+
+        grid.addComponentColumn(p -> {
+            HorizontalLayout actions = new HorizontalLayout();
+            actions.setSpacing(true);
+
+            Button btnEdit = new Button(VaadinIcon.EDIT.create(), e -> openEditProductDialog(p));
+            btnEdit.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnEdit.getElement().setAttribute("title", "Edit Produk");
+            btnEdit.getStyle().set("color", "#2563EB").set("cursor", "pointer");
+
+            Button btnView = new Button(VaadinIcon.EYE.create(), e -> UI.getCurrent().navigate("product/" + p.getId()));
+            btnView.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnView.getElement().setAttribute("title", "Lihat di Marketplace");
+            btnView.getStyle().set("color", "#001934").set("cursor", "pointer");
+
+            Button btnDelete = new Button(VaadinIcon.TRASH.create(), e -> openDeleteProductDialog(p));
+            btnDelete.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnDelete.getElement().setAttribute("title", "Hapus Produk");
+            btnDelete.getStyle().set("color", "#DC2626").set("cursor", "pointer");
+
+            actions.add(btnEdit, btnView, btnDelete);
+            return actions;
+        }).setHeader("Aksi").setWidth("140px").setFlexGrow(0);
+
+        grid.setItems(products);
         wrapper.add(grid);
         return wrapper;
+    }
+
+    private void openEditProductDialog(Product p) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Edit Produk - " + p.getName());
+        dialog.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        TextField nameField = new TextField("Nama Produk");
+        nameField.setValue(p.getName() != null ? p.getName() : "");
+        nameField.setWidthFull();
+
+        TextField priceField = new TextField("Harga Jual (Rp)");
+        priceField.setValue(String.format("%.0f", p.getPrice() != null ? p.getPrice().doubleValue() : 0));
+        priceField.setWidthFull();
+
+        TextField stockField = new TextField("Jumlah Stok");
+        stockField.setValue(String.valueOf(p.getStock() != null ? p.getStock() : 1));
+        stockField.setWidthFull();
+
+        TextArea descField = new TextArea("Deskripsi Produk");
+        descField.setValue(p.getDescription() != null ? p.getDescription() : "");
+        descField.setWidthFull();
+
+        ComboBox<ProductStatus> statusCombo = new ComboBox<>("Status Produk");
+        statusCombo.setItems(ProductStatus.ACTIVE, ProductStatus.SOLD_OUT, ProductStatus.REMOVED);
+        statusCombo.setItemLabelGenerator(s -> s == ProductStatus.ACTIVE ? "Aktif (Bisa Dibeli)" : s == ProductStatus.SOLD_OUT ? "Habis / Terjual" : "Nonaktifkan");
+        statusCombo.setValue(p.getStatus() != null ? p.getStatus() : ProductStatus.ACTIVE);
+        statusCombo.setWidthFull();
+
+        layout.add(nameField, priceField, stockField, descField, statusCombo);
+
+        Button btnCancel = new Button("Batal", e -> dialog.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnSave = new Button("Simpan Perubahan", VaadinIcon.CHECK.create(), e -> {
+            try {
+                String n = nameField.getValue();
+                double pr = Double.parseDouble(priceField.getValue().replaceAll("[^0-9]", ""));
+                int st = Integer.parseInt(stockField.getValue().replaceAll("[^0-9]", ""));
+                String d = descField.getValue();
+                ProductStatus stCombo = statusCombo.getValue();
+
+                if (n.isBlank()) {
+                    Notification.show("Nama produk tidak boleh kosong!", 2500, Notification.Position.TOP_CENTER);
+                    return;
+                }
+
+                p.setName(n);
+                p.setPrice(BigDecimal.valueOf(pr));
+                p.setStock(st);
+                p.setDescription(d);
+                p.setStatus(stCombo);
+
+                productService.saveProduct(p);
+                Notification notif = Notification.show("Produk berhasil diperbarui!", 2500, Notification.Position.TOP_CENTER);
+                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+                buildMainLayout();
+            } catch (Exception ex) {
+                Notification.show("Gagal menyimpan: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnSave.getStyle().set("background", "#001934").set("color", "#FFFFFF").set("font-weight", "700");
+
+        dialog.add(layout);
+        dialog.getFooter().add(btnCancel, btnSave);
+        dialog.open();
+    }
+
+    private void openDeleteProductDialog(Product p) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Hapus Produk");
+        dialog.setWidth("420px");
+
+        Paragraph msg = new Paragraph("Apakah Anda yakin ingin menghapus produk '" + p.getName() + "'? Produk tidak akan lagi ditampilkan di katalog.");
+        msg.getStyle().set("font-size", "14px").set("color", "#475569");
+
+        Button btnCancel = new Button("Batal", e -> dialog.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnConfirm = new Button("Ya, Hapus Produk", VaadinIcon.TRASH.create(), e -> {
+            productService.deleteProduct(p);
+            Notification notif = Notification.show("Produk telah dihapus.", 2500, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            dialog.close();
+            buildMainLayout();
+        });
+        btnConfirm.getStyle().set("background", "#DC2626").set("color", "#FFFFFF").set("font-weight", "700");
+
+        dialog.add(msg);
+        dialog.getFooter().add(btnCancel, btnConfirm);
+        dialog.open();
     }
 
     private Component renderLaporanTab() {

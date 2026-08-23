@@ -129,6 +129,19 @@ public class Product {
         this.images = images;
     }
 
+    public String getFirstImage() {
+        if (images == null || images.isBlank()) return "/images/placeholder.png";
+        String raw = images.trim();
+        if (raw.startsWith("[")) {
+            raw = raw.replaceAll("[\\[\\]\"']", "").trim();
+            String[] parts = raw.split(",");
+            if (parts.length > 0 && !parts[0].trim().isBlank()) {
+                return parts[0].trim();
+            }
+        }
+        return raw;
+    }
+
     public ConditionType getConditionType() {
         return conditionType;
     }

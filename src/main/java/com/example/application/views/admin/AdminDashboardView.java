@@ -967,9 +967,9 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         metricsRow.setSpacing(true);
 
         metricsRow.add(
-            createMetricCard("Menunggu Verifikasi", String.valueOf(pendingPayments.size()), "Struk / Bukti transfer masuk", VaadinIcon.HOURGLASS, "#D97706"),
-            createMetricCard("Pembayaran Terverifikasi", String.valueOf(approvedCount), "Dana tersimpan di Escrow", VaadinIcon.CHECK_CIRCLE, "#16A34A"),
-            createMetricCard("Total Transaksi Pembayaran", String.valueOf(allPayments.size()), "Semua metode transaksi", VaadinIcon.CREDIT_CARD, "#2563EB")
+            createMetricCard("MENUNGGU VERIFIKASI", String.valueOf(pendingPayments.size()) + " Struk", "Perlu tindakan admin", "#D97706", "#FEF3C7"),
+            createMetricCard("PEMBAYARAN DITERIMA", String.valueOf(approvedCount) + " Transaksi", "Dana aman di Escrow", "#15803D", "#DCFCE7"),
+            createMetricCard("TOTAL TRANSAKSI", String.valueOf(allPayments.size()) + " Pembayaran", "Semua kanal pembayaran", "#1E40AF", "#DBEAFE")
         );
         wrapper.add(metricsRow);
 

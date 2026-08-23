@@ -2,6 +2,7 @@ package com.example.application.views.user;
 
 import com.example.application.model.order.Order;
 import com.example.application.model.order.OrderStatus;
+import com.example.application.model.order.ShippingMethod;
 import com.example.application.model.user.User;
 import com.example.application.service.order.OrderService;
 import com.example.application.util.AuthGuard;
@@ -12,32 +13,40 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.router.*;
-import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.Route;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
+@PageTitle("Pusat Notifikasi — ReWear SMKN 24")
 @Route(value = "notifications", layout = MainLayout.class)
-@PageTitle("Notifikasi | ReWear SMKN 24")
 public class NotificationView extends Div implements BeforeEnterObserver {
 
-    private static final String SESSION_READ_KEY = "rewear_read_notifs";
-    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
-
     private final OrderService orderService;
-    private final Div contentWrap = new Div();
-    private String activeFilter = "semua";
+    private final Div contentContainer = new Div();
+    private String activeCategory = "SEMUA"; // SEMUA, PESANAN, PEMBAYARAN, AKUN
+    private boolean isAllMarkedRead = false;
 
     public NotificationView(OrderService orderService) {
         this.orderService = orderService;
+
         setWidthFull();
         getElement().getStyle()
-            .set("background", "#F1F5FF")
+            .set("background", "linear-gradient(160deg, #F0F4FF 0%, #F8FAFF 100%)")
             .set("min-height", "100vh")
-            .set("padding", "40px 0 80px 0");
-        add(contentWrap);
+            .set("padding", "32px 16px 80px 16px")
+            .set("box-sizing", "border-box");
+
+        add(contentContainer);
     }
 
     @Override
@@ -46,353 +55,339 @@ public class NotificationView extends Div implements BeforeEnterObserver {
         buildView();
     }
 
-    // ─── Session-based read tracking ───────────────────────────────────────────
-
-    @SuppressWarnings("unchecked")
-    private Set<String> getReadSet() {
-        VaadinSession session = VaadinSession.getCurrent();
-        if (session == null) return new HashSet<>();
-        Set<String> set = (Set<String>) session.getAttribute(SESSION_READ_KEY);
-        if (set == null) {
-            set = new HashSet<>();
-            session.setAttribute(SESSION_READ_KEY, set);
-        }
-        return set;
-    }
-
-    private void markRead(String key) {
-        getReadSet().add(key);
-    }
-
-    private void markAllRead(List<NotifItem> items) {
-        Set<String> readSet = getReadSet();
-        for (NotifItem n : items) readSet.add(n.key);
-    }
-
-    private boolean isRead(String key) {
-        return getReadSet().contains(key);
-    }
-
-    // ─── View Builder ───────────────────────────────────────────────────────────
-
     private void buildView() {
-        contentWrap.removeAll();
-        contentWrap.getElement().getStyle()
-            .set("max-width", "600px")
+        contentContainer.removeAll();
+        contentContainer.getElement().getStyle()
+            .set("max-width", "680px")
             .set("margin", "0 auto")
-            .set("padding", "0 16px 100px 16px");
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("gap", "16px");
 
         User user = AuthGuard.getCurrentUser();
         if (user == null) return;
 
-        List<NotifItem> allNotifs = buildNotifications(user);
-        long unreadCount = allNotifs.stream().filter(n -> !isRead(n.key)).count();
+        // ── 1. Top Header ──────────────────────────────────────────
+        Div headerCard = new Div();
+        headerCard.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("border-radius", "16px")
+            .set("padding", "20px")
+            .set("box-shadow", "0 2px 10px rgba(0,25,52,0.04)")
+            .set("border", "1px solid #E2E8F0");
 
-        // ─── Page Header ───
-        Div header = new Div();
-        header.getElement().getStyle()
-            .set("display", "flex").set("align-items", "center")
-            .set("justify-content", "space-between").set("margin-bottom", "20px")
-            .set("margin-top", "10px");
+        HorizontalLayout topRow = new HorizontalLayout();
+        topRow.setWidthFull();
+        topRow.setAlignItems(FlexComponent.Alignment.CENTER);
+        topRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
-        H2 title = new H2("Aktivitas");
-        title.getElement().getStyle()
-            .set("font-size", "22px").set("font-weight", "900")
-            .set("color", "#001934").set("margin", "0");
+        Div titleGroup = new Div();
+        H2 mainTitle = new H2("Pusat Notifikasi");
+        mainTitle.getStyle()
+            .set("font-size", "22px").set("font-weight", "800")
+            .set("color", "#001934").set("margin", "0 0 4px 0");
 
-        Button btnMarkAll = new Button("Tandai Semua Dibaca", VaadinIcon.CHECK.create());
-        btnMarkAll.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        btnMarkAll.getElement().getStyle()
-            .set("color", "#334155").set("font-weight", "700")
-            .set("font-size", "13px").set("cursor", "pointer")
-            .set("padding", "0");
-        btnMarkAll.addClickListener(e -> {
-            markAllRead(allNotifs);
-            Notification.show("Semua notifikasi ditandai sudah dibaca.", 2000, Notification.Position.TOP_CENTER);
+        Paragraph subText = new Paragraph("Update aktivitas pesanan, transaksi, dan sistem ReWear SMKN 24");
+        subText.getStyle().set("font-size", "13px").set("color", "#64748B").set("margin", "0");
+        titleGroup.add(mainTitle, subText);
+
+        Button btnMarkRead = new Button("Tandai Sudah Dibaca", VaadinIcon.CHECK_CIRCLE.create(), e -> {
+            isAllMarkedRead = true;
+            Notification.show("Semua notifikasi telah ditandai sudah dibaca.", 2500, Notification.Position.TOP_CENTER);
             buildView();
         });
+        btnMarkRead.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnMarkRead.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB");
 
-        header.add(title, btnMarkAll);
-        contentWrap.add(header);
+        topRow.add(titleGroup, btnMarkRead);
+        headerCard.add(topRow);
 
-        // ─── Filter Tabs (Pills) ───
-        Div filterRow = new Div();
+        // ── 2. Category Filter Pills ───────────────────────────────
+        HorizontalLayout filterRow = new HorizontalLayout();
+        filterRow.setWidthFull();
+        filterRow.setSpacing(true);
         filterRow.getElement().getStyle()
-            .set("display", "flex").set("gap", "10px")
-            .set("overflow-x", "auto").set("padding-bottom", "14px")
-            .set("-webkit-overflow-scrolling", "touch")
-            .set("margin-bottom", "16px");
+            .set("overflow-x", "auto")
+            .set("padding", "12px 0 0 0")
+            .set("border-top", "1px solid #F1F5F9")
+            .set("margin-top", "16px");
 
-        String[][] filters = {
-            {"semua", "Semua"},
-            {"transaksi", "Transaksi"},
-            {"promo", "Promo"},
-            {"sistem", "Siswa / Sistem"}
-        };
+        filterRow.add(
+            createFilterPill("Semua", "SEMUA"),
+            createFilterPill("Pesanan", "PESANAN"),
+            createFilterPill("Pembayaran & Escrow", "PEMBAYARAN"),
+            createFilterPill("Akun & Sekolah", "AKUN")
+        );
+        headerCard.add(filterRow);
+        contentContainer.add(headerCard);
 
-        for (String[] f : filters) {
-            Button btn = new Button(f[1]);
-            boolean isActive = activeFilter.equals(f[0]);
-            btn.getElement().getStyle()
-                .set("background", isActive ? "#FFDEA2" : "#EFF4FF")
-                .set("color", isActive ? "#001934" : "#475569")
-                .set("border", "none")
-                .set("border-radius", "9999px")
-                .set("font-weight", "800")
-                .set("font-size", "13px")
-                .set("padding", "8px 20px")
-                .set("cursor", "pointer")
-                .set("flex-shrink", "0");
-            final String key = f[0];
-            btn.addClickListener(e -> { activeFilter = key; buildView(); });
-            filterRow.add(btn);
-        }
-        contentWrap.add(filterRow);
+        // ── 3. Load & Render Notifications List ────────────────────
+        List<NotificationItem> items = collectUserNotifications(user);
 
-        // ─── Render filtered list ───
-        List<NotifItem> filtered = allNotifs.stream()
-            .filter(n -> activeFilter.equals("semua") || n.category.equalsIgnoreCase(activeFilter))
-            .collect(Collectors.toList());
+        // Filter items
+        List<NotificationItem> filtered = items.stream().filter(item -> {
+            if ("PESANAN".equals(activeCategory)) return "PESANAN".equals(item.category);
+            if ("PEMBAYARAN".equals(activeCategory)) return "PEMBAYARAN".equals(item.category);
+            if ("AKUN".equals(activeCategory)) return "AKUN".equals(item.category);
+            return true;
+        }).toList();
 
         if (filtered.isEmpty()) {
-            contentWrap.add(buildEmptyState());
-            return;
-        }
+            Div emptyCard = new Div();
+            emptyCard.getElement().getStyle()
+                .set("background", "#FFFFFF").set("border-radius", "16px")
+                .set("padding", "48px 20px").set("text-align", "center")
+                .set("border", "1px solid #E2E8F0");
 
-        // Group by dateLabel
-        String prevDate = null;
-        for (NotifItem notif : filtered) {
-            if (!notif.dateLabel.equalsIgnoreCase(prevDate)) {
-                Span dateHeader = new Span(notif.dateLabel);
-                dateHeader.getElement().getStyle()
-                    .set("font-size", "11px").set("font-weight", "800")
-                    .set("color", "#94A3B8").set("text-transform", "uppercase")
-                    .set("letter-spacing", "0.8px").set("display", "block")
-                    .set("margin", "20px 0 10px 4px");
-                contentWrap.add(dateHeader);
-                prevDate = notif.dateLabel;
+            Div iconBox = new Div();
+            iconBox.getElement().setProperty("innerHTML",
+                "<div style='width:56px;height:56px;border-radius:50%;background:#F1F5F9;margin:0 auto 16px auto;display:flex;align-items:center;justify-content:center;'>" +
+                "<svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 0 1-3.46 0'/></svg>" +
+                "</div>"
+            );
+
+            H3 emptyTitle = new H3("Belum Ada Notifikasi");
+            emptyTitle.getStyle().set("font-size", "16px").set("font-weight", "700").set("color", "#001934").set("margin", "0 0 6px 0");
+
+            Paragraph emptySub = new Paragraph("Aktivitas pesanan, pembayaran, dan informasi terbaru akan muncul di sini.");
+            emptySub.getStyle().set("font-size", "13px").set("color", "#64748B").set("margin", "0");
+
+            emptyCard.add(iconBox, emptyTitle, emptySub);
+            contentContainer.add(emptyCard);
+        } else {
+            Div listContainer = new Div();
+            listContainer.getElement().getStyle()
+                .set("display", "flex").set("flex-direction", "column").set("gap", "10px");
+
+            for (NotificationItem notif : filtered) {
+                listContainer.add(renderNotificationCard(notif));
             }
-            contentWrap.add(buildNotifCard(notif));
+            contentContainer.add(listContainer);
         }
-
-        // ─── Bottom Watermark / Illustration ───
-        Div watermark = new Div();
-        watermark.getElement().getStyle()
-            .set("text-align", "center")
-            .set("margin-top", "40px")
-            .set("opacity", "0.4");
-        watermark.getElement().setProperty("innerHTML",
-            "<svg width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='1.5' style='margin-bottom:6px;'>" +
-            "<path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'></path>" +
-            "<path d='M13.73 21a2 2 0 0 1-3.46 0'></path></svg>" +
-            "<div style='font-size:12px;font-weight:700;color:#94A3B8;'>Notifikasi ReWear</div>"
-        );
-        contentWrap.add(watermark);
     }
 
-    // ─── Build data ───
+    private Button createFilterPill(String label, String catKey) {
+        boolean isActive = catKey.equals(activeCategory);
+        Button btn = new Button(label);
+        btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btn.getElement().getStyle()
+            .set("font-size", "12px").set("font-weight", "700")
+            .set("padding", "6px 14px")
+            .set("border-radius", "20px")
+            .set("cursor", "pointer")
+            .set("transition", "all 0.2s ease")
+            .set("background", isActive ? "#001934" : "#F1F5F9")
+            .set("color", isActive ? "#FFFFFF" : "#475569");
 
-    private List<NotifItem> buildNotifications(User user) {
-        List<NotifItem> list = new ArrayList<>();
-
-        // Promo / Offer item
-        list.add(new NotifItem(
-            "promo-warga24",
-            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#D97706' stroke-width='2'><path d='M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z'/><line x1='12' y1='9' x2='12' y2='15'/></svg>",
-            "Potongan Harga 20% Menanti",
-            "Gunakan kode \"WARGA24\" untuk pembelian seragam bekas layak...",
-            "10:45", "HARI INI", "promo", "", "#FEF3C7"
-        ));
-
-        // Transaksi item
-        list.add(new NotifItem(
-            "trans-dikirim",
-            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><polyline points='3.27 6.96 12 12.01 20.73 6.96'/><line x1='12' y1='22.08' x2='12' y2='12'/></svg>",
-            "Pesanan Dikirim",
-            "Paket berisi \"Jaket Almamater SMKN 24\" sedang menuju lokasimu via...",
-            "08:20", "HARI INI", "transaksi", "orders", "#DBEAFE"
-        ));
-
-        // Verifikasi item
-        list.add(new NotifItem(
-            "sys-verified",
-            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/><polyline points='9 12 11 14 15 10'/></svg>",
-            "Verifikasi Warga Berhasil",
-            "Akunmu telah diverifikasi sebagai siswa aktif SMKN 24 Jakarta....",
-            "Kemarin", "KEMARIN", "sistem", "", "#DBEAFE"
-        ));
-
-        // Engagement item
-        list.add(new NotifItem(
-            "wish-liked",
-            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'/></svg>",
-            "Barangmu Disukai!",
-            "Seorang calon pembeli menyukai \"Kemeja Praktik Boga\" yang kamu...",
-            "Kemarin", "KEMARIN", "sistem", "", "#DBEAFE"
-        ));
-
-        try {
-            List<Order> buyerOrders = orderService.getBuyerOrders(user);
-            for (Order o : buyerOrders) {
-                String key = "buyer-order-" + o.getId();
-                String time = o.getCreatedAt() != null ? o.getCreatedAt().format(FMT) : "08:20";
-                list.add(new NotifItem(key, statusIcon(o.getStatus()), statusTitle(o.getStatus()),
-                    "Pesanan #" + o.getOrderNumber() + " — " + statusDesc(o.getStatus()),
-                    time, "KEMARIN", "transaksi", "orders", "#DBEAFE"));
-            }
-        } catch (Exception ignored) {}
-
-        return list;
+        btn.addClickListener(e -> {
+            activeCategory = catKey;
+            buildView();
+        });
+        return btn;
     }
 
-    // ─── Card builder ───────────────────────────────────────────────────────────
-
-    private Div buildNotifCard(NotifItem n) {
-        boolean read = isRead(n.key);
-
+    private Div renderNotificationCard(NotificationItem item) {
         Div card = new Div();
         card.getElement().getStyle()
-            .set("background", read ? "#F8FAFC" : "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "16px").set("padding", "14px 16px")
-            .set("margin-bottom", "12px").set("display", "flex")
-            .set("align-items", "flex-start").set("gap", "14px")
-            .set("cursor", "pointer").set("transition", "all 0.15s ease")
-            .set("position", "relative")
-            .set("box-shadow", "0 2px 6px rgba(0, 25, 52, 0.02)");
+            .set("background", isAllMarkedRead || item.isRead ? "#FFFFFF" : "#F8FAFF")
+            .set("border-radius", "14px")
+            .set("padding", "16px")
+            .set("border", isAllMarkedRead || item.isRead ? "1px solid #E2E8F0" : "1.5px solid #BFDBFE")
+            .set("box-shadow", "0 1px 3px rgba(0,25,52,0.03)")
+            .set("display", "flex")
+            .set("align-items", "flex-start")
+            .set("gap", "14px")
+            .set("transition", "transform 0.15s ease");
 
-        // SVG icon container (Circular)
-        Div iconBox = new Div();
-        iconBox.getElement().setProperty("innerHTML",
-            "<div style='width:42px;height:42px;border-radius:50%;" +
-            "background:" + (n.bgColor != null ? n.bgColor : "#DBEAFE") + ";" +
-            "display:flex;align-items:center;justify-content:center;" +
-            "flex-shrink:0;'>" + n.icon + "</div>");
+        // Icon circle
+        Div iconWrap = new Div();
+        iconWrap.getElement().getStyle()
+            .set("width", "40px").set("height", "40px").set("border-radius", "10px")
+            .set("background", item.iconBg).set("flex-shrink", "0")
+            .set("display", "flex").set("align-items", "center").set("justify-content", "center");
+        iconWrap.getElement().setProperty("innerHTML", item.iconSvg);
 
-        // Text & Time Block
-        Div textBlock = new Div();
-        textBlock.getElement().getStyle().set("flex", "1");
+        // Body
+        Div body = new Div();
+        body.getElement().getStyle().set("flex", "1");
 
-        Div topRow = new Div();
-        topRow.getElement().getStyle()
-            .set("display", "flex").set("align-items", "center")
-            .set("justify-content", "space-between").set("margin-bottom", "4px");
+        HorizontalLayout topMeta = new HorizontalLayout();
+        topMeta.setWidthFull();
+        topMeta.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        topMeta.setAlignItems(FlexComponent.Alignment.CENTER);
 
-        Span titleSpan = new Span(n.title);
-        titleSpan.getElement().getStyle()
-            .set("font-weight", "800").set("font-size", "14px")
-            .set("color", "#001934");
+        Span titleSpan = new Span(item.title);
+        titleSpan.getStyle().set("font-size", "14px").set("font-weight", "800").set("color", "#001934");
 
-        Div rightMeta = new Div();
-        rightMeta.getElement().getStyle().set("display", "flex").set("align-items", "center").set("gap", "8px");
+        Span timeSpan = new Span(item.timeAgo);
+        timeSpan.getStyle().set("font-size", "11px").set("color", "#94A3B8").set("font-weight", "600");
+        topMeta.add(titleSpan, timeSpan);
 
-        Span timeSpan = new Span(n.time);
-        timeSpan.getElement().getStyle()
-            .set("font-size", "11px").set("color", "#94A3B8").set("font-weight", "600");
+        Paragraph desc = new Paragraph(item.message);
+        desc.getStyle().set("font-size", "13px").set("color", "#475569").set("margin", "4px 0 10px 0").set("line-height", "1.4");
 
-        rightMeta.add(timeSpan);
+        body.add(topMeta, desc);
 
-        // Unread gold/brown dot
-        if (!read) {
-            Span dot = new Span();
-            dot.getElement().getStyle()
-                .set("width", "7px").set("height", "7px")
-                .set("background", "#B45309").set("border-radius", "50%")
-                .set("display", "inline-block");
-            rightMeta.add(dot);
+        if (item.actionRoute != null && !item.actionRoute.isBlank()) {
+            Button btnAction = new Button(item.actionLabel != null ? item.actionLabel : "Lihat Detail", e -> {
+                UI.getCurrent().navigate(item.actionRoute);
+            });
+            btnAction.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            btnAction.getStyle()
+                .set("font-size", "12px").set("font-weight", "800")
+                .set("color", "#001934").set("padding", "0").set("cursor", "pointer");
+            body.add(btnAction);
         }
 
-        topRow.add(titleSpan, rightMeta);
-
-        Span bodySpan = new Span(n.body);
-        bodySpan.getElement().getStyle()
-            .set("font-size", "12px").set("color", "#64748B")
-            .set("display", "block").set("line-height", "1.45");
-
-        textBlock.add(topRow, bodySpan);
-        card.add(iconBox, textBlock);
-
-        // Click: mark read & navigate or refresh
-        card.addClickListener(e -> {
-            markRead(n.key);
-            if (n.route != null && !n.route.isEmpty()) {
-                UI.getCurrent().navigate(n.route);
-            } else {
-                buildView();
-            }
-        });
-
+        card.add(iconWrap, body);
         return card;
     }
 
-    // ─── Empty state ────────────────────────────────────────────────────────────
+    private List<NotificationItem> collectUserNotifications(User user) {
+        List<NotificationItem> list = new ArrayList<>();
 
-    private Div buildEmptyState() {
-        Div empty = new Div();
-        empty.getElement().getStyle()
-            .set("text-align", "center").set("padding", "60px 20px")
-            .set("background", "#FFFFFF").set("border-radius", "16px")
-            .set("border", "1px solid #E2E8F0");
-        empty.getElement().setProperty("innerHTML",
-            "<div style='width:48px;height:48px;margin:0 auto 12px;border-radius:50%;background:#F1F5F9;display:flex;align-items:center;justify-content:center;'>" +
-            "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#64748B' stroke-width='2'><path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'></path><path d='M13.73 21a2 2 0 0 1-3.46 0'></path></svg>" +
-            "</div>" +
-            "<h3 style='font-size:16px;font-weight:800;color:#001934;margin:0 0 6px 0;'>Tidak Ada Aktivitas</h3>" +
-            "<p style='font-size:13px;color:#64748B;margin:0;'>Aktivitas transaksi dan notifikasimu akan muncul di sini.</p>"
-        );
-        return empty;
+        // 1. Buyer Orders
+        List<Order> buyerOrders = orderService.getBuyerOrders(user);
+        for (Order o : buyerOrders) {
+            String timeAgo = formatTimeAgo(o.getUpdatedAt() != null ? o.getUpdatedAt() : o.getCreatedAt());
+            LocalDateTime orderTime = o.getUpdatedAt() != null ? o.getUpdatedAt() : o.getCreatedAt();
+
+            if (o.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN) {
+                list.add(new NotificationItem(
+                    "Menunggu Pembayaran",
+                    "Pesanan #" + o.getOrderNumber() + " telah dibuat. Segera selesaikan pembayaran dan unggah bukti transfer agar pesanan segera diproses.",
+                    timeAgo, orderTime, "PEMBAYARAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#D97706' stroke-width='2'><rect x='2' y='5' width='20' height='14' rx='2'/><line x1='2' y1='10' x2='22' y2='10'/></svg>",
+                    "#FEF3C7", "orders", "Unggah Bukti Bayar ›", false
+                ));
+            } else if (o.getStatus() == OrderStatus.DIPROSES) {
+                list.add(new NotificationItem(
+                    "Pembayaran Diverifikasi",
+                    "Pembayaran pesanan #" + o.getOrderNumber() + " telah diverifikasi. Penjual sedang menyiapkan pesanan Anda.",
+                    timeAgo, orderTime, "PESANAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>",
+                    "#DBEAFE", "orders", "Lacak Pesanan ›", false
+                ));
+            } else if (o.getStatus() == OrderStatus.DIKIRIM) {
+                boolean isCod = o.getShippingMethod() == ShippingMethod.COD_SEKOLAH;
+                String msg = isCod
+                    ? "Jadwal COD telah ditentukan! Titik temu di " + (o.getShippingAddress() != null ? o.getShippingAddress() : "SMKN 24") + "."
+                    : "Pesanan #" + o.getOrderNumber() + " telah dikirim oleh penjual melalui " + (o.getCourierName() != null ? o.getCourierName().name() : "Kurir") + ".";
+                list.add(new NotificationItem(
+                    isCod ? "Jadwal COD Siap" : "Pesanan Dikirim",
+                    msg, timeAgo, orderTime, "PESANAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#16A34A' stroke-width='2'><path d='M1 3h15v13H1z'/><path d='M16 8h4l3 3v5h-7V8z'/><circle cx='5.5' cy='18.5' r='2.5'/><circle cx='18.5' cy='18.5' r='2.5'/></svg>",
+                    "#DCFCE7", "orders", "Lihat Jadwal & Titik Temu ›", false
+                ));
+            } else if (o.getStatus() == OrderStatus.SELESAI) {
+                list.add(new NotificationItem(
+                    "Pesanan Selesai",
+                    "Pesanan #" + o.getOrderNumber() + " telah selesai. Terima kasih telah bertransaksi di ReWear!",
+                    timeAgo, orderTime, "PESANAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#16A34A' stroke-width='2'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>",
+                    "#DCFCE7", "orders", "Beri Ulasan ›", true
+                ));
+            } else if (o.getStatus() == OrderStatus.KOMPLAIN) {
+                list.add(new NotificationItem(
+                    "Komplain Dalam Peninjauan",
+                    "Pengajuan komplain pesanan #" + o.getOrderNumber() + " sedang ditinjau oleh Admin ReWear. Dana Escrow tetap aman tertahan.",
+                    timeAgo, orderTime, "PEMBAYARAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#DC2626' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>",
+                    "#FEE2E2", "orders", "Lihat Sengketa ›", false
+                ));
+            }
+        }
+
+        // 2. Seller Orders
+        List<Order> sellerOrders = orderService.getSellerOrders(user);
+        for (Order so : sellerOrders) {
+            String timeAgo = formatTimeAgo(so.getUpdatedAt() != null ? so.getUpdatedAt() : so.getCreatedAt());
+            LocalDateTime soTime = so.getUpdatedAt() != null ? so.getUpdatedAt() : so.getCreatedAt();
+
+            if (so.getStatus() == OrderStatus.DIPROSES) {
+                list.add(new NotificationItem(
+                    "Pesanan Baru Masuk!",
+                    "Pembeli telah membayar pesanan #" + so.getOrderNumber() + " (Rp " + String.format("%,.0f", so.getTotalAmount().doubleValue()) + "). Silakan atur titik temu COD atau kirim paket.",
+                    timeAgo, soTime, "PESANAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#B45309' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>",
+                    "#FEF3C7", "seller", "Proses Pesanan Sekarang ›", false
+                ));
+            } else if (so.getStatus() == OrderStatus.KOMPLAIN) {
+                list.add(new NotificationItem(
+                    "Pemberitahuan Komplain Pembeli",
+                    "Pembeli mengajukan komplain atas pesanan #" + so.getOrderNumber() + ". Dana Escrow tertahan hingga keputusan admin.",
+                    timeAgo, soTime, "PEMBAYARAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#DC2626' stroke-width='2'><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/></svg>",
+                    "#FEE2E2", "seller", "Lihat Bukti Komplain ›", false
+                ));
+            } else if (so.getStatus() == OrderStatus.SELESAI) {
+                list.add(new NotificationItem(
+                    "Dana Penjualan Masuk!",
+                    "Pesanan #" + so.getOrderNumber() + " telah diselesaikan pembeli. Dana sebesar Rp " + String.format("%,.0f", so.getTotalAmount().doubleValue()) + " telah cair ke saldo ReWear Pay Anda.",
+                    timeAgo, soTime, "PEMBAYARAN",
+                    "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#16A34A' stroke-width='2'><line x1='12' y1='1' x2='12' y2='23'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>",
+                    "#DCFCE7", "profile?tab=rewearpay", "Cek Saldo Dompet ›", true
+                ));
+            }
+        }
+
+        // 3. School Verification Status
+        if (user.getSchool() != null) {
+            list.add(new NotificationItem(
+                "Akun Siswa Terverifikasi",
+                "Selamat! Akun Anda telah resmi terverifikasi sebagai Warga " + user.getSchool().getName() + ". Anda bebas bertransaksi di Pasar SMKN 24.",
+                formatTimeAgo(user.getCreatedAt()), user.getCreatedAt(), "AKUN",
+                "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>",
+                "#DBEAFE", "profile", "Lihat Profil ›", true
+            ));
+        }
+
+        // Sort descending by time
+        list.sort(Comparator.comparing(NotificationItem::getTime, Comparator.nullsLast(Comparator.reverseOrder())));
+        return list;
     }
 
-    // ─── Helpers ────────────────────────────────────────────────────────────────
-
-    private String statusIcon(OrderStatus s) {
-        return switch (s) {
-            case MENUNGGU_PEMBAYARAN -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#D97706' stroke-width='2'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>";
-            case DIBAYAR -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>";
-            case DIPROSES -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'/></svg>";
-            case DIKIRIM -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/><polyline points='3.27 6.96 12 12.01 20.73 6.96'/><line x1='12' y1='22.08' x2='12' y2='12'/></svg>";
-            case DITERIMA, SELESAI -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#16A34A' stroke-width='2'><polyline points='20 6 9 17 4 12'/></svg>";
-            case DIBATALKAN -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#EF4444' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/></svg>";
-            default -> "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/></svg>";
-        };
+    private String formatTimeAgo(LocalDateTime time) {
+        if (time == null) return "Baru saja";
+        LocalDateTime now = LocalDateTime.now();
+        long mins = ChronoUnit.MINUTES.between(time, now);
+        if (mins < 1) return "Baru saja";
+        if (mins < 60) return mins + " menit lalu";
+        long hours = ChronoUnit.HOURS.between(time, now);
+        if (hours < 24) return hours + " jam lalu";
+        long days = ChronoUnit.DAYS.between(time, now);
+        if (days < 7) return days + " hari lalu";
+        return time.format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
     }
 
-    private String statusTitle(OrderStatus s) {
-        return switch (s) {
-            case MENUNGGU_PEMBAYARAN -> "Menunggu Pembayaran";
-            case DIBAYAR -> "Pembayaran Diterima";
-            case DIPROSES -> "Pesanan Sedang Diproses";
-            case DIKIRIM -> "Pesanan Dikirim";
-            case DITERIMA -> "Pesanan Diterima";
-            case SELESAI -> "Pesanan Selesai";
-            case DIBATALKAN -> "Pesanan Dibatalkan";
-            default -> "Update Pesanan";
-        };
-    }
+    private static class NotificationItem {
+        String title;
+        String message;
+        String timeAgo;
+        LocalDateTime time;
+        String category;
+        String iconSvg;
+        String iconBg;
+        String actionRoute;
+        String actionLabel;
+        boolean isRead;
 
-    private String statusDesc(OrderStatus s) {
-        return switch (s) {
-            case MENUNGGU_PEMBAYARAN -> "Selesaikan pembayaranmu sebelum kadaluarsa.";
-            case DIBAYAR -> "Pembayaran berhasil! Menunggu penjual memproses pesanan.";
-            case DIPROSES -> "Penjual sedang mempersiapkan barangmu.";
-            case DIKIRIM -> "Barangmu sudah dalam perjalanan. Konfirmasi saat diterima.";
-            case DITERIMA -> "Kamu sudah menerima barang.";
-            case SELESAI -> "Transaksi selesai! Dana telah diteruskan ke penjual.";
-            case DIBATALKAN -> "Pesanan ini telah dibatalkan.";
-            default -> "Status pesanan diperbarui.";
-        };
-    }
+        public NotificationItem(String title, String message, String timeAgo, LocalDateTime time, String category,
+                                String iconSvg, String iconBg, String actionRoute, String actionLabel, boolean isRead) {
+            this.title = title;
+            this.message = message;
+            this.timeAgo = timeAgo;
+            this.time = time;
+            this.category = category;
+            this.iconSvg = iconSvg;
+            this.iconBg = iconBg;
+            this.actionRoute = actionRoute;
+            this.actionLabel = actionLabel;
+            this.isRead = isRead;
+        }
 
-    // ─── DTO ────────────────────────────────────────────────────────────────────
-
-    private static class NotifItem {
-        String key, icon, title, body, time, dateLabel, category, route, bgColor;
-
-        NotifItem(String key, String icon, String title, String body,
-                  String time, String dateLabel, String category, String route, String bgColor) {
-            this.key = key; this.icon = icon; this.title = title;
-            this.body = body; this.time = time; this.dateLabel = dateLabel;
-            this.category = category; this.route = route; this.bgColor = bgColor;
+        public LocalDateTime getTime() {
+            return time;
         }
     }
 }

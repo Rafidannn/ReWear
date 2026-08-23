@@ -76,4 +76,11 @@ public class ProductService {
         product.setStatus(ProductStatus.ACTIVE);
         return productRepository.save(product);
     }
+
+    public void deleteProduct(Product product) {
+        if (product == null) return;
+        product.setDeletedAt(java.time.LocalDateTime.now());
+        product.setStatus(ProductStatus.REMOVED);
+        productRepository.save(product);
+    }
 }

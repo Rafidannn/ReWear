@@ -1510,14 +1510,24 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
         salLeft.add(lbl, val, escrowTxt);
 
+        HorizontalLayout btnGroup = new HorizontalLayout();
+        btnGroup.setSpacing(true);
+
+        Button btnTopUp = new Button("Isi Saldo (Top-Up)", VaadinIcon.PLUS_CIRCLE.create());
+        btnTopUp.getElement().getStyle()
+            .set("background", "#2563EB").set("color", "#FFFFFF").set("font-weight", "800")
+            .set("border-radius", "8px").set("padding", "12px 20px").set("border", "none").set("cursor", "pointer");
+        btnTopUp.addClickListener(e -> openTopUpDialog());
+
         Button btnWithdraw = new Button("Tarik Saldo", VaadinIcon.MONEY_WITHDRAW.create());
         btnWithdraw.getElement().getStyle()
             .set("background", "#F5C45E").set("color", "#001934").set("font-weight", "800")
-            .set("border-radius", "8px").set("padding", "12px 24px").set("border", "none").set("cursor", "pointer")
+            .set("border-radius", "8px").set("padding", "12px 20px").set("border", "none").set("cursor", "pointer")
             .set("box-shadow", "0 2px 8px rgba(245, 196, 94, 0.35)");
         btnWithdraw.addClickListener(e -> openWithdrawDialog(saldoReWearPay.doubleValue()));
 
-        cardHero.add(salLeft, btnWithdraw);
+        btnGroup.add(btnTopUp, btnWithdraw);
+        cardHero.add(salLeft, btnGroup);
         wrapper.add(cardHero);
 
         // Riwayat Penarikan Dana
@@ -1685,6 +1695,70 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
         dialog.add(layout);
         dialog.getFooter().add(btnCancel, btnSubmit);
+        dialog.open();
+    }
+
+    private void openTopUpDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Isi Saldo ReWear Pay (Top-Up)");
+        dialog.setWidth("440px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Paragraph desc = new Paragraph("Pilih nominal saldo yang ingin Anda tambahkan ke dompet ReWear Pay Anda:");
+        desc.getStyle().set("font-size", "13px").set("color", "#475569").set("margin", "0 0 8px 0");
+
+        TextField amountField = new TextField("Nominal Top-Up (Rp)");
+        amountField.setValue("50000");
+        amountField.setWidthFull();
+
+        HorizontalLayout quickPills = new HorizontalLayout();
+        quickPills.setSpacing(true);
+        String[] presets = {"20000", "50000", "100000", "200000"};
+        for (String p : presets) {
+            Button pBtn = new Button("Rp " + String.format("%,d", Integer.parseInt(p)), e -> amountField.setValue(p));
+            pBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            pBtn.getStyle().set("font-size", "11px").set("font-weight", "700").set("background", "#F1F5F9").set("color", "#001934");
+            quickPills.add(pBtn);
+        }
+
+        ComboBox<String> methodCombo = new ComboBox<>("Metode Pembayaran");
+        methodCombo.setItems("QRIS Instan SMKN 24", "Transfer Bank BCA", "Transfer Bank Mandiri", "GoPay / ShopeePay");
+        methodCombo.setValue("QRIS Instan SMKN 24");
+        methodCombo.setWidthFull();
+
+        layout.add(desc, amountField, quickPills, methodCombo);
+
+        Button btnCancel = new Button("Batal", e -> dialog.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnConfirm = new Button("Konfirmasi Isi Saldo", VaadinIcon.CHECK_CIRCLE.create(), e -> {
+            try {
+                double val = Double.parseDouble(amountField.getValue().replaceAll("[^0-9]", ""));
+                if (val < 10000) {
+                    Notification.show("Minimal top-up saldo adalah Rp 10.000", 2500, Notification.Position.TOP_CENTER);
+                    return;
+                }
+                User current = AuthGuard.getCurrentUser();
+                if (current != null) {
+                    BigDecimal curBal = current.getBalance() != null ? current.getBalance() : BigDecimal.ZERO;
+                    current.setBalance(curBal.add(BigDecimal.valueOf(val)));
+                    userService.saveUser(current);
+                    Notification notif = Notification.show("Top-Up Berhasil! Saldo sebesar Rp " + String.format("%,.0f", val) + " telah ditambahkan ke ReWear Pay.", 3500, Notification.Position.TOP_CENTER);
+                    notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    dialog.close();
+                    buildMainLayout();
+                }
+            } catch (Exception ex) {
+                Notification.show("Nominal tidak valid: " + ex.getMessage(), 2500, Notification.Position.TOP_CENTER);
+            }
+        });
+        btnConfirm.getStyle().set("background", "#2563EB").set("color", "#FFFFFF").set("font-weight", "700");
+
+        dialog.add(layout);
+        dialog.getFooter().add(btnCancel, btnConfirm);
         dialog.open();
     }
 
