@@ -27,17 +27,86 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final BankAccountRepository bankAccountRepository;
     private final com.example.application.repository.user.UserRepository userRepository;
+    private final com.example.application.repository.order.OrderStatusLogRepository orderStatusLogRepository;
 
     public PaymentService(PaymentRepository paymentRepository,
                           SellerPayoutRepository sellerPayoutRepository,
                           OrderRepository orderRepository,
                           BankAccountRepository bankAccountRepository,
-                          com.example.application.repository.user.UserRepository userRepository) {
+                          com.example.application.repository.user.UserRepository userRepository,
+                          com.example.application.repository.order.OrderStatusLogRepository orderStatusLogRepository) {
         this.paymentRepository = paymentRepository;
         this.sellerPayoutRepository = sellerPayoutRepository;
         this.orderRepository = orderRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.userRepository = userRepository;
+        this.orderStatusLogRepository = orderStatusLogRepository;
+    }
+
+    public Payment createOrUpdatePayment(Order order, String paymentMethod, String paymentGateway, String paymentProofUrl, BigDecimal grossAmount) {
+        if (order == null) return null;
+        Payment payment = paymentRepository.findFirstByOrderOrderByCreatedAtDesc(order).orElseGet(() -> {
+            Payment p = new Payment();
+            p.setOrder(order);
+            return p;
+        });
+
+        payment.setPaymentMethod(paymentMethod != null ? paymentMethod : "TRANSFER");
+        payment.setPaymentGateway(paymentGateway != null ? paymentGateway : "MANUAL");
+        if (paymentProofUrl != null && !paymentProofUrl.isBlank()) {
+            payment.setPaymentProofUrl(paymentProofUrl);
+        }
+        payment.setGrossAmount(grossAmount != null ? grossAmount : order.getTotalAmount());
+        payment.setTransactionStatus(com.example.application.model.payment.TransactionStatus.PENDING);
+        return paymentRepository.save(payment);
+    }
+
+    public List<Payment> getPendingVerificationPayments() {
+        return paymentRepository.findAllByOrderByCreatedAtDesc().stream()
+            .filter(p -> p.getTransactionStatus() == com.example.application.model.payment.TransactionStatus.PENDING &&
+                         p.getPaymentProofUrl() != null && !p.getPaymentProofUrl().isBlank())
+            .toList();
+    }
+
+    public List<Payment> getAllPayments() {
+        return paymentRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public void approvePayment(Payment payment, String adminNotes, User admin) {
+        if (payment == null) return;
+        payment.setTransactionStatus(com.example.application.model.payment.TransactionStatus.SETTLEMENT);
+        payment.setPaidAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        Order order = payment.getOrder();
+        if (order != null) {
+            order.setStatus(OrderStatus.DIPROSES);
+            order.setPaidAt(LocalDateTime.now());
+            orderRepository.save(order);
+
+            com.example.application.model.order.OrderStatusLog log = new com.example.application.model.order.OrderStatusLog();
+            log.setOrder(order);
+            log.setStatus(OrderStatus.DIPROSES);
+            log.setNotes("Pembayaran diverifikasi oleh Admin (" + (admin != null ? admin.getFullName() : "Admin") + "). " + (adminNotes != null && !adminNotes.isBlank() ? adminNotes : "Dana masuk ke Escrow."));
+            log.setChangedBy(admin);
+            orderStatusLogRepository.save(log);
+        }
+    }
+
+    public void rejectPayment(Payment payment, String reason, User admin) {
+        if (payment == null) return;
+        payment.setTransactionStatus(com.example.application.model.payment.TransactionStatus.FAILURE);
+        paymentRepository.save(payment);
+
+        Order order = payment.getOrder();
+        if (order != null) {
+            com.example.application.model.order.OrderStatusLog log = new com.example.application.model.order.OrderStatusLog();
+            log.setOrder(order);
+            log.setStatus(order.getStatus());
+            log.setNotes("Bukti pembayaran ditolak Admin: " + (reason != null ? reason : "Bukti tidak valid / nominal tidak cocok."));
+            log.setChangedBy(admin);
+            orderStatusLogRepository.save(log);
+        }
     }
 
     public List<Payment> getPaymentsForOrder(Order order) {

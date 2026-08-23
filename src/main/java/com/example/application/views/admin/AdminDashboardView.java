@@ -6,8 +6,10 @@ import com.example.application.model.order.Order;
 import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.OrderStatus;
 import com.example.application.model.order.ReturnStatus;
+import com.example.application.model.payment.Payment;
 import com.example.application.model.payment.PayoutStatus;
 import com.example.application.model.payment.SellerPayout;
+import com.example.application.model.payment.TransactionStatus;
 import com.example.application.model.product.Product;
 import com.example.application.model.product.ProductStatus;
 import com.example.application.model.user.AccountStatus;
@@ -28,6 +30,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -43,9 +46,9 @@ import com.vaadin.flow.router.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@PageTitle("Panel Admin & Moderasi - ReWear")
 @Route(value = "admin", layout = MainLayout.class)
 @RouteAlias(value = "panel-admin", layout = MainLayout.class)
-@PageTitle("Panel Admin & Moderasi | ReWear SMKN 24")
 @Menu(order = 4, icon = "line-awesome/svg/shield-alt-solid.svg", title = "Admin & Moderasi")
 public class AdminDashboardView extends VerticalLayout implements BeforeEnterObserver {
 
@@ -65,9 +68,10 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
     private Button tabUsersBtn;
     private Button tabProductsBtn;
     private Button tabReportsBtn;
+    private Button tabPaymentsBtn;
+    private Button tabDisputesBtn;
     private Button tabOrdersBtn;
     private Button tabPayoutsBtn;
-    private Button tabDisputesBtn;
 
     public AdminDashboardView(ModerationService moderationService,
                               UserService userService,
@@ -127,7 +131,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             .set("color", "#001934")
             .set("margin", "0 0 4px 0");
 
-        Paragraph pageSub = new Paragraph("Pusat kendali ekosistem ReWear: kelola pengguna, verifikasi sekolah, moderasi katalog produk, dan laporan pelanggaran.");
+        Paragraph pageSub = new Paragraph("Pusat kendali ekosistem ReWear: kelola pengguna, verifikasi pembayaran struk transfer, moderasi katalog, dan arbitrase sengketa.");
         pageSub.getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0");
         headerLeft.add(pageTitle, pageSub);
 
@@ -153,12 +157,13 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         tabOverviewBtn = createTabButton("Ringkasan Platform", VaadinIcon.DASHBOARD, "overview");
         tabUsersBtn = createTabButton("Manajemen Pengguna", VaadinIcon.USERS, "users");
         tabProductsBtn = createTabButton("Moderasi Produk", VaadinIcon.PACKAGE, "products");
-        tabReportsBtn = createTabButton("Laporan & Pengaduan", VaadinIcon.WARNING, "reports");
+        tabPaymentsBtn = createTabButton("Verifikasi Pembayaran", VaadinIcon.CHECK_SQUARE_O, "payments");
         tabDisputesBtn = createTabButton("Komplain & Retur", VaadinIcon.EXCLAMATION_CIRCLE, "disputes");
+        tabReportsBtn = createTabButton("Laporan Pelanggaran", VaadinIcon.WARNING, "reports");
         tabOrdersBtn = createTabButton("Transaksi Global", VaadinIcon.MONEY_EXCHANGE, "orders");
         tabPayoutsBtn = createTabButton("Pencairan Dana", VaadinIcon.MONEY_WITHDRAW, "payouts");
 
-        tabsBar.add(tabOverviewBtn, tabUsersBtn, tabProductsBtn, tabReportsBtn, tabDisputesBtn, tabOrdersBtn, tabPayoutsBtn);
+        tabsBar.add(tabOverviewBtn, tabUsersBtn, tabProductsBtn, tabPaymentsBtn, tabDisputesBtn, tabReportsBtn, tabOrdersBtn, tabPayoutsBtn);
         maxWrapper.add(tabsBar);
 
         // 3. Dynamic Tab Content
@@ -208,6 +213,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         updateTabButtonHighlight(tabOverviewBtn, "overview".equals(activeTab));
         updateTabButtonHighlight(tabUsersBtn, "users".equals(activeTab));
         updateTabButtonHighlight(tabProductsBtn, "products".equals(activeTab));
+        updateTabButtonHighlight(tabPaymentsBtn, "payments".equals(activeTab));
         updateTabButtonHighlight(tabReportsBtn, "reports".equals(activeTab));
         updateTabButtonHighlight(tabDisputesBtn, "disputes".equals(activeTab));
         updateTabButtonHighlight(tabOrdersBtn, "orders".equals(activeTab));
@@ -220,6 +226,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         switch (activeTab) {
             case "users" -> contentContainer.add(renderUsersTab());
             case "products" -> contentContainer.add(renderProductsTab());
+            case "payments" -> contentContainer.add(renderPaymentsTab());
             case "reports" -> contentContainer.add(renderReportsTab());
             case "disputes" -> contentContainer.add(renderDisputesTab());
             case "orders" -> contentContainer.add(renderOrdersTab());
@@ -939,6 +946,210 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         d.add(layout);
         Button btnClose = new Button("Tutup", e -> d.close());
         d.getFooter().add(btnClose);
+        d.open();
+    }
+
+    // ==========================================
+    // TAB: VERIFIKASI PEMBAYARAN
+    // ==========================================
+
+    private Component renderPaymentsTab() {
+        Div wrapper = new Div();
+        wrapper.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "20px");
+
+        List<Payment> allPayments = paymentService.getAllPayments();
+        List<Payment> pendingPayments = paymentService.getPendingVerificationPayments();
+        long approvedCount = allPayments.stream().filter(p -> p.getTransactionStatus() == TransactionStatus.SETTLEMENT).count();
+
+        // 1. Metric Cards
+        HorizontalLayout metricsRow = new HorizontalLayout();
+        metricsRow.setWidthFull();
+        metricsRow.setSpacing(true);
+
+        metricsRow.add(
+            createMetricCard("Menunggu Verifikasi", String.valueOf(pendingPayments.size()), "Struk / Bukti transfer masuk", VaadinIcon.HOURGLASS, "#D97706"),
+            createMetricCard("Pembayaran Terverifikasi", String.valueOf(approvedCount), "Dana tersimpan di Escrow", VaadinIcon.CHECK_CIRCLE, "#16A34A"),
+            createMetricCard("Total Transaksi Pembayaran", String.valueOf(allPayments.size()), "Semua metode transaksi", VaadinIcon.CREDIT_CARD, "#2563EB")
+        );
+        wrapper.add(metricsRow);
+
+        // 2. Table of Payments
+        Grid<Payment> grid = new Grid<>();
+        grid.setWidthFull();
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_NO_BORDER);
+
+        grid.addColumn(p -> p.getOrder() != null ? "#" + p.getOrder().getOrderNumber() : "-")
+            .setHeader("No. Pesanan").setWidth("140px").setFlexGrow(0);
+
+        grid.addColumn(p -> p.getCreatedAt() != null ? p.getCreatedAt().format(DATE_FMT) : "-")
+            .setHeader("Tanggal").setWidth("160px").setFlexGrow(0);
+
+        grid.addColumn(p -> (p.getOrder() != null && p.getOrder().getBuyer() != null) ? p.getOrder().getBuyer().getFullName() : "-")
+            .setHeader("Pembeli").setWidth("160px");
+
+        grid.addComponentColumn(p -> {
+            Span methodBadge = new Span(p.getPaymentGateway() != null ? p.getPaymentGateway() : (p.getPaymentMethod() != null ? p.getPaymentMethod() : "MANUAL"));
+            methodBadge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px")
+                .set("background", "#EFF6FF").set("color", "#1E40AF");
+            return methodBadge;
+        }).setHeader("Metode / Channel").setWidth("150px").setFlexGrow(0);
+
+        grid.addColumn(p -> "Rp " + String.format("%,.0f", p.getGrossAmount() != null ? p.getGrossAmount().doubleValue() : 0.0))
+            .setHeader("Nominal").setWidth("130px").setFlexGrow(0);
+
+        grid.addComponentColumn(p -> {
+            if (p.getPaymentProofUrl() != null && !p.getPaymentProofUrl().isBlank()) {
+                String imgUrl = p.getPaymentProofUrl().startsWith("/") ? p.getPaymentProofUrl() : "/" + p.getPaymentProofUrl();
+                Image thumb = new Image(imgUrl, "Bukti");
+                thumb.getStyle().set("width", "38px").set("height", "38px").set("object-fit", "cover").set("border-radius", "6px").set("cursor", "pointer").set("border", "1px solid #CBD5E1");
+                thumb.addClickListener(e -> openPaymentProofPreviewDialog(p));
+                return thumb;
+            } else {
+                Span noProof = new Span("Tanpa Bukti");
+                noProof.getStyle().set("font-size", "11px").set("color", "#94A3B8");
+                return noProof;
+            }
+        }).setHeader("Bukti Transfer").setWidth("120px").setFlexGrow(0);
+
+        grid.addComponentColumn(p -> {
+            Span statusBadge = new Span();
+            statusBadge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+            if (p.getTransactionStatus() == TransactionStatus.SETTLEMENT) {
+                statusBadge.setText("Terverifikasi");
+                statusBadge.getStyle().set("background", "#DCFCE7").set("color", "#15803D");
+            } else if (p.getTransactionStatus() == TransactionStatus.FAILURE || p.getTransactionStatus() == TransactionStatus.DENY) {
+                statusBadge.setText("Ditolak");
+                statusBadge.getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
+            } else {
+                statusBadge.setText("Menunggu Cek");
+                statusBadge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+            }
+            return statusBadge;
+        }).setHeader("Status").setWidth("130px").setFlexGrow(0);
+
+        grid.addComponentColumn(p -> {
+            HorizontalLayout actions = new HorizontalLayout();
+            actions.setSpacing(true);
+
+            if (p.getTransactionStatus() == TransactionStatus.PENDING) {
+                Button btnApprove = new Button("Terima", VaadinIcon.CHECK.create(), e -> openApprovePaymentDialog(p));
+                btnApprove.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnApprove.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#16A34A");
+
+                Button btnReject = new Button("Tolak", VaadinIcon.CLOSE.create(), e -> openRejectPaymentDialog(p));
+                btnReject.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnReject.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#DC2626");
+
+                actions.add(btnApprove, btnReject);
+            } else if (p.getPaymentProofUrl() != null && !p.getPaymentProofUrl().isBlank()) {
+                Button btnView = new Button("Lihat Bukti", VaadinIcon.EYE.create(), e -> openPaymentProofPreviewDialog(p));
+                btnView.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnView.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB");
+                actions.add(btnView);
+            }
+
+            return actions;
+        }).setHeader("Aksi Admin").setWidth("180px").setFlexGrow(0);
+
+        grid.setItems(allPayments);
+
+        Div card = createCardContainer("Daftar Pembayaran & Verifikasi Struk Transfer (" + allPayments.size() + ")",
+            "Verifikasi struk pembayaran QRIS / Bank Transfer sebelum pesanan diproses oleh penjual");
+        card.add(grid);
+        wrapper.add(card);
+
+        return wrapper;
+    }
+
+    private void openPaymentProofPreviewDialog(Payment payment) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Bukti Pembayaran - #" + (payment.getOrder() != null ? payment.getOrder().getOrderNumber() : ""));
+        d.setWidth("500px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+
+        String imgUrl = payment.getPaymentProofUrl();
+        if (imgUrl != null) {
+            imgUrl = imgUrl.startsWith("/") ? imgUrl : "/" + imgUrl;
+            Image img = new Image(imgUrl, "Bukti Pembayaran");
+            img.setWidthFull();
+            img.getStyle().set("max-height", "450px").set("object-fit", "contain").set("border-radius", "8px").set("border", "1px solid #E2E8F0");
+            layout.add(img);
+        }
+
+        Span nominalText = new Span("Nominal: Rp " + String.format("%,.0f", payment.getGrossAmount() != null ? payment.getGrossAmount().doubleValue() : 0.0));
+        nominalText.getStyle().set("font-weight", "800").set("color", "#001934");
+        layout.add(nominalText);
+
+        Button btnClose = new Button("Tutup", e -> d.close());
+        d.getFooter().add(btnClose);
+        d.add(layout);
+        d.open();
+    }
+
+    private void openApprovePaymentDialog(Payment payment) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Konfirmasi Terima Pembayaran");
+        d.setWidth("450px");
+
+        Paragraph p = new Paragraph("Verifikasi bahwa dana sebesar Rp " + String.format("%,.0f", payment.getGrossAmount() != null ? payment.getGrossAmount().doubleValue() : 0.0) + " telah masuk ke rekening / e-wallet ReWear. Pesanan akan otomatis berstatus DIPROSES.");
+        p.getStyle().set("font-size", "14px").set("color", "#475569");
+
+        TextField notesField = new TextField("Catatan Admin (Opsional)");
+        notesField.setWidthFull();
+        notesField.setPlaceholder("Contoh: Dana verified mutasi BCA");
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnConfirm = new Button("Ya, Terima & Proses Pesanan", VaadinIcon.CHECK_CIRCLE.create(), e -> {
+            User admin = AuthGuard.getCurrentUser();
+            paymentService.approvePayment(payment, notesField.getValue(), admin);
+            Notification notif = Notification.show("Pembayaran berhasil diverifikasi! Pesanan siap diproses penjual.", 3000, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            d.close();
+            renderActiveTab();
+        });
+        btnConfirm.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-weight", "700");
+
+        d.add(new VerticalLayout(p, notesField));
+        d.getFooter().add(btnCancel, btnConfirm);
+        d.open();
+    }
+
+    private void openRejectPaymentDialog(Payment payment) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Tolak Bukti Pembayaran");
+        d.setWidth("450px");
+
+        Paragraph p = new Paragraph("Tolak bukti pembayaran untuk pesanan #" + (payment.getOrder() != null ? payment.getOrder().getOrderNumber() : "") + ". Pembeli akan diminta mengunggah bukti yang valid.");
+        p.getStyle().set("font-size", "14px").set("color", "#DC2626");
+
+        TextField reasonField = new TextField("Alasan Penolakan");
+        reasonField.setWidthFull();
+        reasonField.setRequired(true);
+        reasonField.setPlaceholder("Contoh: Struk tidak terbaca / Nominal kurang");
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnConfirm = new Button("Tolak Bukti", VaadinIcon.CLOSE_CIRCLE.create(), e -> {
+            if (reasonField.isEmpty()) {
+                Notification.show("Harap masukkan alasan penolakan.", 2500, Notification.Position.TOP_CENTER);
+                return;
+            }
+            User admin = AuthGuard.getCurrentUser();
+            paymentService.rejectPayment(payment, reasonField.getValue(), admin);
+            Notification notif = Notification.show("Bukti pembayaran telah ditolak.", 3000, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            d.close();
+            renderActiveTab();
+        });
+        btnConfirm.getStyle().set("background", "#DC2626").set("color", "#FFFFFF").set("font-weight", "700");
+
+        d.add(new VerticalLayout(p, reasonField));
+        d.getFooter().add(btnCancel, btnConfirm);
         d.open();
     }
 }

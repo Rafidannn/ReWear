@@ -11,6 +11,7 @@ import com.example.application.model.order.ShippingMethod;
 import com.example.application.model.user.User;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.order.OrderService;
+import com.example.application.service.payment.PaymentService;
 import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.UI;
@@ -44,15 +45,17 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
 
     private final OrderService orderService;
     private final ModerationService moderationService;
+    private final PaymentService paymentService;
     private final Div contentContainer = new Div();
     private String activeFilter = "SEMUA";
 
     private static final DateTimeFormatter DATE_FMT =
         DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
-    public OrderHistoryView(OrderService orderService, ModerationService moderationService) {
+    public OrderHistoryView(OrderService orderService, ModerationService moderationService, PaymentService paymentService) {
         this.orderService = orderService;
         this.moderationService = moderationService;
+        this.paymentService = paymentService;
         setWidthFull();
         getElement().getStyle()
             .set("background", "linear-gradient(160deg, #F0F4FF 0%, #F8FAFF 100%)")
@@ -483,8 +486,27 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             });
 
             actionContainer.add(btnLacak, btnTerima);
+        } else if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN) {
+            // Status MENUNGGU PEMBAYARAN -> Tombol Upload Bukti & Instruksi
+            Button btnUploadProof = new Button("Unggah Bukti Bayar", VaadinIcon.UPLOAD.create());
+            btnUploadProof.getElement().getStyle()
+                .set("background", "#16A34A").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnUploadProof.addClickListener(e -> openUploadPaymentProofDialog(order));
+
+            Button btnInstruksi = new Button("Instruksi Bayar", VaadinIcon.QRCODE.create());
+            btnInstruksi.getElement().getStyle()
+                .set("background", "#001934").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "10px")
+                .set("font-weight", "800").set("font-size", "13px")
+                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+            btnInstruksi.addClickListener(e -> openPaymentInstructionDialog(order));
+
+            actionContainer.add(btnUploadProof, btnInstruksi);
         } else {
-            // Status DIPROSES / DIBAYAR / MENUNGGU PEMBAYARAN
+            // Status DIPROSES / DIBAYAR
             Button btnChat = new Button("Chat Penjual", VaadinIcon.CHAT.create());
             btnChat.getElement().getStyle()
                 .set("background", "#FFFFFF").set("color", "#001934")
@@ -1267,4 +1289,110 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         return row;
     }
 
+    private void openUploadPaymentProofDialog(Order order) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Unggah Bukti Pembayaran - #" + order.getOrderNumber());
+        d.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+
+        Paragraph info = new Paragraph("Total Tagihan: Rp " + String.format("%,.0f", order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : 0.0) +
+            " • Metode: " + (order.getPaymentMethod() != null ? order.getPaymentMethod() : "QRIS / Transfer"));
+        info.getStyle().set("font-size", "13px").set("color", "#475569").set("margin", "0");
+
+        MemoryBuffer buffer = new MemoryBuffer();
+        Upload upload = new Upload(buffer);
+        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp");
+        upload.setMaxFileSize(5 * 1024 * 1024);
+
+        final String[] uploadedPath = new String[1];
+        Image preview = new Image();
+        preview.setVisible(false);
+        preview.getStyle().set("width", "100px").set("height", "100px").set("object-fit", "cover").set("border-radius", "8px").set("border", "1px solid #CBD5E1");
+
+        upload.addSucceededListener(event -> {
+            try {
+                String ext = event.getFileName().contains(".") ? event.getFileName().substring(event.getFileName().lastIndexOf(".")) : ".jpg";
+                String fileName = "payment_proof_" + System.currentTimeMillis() + ext;
+                java.io.File uploadDir = new java.io.File(WebMvcConfig.UPLOAD_BASE_DIR);
+                if (!uploadDir.exists()) uploadDir.mkdirs();
+                java.io.File destFile = new java.io.File(uploadDir, fileName);
+                try (java.io.InputStream in = buffer.getInputStream();
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(destFile)) {
+                    in.transferTo(out);
+                }
+                uploadedPath[0] = "images/uploads/" + fileName;
+                preview.setSrc("/" + uploadedPath[0]);
+                preview.setVisible(true);
+                Notification.show("Foto struk berhasil dimuat!", 2000, Notification.Position.TOP_CENTER);
+            } catch (Exception ex) {
+                Notification.show("Gagal memproses file: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+
+        Button btnCancel = new Button("Batal", e -> d.close());
+        btnCancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button btnSubmit = new Button("Kirim Bukti Pembayaran", VaadinIcon.CHECK.create(), e -> {
+            if (uploadedPath[0] == null || uploadedPath[0].isBlank()) {
+                Notification.show("Silakan unggah foto bukti transfer terlebih dahulu.", 2500, Notification.Position.TOP_CENTER);
+                return;
+            }
+            paymentService.createOrUpdatePayment(order, order.getPaymentMethod(), "MANUAL", uploadedPath[0], order.getTotalAmount());
+            Notification notif = Notification.show("Bukti pembayaran berhasil dikirim! Admin akan segera memverifikasi pesanan Anda.", 3500, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            d.close();
+            buildView();
+        });
+        btnSubmit.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-weight", "700");
+
+        layout.add(info, upload, preview);
+        d.add(layout);
+        d.getFooter().add(btnCancel, btnSubmit);
+        d.open();
+    }
+
+    private void openPaymentInstructionDialog(Order order) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Instruksi Pembayaran - #" + order.getOrderNumber());
+        d.setWidth("460px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+
+        Div nominalBox = new Div();
+        nominalBox.getStyle().set("background", "#EFF6FF").set("padding", "12px").set("border-radius", "8px").set("text-align", "center").set("border", "1px solid #BFDBFE").set("width", "100%").set("box-sizing", "border-box");
+        Span nomLabel = new Span("Total yang Harus Dibayar:");
+        nomLabel.getStyle().set("font-size", "12px").set("color", "#1E40AF").set("display", "block");
+        Span nomValue = new Span("Rp " + String.format("%,.0f", order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : 0.0));
+        nomValue.getStyle().set("font-size", "20px").set("font-weight", "800").set("color", "#001934").set("display", "block");
+        nominalBox.add(nomLabel, nomValue);
+        layout.add(nominalBox);
+
+        boolean isQris = order.getPaymentMethod() != null && order.getPaymentMethod().toUpperCase().contains("QRIS");
+
+        if (isQris) {
+            Image qrisImg = new Image("/images/qris.png", "QRIS Statis");
+            qrisImg.getStyle().set("width", "180px").set("height", "180px").set("object-fit", "contain").set("align-self", "center").set("border", "1px solid #E2E8F0").set("border-radius", "8px").set("padding", "6px").set("background", "#FFFFFF");
+            Paragraph p = new Paragraph("Scan QRIS di atas via GoPay, OVO, DANA, ShopeePay, atau BCA Mobile. Setelah transfer, klik tombol Unggah Bukti Bayar.");
+            p.getStyle().set("font-size", "12px").set("color", "#475569").set("text-align", "center");
+            layout.add(qrisImg, p);
+        } else {
+            Div tfDetails = new Div();
+            tfDetails.getStyle().set("background", "#F8FAFC").set("padding", "12px").set("border-radius", "8px").set("border", "1px solid #CBD5E1").set("width", "100%").set("box-sizing", "border-box");
+            tfDetails.getElement().setProperty("innerHTML",
+                "<div style='font-size:13px;color:#001934;margin-bottom:6px;'><strong>Rekening / E-Wallet Tujuan:</strong></div>" +
+                "<div style='font-size:14px;font-weight:700;color:#001934;'>GoPay / ShopeePay / Dana / OVO: 0812-3456-7890</div>" +
+                "<div style='font-size:14px;font-weight:700;color:#001934;margin-top:4px;'>Bank BCA: 8820-4918-23</div>" +
+                "<div style='font-size:12px;color:#64748B;margin-top:4px;'>a.n. <strong>ReWear SMKN 24 Jakarta</strong></div>"
+            );
+            layout.add(tfDetails);
+        }
+
+        Button btnClose = new Button("Tutup", e -> d.close());
+        d.getFooter().add(btnClose);
+        d.add(layout);
+        d.open();
+    }
 }

@@ -1,11 +1,13 @@
 package com.example.application.views.order;
 
+import com.example.application.config.WebMvcConfig;
 import com.example.application.model.order.*;
 import com.example.application.model.product.Product;
 import com.example.application.model.user.Address;
 import com.example.application.model.user.User;
 import com.example.application.service.order.CartService;
 import com.example.application.service.order.OrderService;
+import com.example.application.service.payment.PaymentService;
 import com.example.application.service.product.ProductService;
 import com.example.application.service.user.AddressService;
 import com.example.application.util.AuthGuard;
@@ -14,6 +16,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
@@ -22,13 +25,15 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 
 import java.util.*;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +47,7 @@ public class CheckoutView extends Div {
     private final OrderService orderService;
     private final AddressService addressService;
     private final ProductService productService;
+    private final PaymentService paymentService;
 
     // Mode checkout: true = Pasar SMKN 24 (COD Sekolah), false = Reguler/Ekspedisi
     private boolean isPasarSmkn24Mode = true;
@@ -59,6 +65,8 @@ public class CheckoutView extends Div {
 
     private int selectedShippingIndex = 0;
     private int selectedPaymentIndex = 0;
+    private String selectedTransferChannel = "GOPAY";
+    private String uploadedPaymentProofPath = null;
 
     private final Span subtotalSpan = new Span("Rp0");
     private final Span shippingFeeSpan = new Span("Gratis");
@@ -77,11 +85,12 @@ public class CheckoutView extends Div {
 
     private List<CartItem> allCartItems = new ArrayList<>();
 
-    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService, ProductService productService) {
+    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService, ProductService productService, PaymentService paymentService) {
         this.cartService = cartService;
         this.orderService = orderService;
         this.addressService = addressService;
         this.productService = productService;
+        this.paymentService = paymentService;
 
         if (!AuthGuard.requireLogin(UI.getCurrent())) return;
 
@@ -809,32 +818,162 @@ public class CheckoutView extends Div {
 
     private void renderPaymentOptions() {
         paymentSectionContainer.removeAll();
-        paymentSectionContainer.addClassName("rw-payment-methods-grid");
 
-        if (isPasarSmkn24Mode) {
-            Div pay0 = buildPayCard(0, "gold-wrap",
-                "<path d='M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2'/><rect x='9' y='9' width='12' height='10' rx='2'/><circle cx='15' cy='14' r='1'/>",
-                "#B45309", "COD Sekolah", "rw-pay-badge-gold", "Tunai (Bebas Biaya)",
-                "Bayar cash langsung saat COD di area SMKN 24.", 0);
+        Div grid = new Div();
+        grid.getStyle().set("display", "grid").set("grid-template-columns", "repeat(auto-fit, minmax(220px, 1fr))").set("gap", "12px").set("margin-bottom", "14px");
 
-            Div pay1 = buildPayCard(1, "blue-wrap",
-                "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z'/>",
-                "#3730A3", "QRIS Instan", "rw-pay-badge-blue", "E-Wallet / Bank",
-                "Scan QRIS Gopay/OVO/Dana/BCA tanpa biaya admin.", 1);
+        Div pay0 = buildPayCard(0, "blue-wrap",
+            "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>",
+            "#1E40AF", "ReWear Pay", "rw-pay-badge-blue", "Saldo Escrow Instan",
+            "Bayar langsung dari saldo akun ReWear Anda.", 0);
 
-            paymentSectionContainer.add(pay0, pay1);
-        } else {
-            Div pay0 = buildPayCard(0, "blue-wrap",
-                "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/>",
-                "#3730A3", "Escrow (Rekber)", "rw-pay-badge-blue", "Terjamin 100%",
-                "Dana ditahan sistem hingga barang diterima.", 0);
+        Div pay1 = buildPayCard(1, "gold-wrap",
+            "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z'/>",
+            "#B45309", "QRIS Statis SMKN 24", "rw-pay-badge-gold", "GoPay/Dana/BCA",
+            "Scan QRIS instan & upload struk bukti bayar.", 1);
 
-            Div pay1 = buildPayCard(1, "gold-wrap",
-                "<rect x='2' y='5' width='20' height='14' rx='2'/><line x1='2' y1='10' x2='22' y2='10'/>",
-                "#B45309", "Transfer Bank", "rw-pay-badge-gold", "Virtual Account",
-                "BCA, Mandiri, BRI, BNI Virtual Account.", 1);
+        Div pay2 = buildPayCard(2, "purple-wrap",
+            "<rect x='2' y='5' width='20' height='14' rx='2'/><line x1='2' y1='10' x2='22' y2='10'/>",
+            "#7C3AED", "Transfer Bank & E-Wallet", "rw-pay-badge-blue", "GoPay / BCA / Mandiri",
+            "Transfer ke rekening / e-wallet & upload bukti.", 2);
 
-            paymentSectionContainer.add(pay0, pay1);
+        grid.add(pay0, pay1, pay2);
+        paymentSectionContainer.add(grid);
+
+        // Sub-panel for QRIS or Transfer
+        if (selectedPaymentIndex == 1) {
+            // QRIS Section
+            Div qrisPanel = new Div();
+            qrisPanel.getStyle()
+                .set("background", "#F8FAFC").set("border", "1.5px solid #CBD5E1")
+                .set("border-radius", "12px").set("padding", "16px").set("margin-top", "12px");
+
+            H5 qrisTitle = new H5("Scan QRIS ReWear SMKN 24");
+            qrisTitle.getStyle().set("margin", "0 0 6px 0").set("color", "#001934").set("font-weight", "800");
+            Paragraph qrisDesc = new Paragraph("Gunakan GoPay, OVO, DANA, ShopeePay, BCA Mobile, atau aplikasi QRIS lainnya. Setelah pembayaran berhasil, unggah foto bukti transfer di bawah agar admin dapat memverifikasi.");
+            qrisDesc.getStyle().set("font-size", "13px").set("color", "#475569").set("margin", "0 0 14px 0");
+
+            HorizontalLayout qrisBody = new HorizontalLayout();
+            qrisBody.setSpacing(true);
+            qrisBody.setAlignItems(FlexComponent.Alignment.CENTER);
+
+            Image qrisImg = new Image("/images/qris.png", "QRIS ReWear");
+            qrisImg.getStyle().set("width", "160px").set("height", "160px").set("object-fit", "contain")
+                .set("border-radius", "8px").set("border", "1px solid #CBD5E1").set("background", "#FFFFFF").set("padding", "6px");
+
+            VerticalLayout uploadLayout = new VerticalLayout();
+            uploadLayout.setSpacing(true);
+            uploadLayout.setPadding(false);
+
+            Span uploadLabel = new Span("Unggah Foto Bukti Transfer / Struk QRIS:");
+            uploadLabel.getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
+
+            MemoryBuffer buffer = new MemoryBuffer();
+            Upload upload = new Upload(buffer);
+            upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp");
+            upload.setMaxFileSize(5 * 1024 * 1024);
+
+            Image proofPreview = new Image();
+            proofPreview.setVisible(false);
+            proofPreview.getStyle().set("width", "80px").set("height", "80px").set("object-fit", "cover").set("border-radius", "6px").set("border", "1px solid #CBD5E1");
+
+            upload.addSucceededListener(event -> {
+                try {
+                    String ext = event.getFileName().contains(".") ? event.getFileName().substring(event.getFileName().lastIndexOf(".")) : ".jpg";
+                    String fileName = "qris_proof_" + System.currentTimeMillis() + ext;
+                    java.io.File uploadDir = new java.io.File(WebMvcConfig.UPLOAD_BASE_DIR);
+                    if (!uploadDir.exists()) uploadDir.mkdirs();
+                    java.io.File destFile = new java.io.File(uploadDir, fileName);
+                    try (java.io.InputStream in = buffer.getInputStream();
+                         java.io.FileOutputStream out = new java.io.FileOutputStream(destFile)) {
+                        in.transferTo(out);
+                    }
+                    uploadedPaymentProofPath = "images/uploads/" + fileName;
+                    proofPreview.setSrc("/" + uploadedPaymentProofPath);
+                    proofPreview.setVisible(true);
+                    Notification.show("Bukti pembayaran berhasil diunggah!", 2500, Notification.Position.TOP_CENTER);
+                } catch (Exception ex) {
+                    Notification.show("Gagal mengunggah foto: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+                }
+            });
+
+            uploadLayout.add(uploadLabel, upload, proofPreview);
+            qrisBody.add(qrisImg, uploadLayout);
+            qrisPanel.add(qrisTitle, qrisDesc, qrisBody);
+            paymentSectionContainer.add(qrisPanel);
+
+        } else if (selectedPaymentIndex == 2) {
+            // Transfer Bank & E-Wallet Section
+            Div tfPanel = new Div();
+            tfPanel.getStyle()
+                .set("background", "#F8FAFC").set("border", "1.5px solid #CBD5E1")
+                .set("border-radius", "12px").set("padding", "16px").set("margin-top", "12px");
+
+            H5 tfTitle = new H5("Pilih Channel Transfer (E-Wallet / Rekening Bank)");
+            tfTitle.getStyle().set("margin", "0 0 6px 0").set("color", "#001934").set("font-weight", "800");
+
+            ComboBox<String> channelCombo = new ComboBox<>("Pilih Rekening / E-Wallet Tujuan");
+            channelCombo.setItems(
+                "GOPAY - 081234567890 (a.n. ReWear SMKN 24)",
+                "SHOPEEPAY - 081234567890 (a.n. ReWear SMKN 24)",
+                "DANA - 081234567890 (a.n. ReWear SMKN 24)",
+                "OVO - 081234567890 (a.n. ReWear SMKN 24)",
+                "BCA - 8820491823 (a.n. ReWear SMKN 24)",
+                "MANDIRI - 1370019283712 (a.n. ReWear SMKN 24)",
+                "BRI - 020601098234501 (a.n. ReWear SMKN 24)"
+            );
+            channelCombo.setValue("GOPAY - 081234567890 (a.n. ReWear SMKN 24)");
+            channelCombo.setWidthFull();
+            channelCombo.addValueChangeListener(e -> {
+                if (e.getValue() != null) {
+                    selectedTransferChannel = e.getValue().split(" - ")[0].trim();
+                }
+            });
+
+            Div infoBox = new Div();
+            infoBox.getStyle().set("background", "#EFF6FF").set("padding", "10px 14px").set("border-radius", "8px").set("margin", "12px 0")
+                .set("font-size", "13px").set("color", "#1E40AF").set("border", "1px solid #BFDBFE");
+            infoBox.setText("Silakan transfer sesuai nominal total pesanan ke nomor akun di atas, kemudian unggah foto bukti transfer struk di bawah:");
+
+            VerticalLayout uploadLayout = new VerticalLayout();
+            uploadLayout.setSpacing(true);
+            uploadLayout.setPadding(false);
+
+            Span uploadLabel = new Span("Unggah Foto Bukti Transfer Struk:");
+            uploadLabel.getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
+
+            MemoryBuffer buffer = new MemoryBuffer();
+            Upload upload = new Upload(buffer);
+            upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp");
+            upload.setMaxFileSize(5 * 1024 * 1024);
+
+            Image proofPreview = new Image();
+            proofPreview.setVisible(false);
+            proofPreview.getStyle().set("width", "80px").set("height", "80px").set("object-fit", "cover").set("border-radius", "6px").set("border", "1px solid #CBD5E1");
+
+            upload.addSucceededListener(event -> {
+                try {
+                    String ext = event.getFileName().contains(".") ? event.getFileName().substring(event.getFileName().lastIndexOf(".")) : ".jpg";
+                    String fileName = "tf_proof_" + System.currentTimeMillis() + ext;
+                    java.io.File uploadDir = new java.io.File(WebMvcConfig.UPLOAD_BASE_DIR);
+                    if (!uploadDir.exists()) uploadDir.mkdirs();
+                    java.io.File destFile = new java.io.File(uploadDir, fileName);
+                    try (java.io.InputStream in = buffer.getInputStream();
+                         java.io.FileOutputStream out = new java.io.FileOutputStream(destFile)) {
+                        in.transferTo(out);
+                    }
+                    uploadedPaymentProofPath = "images/uploads/" + fileName;
+                    proofPreview.setSrc("/" + uploadedPaymentProofPath);
+                    proofPreview.setVisible(true);
+                    Notification.show("Bukti pembayaran berhasil diunggah!", 2500, Notification.Position.TOP_CENTER);
+                } catch (Exception ex) {
+                    Notification.show("Gagal mengunggah foto: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+                }
+            });
+
+            uploadLayout.add(uploadLabel, upload, proofPreview);
+            tfPanel.add(tfTitle, channelCombo, infoBox, uploadLayout);
+            paymentSectionContainer.add(tfPanel);
         }
     }
 
@@ -928,9 +1067,9 @@ public class CheckoutView extends Div {
             .set("background", "#EFF6FF").set("border", "1px solid #BFDBFE")
             .set("border-radius", "8px").set("padding", "12px 16px");
 
-        String payText = isPasarSmkn24Mode
-            ? (selectedPaymentIndex == 0 ? "COD Sekolah (Bayar Cash)" : "QRIS Instan SMKN 24")
-            : (selectedPaymentIndex == 0 ? "Escrow Rekber Safety" : "Transfer Bank / Virtual Account");
+        String payText = selectedPaymentIndex == 0 ? "ReWear Pay (Saldo Otomatis)"
+            : selectedPaymentIndex == 1 ? "QRIS Instan SMKN 24"
+            : "Transfer (" + selectedTransferChannel + ")";
 
         payBox.add(
             buildDialogRow(VaadinIcon.CREDIT_CARD, "Pembayaran", payText),
@@ -1024,9 +1163,9 @@ public class CheckoutView extends Div {
                 double serviceFeeVal = isPasarSmkn24Mode ? 0 : Math.max(2500, subtotalVal * 0.01);
                 double totalVal = subtotalVal + shippingCostVal + serviceFeeVal;
 
-                String paymentMethodStr = isPasarSmkn24Mode
-                    ? (selectedPaymentIndex == 0 ? "COD_SEKOLAH" : "QRIS")
-                    : (selectedPaymentIndex == 0 ? "ESCROW" : "TRANSFER_BANK");
+                String paymentMethodStr = selectedPaymentIndex == 0 ? "REWEAR_PAY"
+                    : selectedPaymentIndex == 1 ? "QRIS"
+                    : "TRANSFER_" + selectedTransferChannel;
 
                 ShippingMethod shippingMethod = isPasarSmkn24Mode ? ShippingMethod.COD_SEKOLAH
                     : (selectedShippingIndex == 0 ? ShippingMethod.LAINNYA : selectedShippingIndex == 1 ? ShippingMethod.GOSEND : ShippingMethod.EKSPEDISI);
@@ -1042,10 +1181,13 @@ public class CheckoutView extends Div {
                 order.setTotalAmount(BigDecimal.valueOf(totalVal));
                 order.setPaymentMethod(paymentMethodStr);
                 order.setShippingMethod(shippingMethod);
-                if (isPasarSmkn24Mode || "COD_SEKOLAH".equals(paymentMethodStr)) {
+
+                if (selectedPaymentIndex == 0) {
+                    // ReWear Pay Saldo Langsung
                     order.setStatus(OrderStatus.DIPROSES);
                 } else {
-                    order.setStatus(OrderStatus.DIPROSES);
+                    // QRIS atau Transfer Bank & E-Wallet: Menunggu Pembayaran & Verifikasi Admin
+                    order.setStatus(OrderStatus.MENUNGGU_PEMBAYARAN);
                 }
 
                 List<OrderItem> orderItems = new ArrayList<>();
@@ -1083,6 +1225,11 @@ public class CheckoutView extends Div {
                 }
 
                 orderService.createOrder(order, orderItems, buyer);
+
+                // Create Payment Record
+                String gateway = selectedPaymentIndex == 0 ? "SALDO" : selectedPaymentIndex == 1 ? "QRIS" : selectedTransferChannel;
+                paymentService.createOrUpdatePayment(order, paymentMethodStr, gateway, uploadedPaymentProofPath, BigDecimal.valueOf(totalVal));
+
                 orderCount++;
                 lastOrderNumber = order.getOrderNumber();
             }
@@ -1102,9 +1249,9 @@ public class CheckoutView extends Div {
             }
 
             // Tampilkan sukses dan redirect
-            String notifMsg = orderCount > 1
-                ? orderCount + " Pesanan Berhasil Dibuat (Dipesan dari " + orderCount + " penjual berbeda)"
-                : "Pesanan Berhasil Dibuat! Order #" + lastOrderNumber;
+            String notifMsg = selectedPaymentIndex == 0
+                ? "Pesanan Berhasil Dibuat & Dibayar! Order #" + lastOrderNumber
+                : "Pesanan Berhasil Dibuat! Silakan periksa status verifikasi pembayaran di Riwayat Pesanan.";
 
             Notification successNotif = Notification.show(notifMsg, 4000, Notification.Position.TOP_CENTER);
             successNotif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
