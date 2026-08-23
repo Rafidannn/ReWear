@@ -37,22 +37,25 @@ public class HomeView extends VerticalLayout {
     private final CategoryService categoryService;
     private final ModerationService moderationService;
 
-    private static final String SVG_CHECK =
-        "<svg width='11' height='11' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
-        "<path d='M2 6L5 9L10 3' stroke='#001934' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/>" +
-        "</svg>";
+    private static final String SVG_CHECK = "<svg width='11' height='11' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'>"
+            +
+            "<path d='M2 6L5 9L10 3' stroke='#001934' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/>"
+            +
+            "</svg>";
 
-    private static final String SVG_STAR_FILLED =
-        "<svg width='12' height='12' viewBox='0 0 24 24' fill='#F0BF5A' xmlns='http://www.w3.org/2000/svg'>" +
-        "<polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/>" +
-        "</svg>";
+    private static final String SVG_STAR_FILLED = "<svg width='12' height='12' viewBox='0 0 24 24' fill='#F0BF5A' xmlns='http://www.w3.org/2000/svg'>"
+            +
+            "<polygon points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'/>"
+            +
+            "</svg>";
 
     private final Div cardsGrid = new Div();
     private final Div filterPillsContainer = new Div();
     private String activeCategoryFilter = "Semua";
     private Span marketCountBadge;
 
-    public HomeView(ProductService productService, CategoryService categoryService, ModerationService moderationService) {
+    public HomeView(ProductService productService, CategoryService categoryService,
+            ModerationService moderationService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.moderationService = moderationService;
@@ -61,36 +64,37 @@ public class HomeView extends VerticalLayout {
         setPadding(false);
         setWidthFull();
         getElement().getStyle()
-            .set("padding", "0")
-            .set("margin", "0")
-            .set("width", "100%")
-            .set("max-width", "100%");
+                .set("padding", "0")
+                .set("margin", "0")
+                .set("width", "100%")
+                .set("max-width", "100%");
 
         add(
-            createMobileHeaderBar(),
-            createHeroSection(),
-            createCategorySection(),
-            createSchoolMarketSection(),
-            createCtaBannerSection(),
-            createFooter()
-        );
+                createMobileHeaderBar(),
+                createHeroSection(),
+                createCategorySection(),
+                createSchoolMarketSection(),
+                createCtaBannerSection(),
+                createFooter());
 
         // Initial product rendering
         filterAndRenderProducts("Semua", false);
     }
 
-    /* -----------------------------------------------------------------
-       1. HERO BANNER — Full-Width, 0px radius (Figma Exact)
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * 1. HERO BANNER — Full-Width, 0px radius (Figma Exact)
+     * -----------------------------------------------------------------
+     */
     private Component createHeroSection() {
         Div heroContainer = new Div();
         heroContainer.addClassNames("hero-banner-section", "hero-banner");
         heroContainer.setId("hero-section");
         heroContainer.getElement().getStyle()
-            .set("border-radius", "0")
-            .set("margin", "0")
-            .set("padding", "0")
-            .set("width", "100%");
+                .set("border-radius", "0")
+                .set("margin", "0")
+                .set("padding", "0")
+                .set("width", "100%");
 
         Span badge = new Span("Sustainable Fashion");
         badge.addClassName("hero-badge");
@@ -100,20 +104,20 @@ public class HomeView extends VerticalLayout {
         title.getElement().getStyle().set("white-space", "pre-line");
 
         Paragraph desc = new Paragraph(
-            "Temukan barang berkualitas dari komunitas sekolahmu. Lebih hemat, lebih hijau, dan mendukung ekonomi lokal.");
+                "Temukan barang berkualitas dari komunitas sekolahmu. Lebih hemat, lebih hijau, dan mendukung ekonomi lokal.");
         desc.addClassName("hero-desc");
 
         Button btnBelanja = new Button("Mulai Belanja");
         btnBelanja.addClassName("btn-gold");
-        btnBelanja.addClickListener(e ->
-            UI.getCurrent().getPage().executeJs("var el = document.getElementById($0); if(el) el.scrollIntoView({behavior:'smooth'});", "pasar-section")
-        );
+        btnBelanja.addClickListener(e -> UI.getCurrent().getPage().executeJs(
+                "var el = document.getElementById($0); if(el) el.scrollIntoView({behavior:'smooth'});",
+                "pasar-section"));
 
         Button btnLearn = new Button("Pelajari Selengkapnya");
         btnLearn.addClassName("btn-outline-light");
-        btnLearn.addClickListener(e ->
-            UI.getCurrent().getPage().executeJs("var el = document.getElementById($0); if(el) el.scrollIntoView({behavior:'smooth'});", "category-section")
-        );
+        btnLearn.addClickListener(e -> UI.getCurrent().getPage().executeJs(
+                "var el = document.getElementById($0); if(el) el.scrollIntoView({behavior:'smooth'});",
+                "category-section"));
 
         Div btnLayout = new Div(btnBelanja, btnLearn);
         btnLayout.addClassName("hero-btns");
@@ -121,11 +125,11 @@ public class HomeView extends VerticalLayout {
         // Carousel Dot Indicators (Figma Exact)
         Div dots = new Div();
         dots.getElement().setProperty("innerHTML",
-            "<div style='display:flex;gap:6px;margin-top:24px;'>" +
-            "<span style='width:8px;height:8px;border-radius:50%;background:#FFDEA2;'></span>" +
-            "<span style='width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);'></span>" +
-            "</div>"
-        );
+                "<div style='display:flex;gap:6px;margin-top:24px;'>" +
+                        "<span style='width:8px;height:8px;border-radius:50%;background:#FFDEA2;'></span>" +
+                        "<span style='width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);'></span>"
+                        +
+                        "</div>");
 
         Div innerContainer = new Div(badge, title, desc, btnLayout, dots);
         innerContainer.addClassName("hero-inner-container");
@@ -134,9 +138,11 @@ public class HomeView extends VerticalLayout {
         return heroContainer;
     }
 
-    /* -----------------------------------------------------------------
-       2. JELAJAHI KATEGORI SECTION
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * 2. JELAJAHI KATEGORI SECTION
+     * -----------------------------------------------------------------
+     */
     private Component createCategorySection() {
         Div sectionWrapper = new Div();
         sectionWrapper.setWidthFull();
@@ -148,7 +154,7 @@ public class HomeView extends VerticalLayout {
 
         Div headerRow = new Div();
         headerRow.addClassName("rw-section-header");
-        
+
         Div titleGroup = new Div();
         H2 secTitle = new H2("Jelajahi Kategori");
         secTitle.addClassName("rw-section-title");
@@ -221,8 +227,8 @@ public class HomeView extends VerticalLayout {
         iconCircle.addClassName("category-icon-circle");
         iconCircle.getElement().getStyle().set("color", color);
         iconCircle.getElement().setProperty("innerHTML",
-            "<svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" + svgPath + "</svg>"
-        );
+                "<svg width='28' height='28' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>"
+                        + svgPath + "</svg>");
 
         Span titleSpan = new Span(cat.getName());
         titleSpan.addClassName("category-title");
@@ -233,9 +239,11 @@ public class HomeView extends VerticalLayout {
         return card;
     }
 
-    /* -----------------------------------------------------------------
-       3. PASAR SMKN 24 SECTION (Background #EFF4FF - Figma Exact)
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * 3. PASAR SMKN 24 SECTION (Background #EFF4FF - Figma Exact)
+     * -----------------------------------------------------------------
+     */
     private Component createSchoolMarketSection() {
         Div container = new Div();
         container.setWidthFull();
@@ -247,23 +255,23 @@ public class HomeView extends VerticalLayout {
 
         Div sectionHeader = new Div();
         sectionHeader.getElement().setProperty("innerHTML",
-            "<div class='pasar-header'>" +
-            "<div class='pasar-icon-wrapper'>" +
-            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>" +
-            "</div>" +
-            "<div><h2 class='pasar-title-main'>Pasar SMKN 24</h2>" +
-            "<p class='pasar-title-sub'>Produk eksklusif dari warga sekolah terverifikasi</p></div>" +
-            "</div>"
-        );
+                "<div class='pasar-header'>" +
+                        "<div class='pasar-icon-wrapper'>" +
+                        "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>"
+                        +
+                        "</div>" +
+                        "<div><h2 class='pasar-title-main'>Pasar SMKN 24</h2>" +
+                        "<p class='pasar-title-sub'>Produk eksklusif dari warga sekolah terverifikasi</p></div>" +
+                        "</div>");
 
         // Filter Pills Row
         filterPillsContainer.setWidthFull();
         filterPillsContainer.getElement().getStyle()
-            .set("display", "flex")
-            .set("flex-wrap", "wrap")
-            .set("gap", "8px")
-            .set("margin-bottom", "24px")
-            .set("align-items", "center");
+                .set("display", "flex")
+                .set("flex-wrap", "wrap")
+                .set("gap", "8px")
+                .set("margin-bottom", "24px")
+                .set("align-items", "center");
 
         cardsGrid.addClassName("products-grid-container");
         cardsGrid.setWidthFull();
@@ -284,18 +292,17 @@ public class HomeView extends VerticalLayout {
         List<Product> allProducts = productService.findActiveWithCategory();
         if (currentUser != null && currentUser.getId() != null) {
             allProducts = allProducts.stream()
-                .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
-                .toList();
+                    .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
+                    .toList();
         }
 
         List<Product> filtered = allProducts;
         if (!"Semua".equalsIgnoreCase(categoryName) && !"Semua Kategori".equalsIgnoreCase(categoryName)) {
             filtered = allProducts.stream()
-                .filter(p -> p.getCategory() != null && (
-                    p.getCategory().getName().equalsIgnoreCase(categoryName) ||
-                    (p.getCategory().getSlug() != null && p.getCategory().getSlug().equalsIgnoreCase(categoryName))
-                ))
-                .toList();
+                    .filter(p -> p.getCategory() != null && (p.getCategory().getName().equalsIgnoreCase(categoryName) ||
+                            (p.getCategory().getSlug() != null
+                                    && p.getCategory().getSlug().equalsIgnoreCase(categoryName))))
+                    .toList();
         }
 
         // 3. Populate cards grid
@@ -310,34 +317,34 @@ public class HomeView extends VerticalLayout {
                 ratingStr = String.format("%.1f", avg);
             }
             cardsGrid.add(createProductCard(
-                p.getId(), p.getName(), imgUrl,
-                p.getPrice(), ratingStr, reviewCount, p.isSchoolMarket()
-            ));
+                    p.getId(), p.getName(), imgUrl,
+                    p.getPrice(), ratingStr, reviewCount, p.isSchoolMarket()));
         }
 
         if (filtered.isEmpty()) {
             Div empty = new Div();
             empty.getElement().getStyle()
-                .set("padding", "36px 20px")
-                .set("text-align", "center")
-                .set("width", "100%")
-                .set("grid-column", "1 / -1");
-            
+                    .set("padding", "36px 20px")
+                    .set("text-align", "center")
+                    .set("width", "100%")
+                    .set("grid-column", "1 / -1");
+
             H4 emptyTitle = new H4("Belum Ada Produk di Kategori Ini");
             emptyTitle.getElement().getStyle().set("color", "#001934").set("margin-bottom", "8px");
-            Paragraph emptySub = new Paragraph("Coba jelajahi kategori lainnya atau reset filter untuk melihat semua barang.");
+            Paragraph emptySub = new Paragraph(
+                    "Coba jelajahi kategori lainnya atau reset filter untuk melihat semua barang.");
             emptySub.getElement().getStyle().set("color", "#64748B").set("font-size", "14px");
 
             Button btnReset = new Button("Tampilkan Semua Barang", e -> filterAndRenderProducts("Semua", false));
             btnReset.getElement().getStyle()
-                .set("background", "#001934")
-                .set("color", "#F5C45E")
-                .set("font-weight", "700")
-                .set("border-radius", "9999px")
-                .set("border", "none")
-                .set("padding", "8px 20px")
-                .set("margin-top", "12px")
-                .set("cursor", "pointer");
+                    .set("background", "#001934")
+                    .set("color", "#F5C45E")
+                    .set("font-weight", "700")
+                    .set("border-radius", "9999px")
+                    .set("border", "none")
+                    .set("padding", "8px 20px")
+                    .set("margin-top", "12px")
+                    .set("cursor", "pointer");
 
             empty.add(emptyTitle, emptySub, btnReset);
             cardsGrid.add(empty);
@@ -345,7 +352,8 @@ public class HomeView extends VerticalLayout {
 
         // 4. Smooth scroll if requested
         if (smoothScroll) {
-            UI.getCurrent().getPage().executeJs("var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
+            UI.getCurrent().getPage().executeJs(
+                    "var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
         }
     }
 
@@ -360,29 +368,29 @@ public class HomeView extends VerticalLayout {
 
         for (String opt : pillOptions) {
             boolean isActive = opt.equalsIgnoreCase(activeCategoryFilter) ||
-                ("Semua".equalsIgnoreCase(opt) && "Semua Kategori".equalsIgnoreCase(activeCategoryFilter));
+                    ("Semua".equalsIgnoreCase(opt) && "Semua Kategori".equalsIgnoreCase(activeCategoryFilter));
 
             Span pill = new Span(opt);
             pill.getElement().getStyle()
-                .set("padding", "7px 16px")
-                .set("border-radius", "9999px")
-                .set("font-size", "13px")
-                .set("font-weight", isActive ? "700" : "600")
-                .set("cursor", "pointer")
-                .set("transition", "all 0.2s ease")
-                .set("user-select", "none");
+                    .set("padding", "7px 16px")
+                    .set("border-radius", "9999px")
+                    .set("font-size", "13px")
+                    .set("font-weight", isActive ? "700" : "600")
+                    .set("cursor", "pointer")
+                    .set("transition", "all 0.2s ease")
+                    .set("user-select", "none");
 
             if (isActive) {
                 pill.getElement().getStyle()
-                    .set("background", "#001934")
-                    .set("color", "#F5C45E")
-                    .set("border", "1px solid #001934")
-                    .set("box-shadow", "0 2px 8px rgba(0, 25, 52, 0.2)");
+                        .set("background", "#001934")
+                        .set("color", "#F5C45E")
+                        .set("border", "1px solid #001934")
+                        .set("box-shadow", "0 2px 8px rgba(0, 25, 52, 0.2)");
             } else {
                 pill.getElement().getStyle()
-                    .set("background", "#FFFFFF")
-                    .set("color", "#475569")
-                    .set("border", "1px solid #E2E8F0");
+                        .set("background", "#FFFFFF")
+                        .set("color", "#475569")
+                        .set("border", "1px solid #E2E8F0");
             }
 
             pill.addClickListener(e -> filterAndRenderProducts(opt, false));
@@ -390,27 +398,29 @@ public class HomeView extends VerticalLayout {
         }
     }
 
-    /* -----------------------------------------------------------------
-       HELPER: Product Card Generator (Pasar SMKN 24)
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * HELPER: Product Card Generator (Pasar SMKN 24)
+     * -----------------------------------------------------------------
+     */
     private Component createProductCard(Long id, String name, String imgUrl,
-                                        BigDecimal priceVal, String rating,
-                                        int reviewCount, boolean isVerified) {
+            BigDecimal priceVal, String rating,
+            int reviewCount, boolean isVerified) {
         Div card = new Div();
         card.addClassName("product-card");
         card.getElement().getStyle().set("cursor", "pointer");
 
         String badgeHtml = isVerified
-            ? "<div class='verified-badge' style='position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:5px;background:#F5C45E;color:#001934;font-weight:700;font-size:11px;padding:4px 10px;border-radius:9999px;z-index:2;'>"
-              + SVG_CHECK + "Warga SMKN 24</div>"
-            : "";
+                ? "<div class='verified-badge' style='position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:5px;background:#F5C45E;color:#001934;font-weight:700;font-size:11px;padding:4px 10px;border-radius:9999px;z-index:2;'>"
+                        + SVG_CHECK + "Warga SMKN 24</div>"
+                : "";
 
         Div imgWrapper = new Div();
         imgWrapper.addClassName("product-img-wrapper");
         imgWrapper.getElement().setProperty("innerHTML",
-            "<img src='" + imgUrl + "' alt='" + name + "' class='product-img' style='width:100%;height:100%;object-fit:cover;'/>"
-            + badgeHtml
-        );
+                "<img src='" + imgUrl + "' alt='" + name
+                        + "' class='product-img' style='width:100%;height:100%;object-fit:cover;'/>"
+                        + badgeHtml);
 
         Div infoArea = new Div();
         infoArea.addClassName("product-info-area");
@@ -424,12 +434,12 @@ public class HomeView extends VerticalLayout {
         Div ratingRow = new Div();
         if (rating != null) {
             ratingRow.getElement().setProperty("innerHTML",
-                "<div style='display:flex;align-items:center;gap:6px;margin-bottom:12px;'>"
-                + "<span style='display:inline-flex;align-items:center;gap:2px;'>" + SVG_STAR_FILLED + "</span>"
-                + "<span style='font-size:12px;font-weight:700;color:#F0BF5A;'>" + rating + "</span>"
-                + "<span style='font-size:12px;color:#94A3B8;'>(" + reviewCount + ")</span>"
-                + "</div>"
-            );
+                    "<div style='display:flex;align-items:center;gap:6px;margin-bottom:12px;'>"
+                            + "<span style='display:inline-flex;align-items:center;gap:2px;'>" + SVG_STAR_FILLED
+                            + "</span>"
+                            + "<span style='font-size:12px;font-weight:700;color:#F0BF5A;'>" + rating + "</span>"
+                            + "<span style='font-size:12px;color:#94A3B8;'>(" + reviewCount + ")</span>"
+                            + "</div>");
         }
 
         Button btnDetail = new Button("Lihat Detail");
@@ -449,9 +459,11 @@ public class HomeView extends VerticalLayout {
         return card;
     }
 
-    /* -----------------------------------------------------------------
-       5. CTA BANNER SECTION (Rounded Box 24px - Figma Exact)
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * 5. CTA BANNER SECTION (Rounded Box 24px - Figma Exact)
+     * -----------------------------------------------------------------
+     */
     private Component createCtaBannerSection() {
         Div wrapper = new Div();
         wrapper.setWidthFull();
@@ -463,24 +475,27 @@ public class HomeView extends VerticalLayout {
         Div ctaContainer = new Div();
         ctaContainer.addClassName("cta-banner");
         ctaContainer.getElement().setProperty("innerHTML",
-            "<div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;position:relative;z-index:1;'>" +
-            "<div>" +
-            "<h2 style='font-size:26px;font-weight:800;color:#FFFFFF;margin:0 0 10px 0;'>Siap untuk Berkontribusi?</h2>" +
-            "<p style='color:#94A3B8;max-width:520px;margin:0;line-height:1.6;font-size:15px;'>Mulai jual barang yang tidak terpakai atau temukan harta karun baru hari ini. Bergabunglah dengan ribuan warga SMKN 24 lainnya.</p>" +
-            "</div>" +
-            "<div style='display:flex;gap:12px;flex-wrap:wrap;'>" +
-            "<button id='btn-cta-jual' style='background:#FFFFFF;color:#0F172A;font-weight:700;border:none;border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer;font-family:Inter,sans-serif;transition:all 0.2s;'>Mulai Berjualan</button>" +
-            "<button id='btn-cta-daftar' style='background:#FFDEA2;color:#261900;font-weight:700;border:none;border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer;font-family:Inter,sans-serif;transition:all 0.2s;'>Buat Akun</button>" +
-            "</div></div>"
-        );
+                "<div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;position:relative;z-index:1;'>"
+                        +
+                        "<div>" +
+                        "<h2 style='font-size:26px;font-weight:800;color:#FFFFFF;margin:0 0 10px 0;'>Siap untuk Berkontribusi?</h2>"
+                        +
+                        "<p style='color:#94A3B8;max-width:520px;margin:0;line-height:1.6;font-size:15px;'>Mulai jual barang yang tidak terpakai atau temukan harta karun baru hari ini. Bergabunglah dengan ribuan warga SMKN 24 lainnya.</p>"
+                        +
+                        "</div>" +
+                        "<div style='display:flex;gap:12px;flex-wrap:wrap;'>" +
+                        "<button id='btn-cta-jual' style='background:#FFFFFF;color:#0F172A;font-weight:700;border:none;border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer;font-family:Inter,sans-serif;transition:all 0.2s;'>Mulai Berjualan</button>"
+                        +
+                        "<button id='btn-cta-daftar' style='background:#FFDEA2;color:#261900;font-weight:700;border:none;border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer;font-family:Inter,sans-serif;transition:all 0.2s;'>Buat Akun</button>"
+                        +
+                        "</div></div>");
 
         ctaContainer.addAttachListener(event -> {
             UI.getCurrent().getPage().executeJs(
-                "var b1 = document.getElementById('btn-cta-jual');" +
-                "if(b1) b1.onclick = function(){ window.location.href='sell'; };" +
-                "var b2 = document.getElementById('btn-cta-daftar');" +
-                "if(b2) b2.onclick = function(){ window.location.href='register'; };"
-            );
+                    "var b1 = document.getElementById('btn-cta-jual');" +
+                            "if(b1) b1.onclick = function(){ window.location.href='sell'; };" +
+                            "var b2 = document.getElementById('btn-cta-daftar');" +
+                            "if(b2) b2.onclick = function(){ window.location.href='register'; };");
         });
 
         innerContainer.add(ctaContainer);
@@ -488,85 +503,92 @@ public class HomeView extends VerticalLayout {
         return wrapper;
     }
 
-    /* -----------------------------------------------------------------
-       6. FOOTER (Light Blue #EFF4FF, 4 Columns + Bottom Bar - Figma Exact)
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * 6. FOOTER (Light Blue #EFF4FF, 4 Columns + Bottom Bar - Figma Exact)
+     * -----------------------------------------------------------------
+     */
     private Component createMobileHeaderBar() {
         Div mobileHeaderBar = new Div();
         mobileHeaderBar.addClassName("rw-mobile-home-header");
         mobileHeaderBar.getElement().getStyle()
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("gap", "10px")
-            .set("padding", "10px 16px")
-            .set("background", "#001934")
-            .set("width", "100%")
-            .set("box-sizing", "border-box")
-            .set("position", "sticky")
-            .set("top", "0")
-            .set("z-index", "98");
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("gap", "10px")
+                .set("padding", "10px 16px")
+                .set("background", "#001934")
+                .set("width", "100%")
+                .set("box-sizing", "border-box")
+                .set("position", "sticky")
+                .set("top", "0")
+                .set("z-index", "98");
 
         Div searchWrap = new Div();
         searchWrap.getElement().getStyle()
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("gap", "8px")
-            .set("background", "rgba(255, 255, 255, 0.12)")
-            .set("border", "1px solid rgba(255, 255, 255, 0.2)")
-            .set("border-radius", "10px")
-            .set("padding", "8px 12px")
-            .set("flex", "1");
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("gap", "8px")
+                .set("background", "rgba(255, 255, 255, 0.12)")
+                .set("border", "1px solid rgba(255, 255, 255, 0.2)")
+                .set("border-radius", "10px")
+                .set("padding", "8px 12px")
+                .set("flex", "1");
 
         Icon searchIcon = VaadinIcon.SEARCH.create();
-        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px");
+        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height",
+                "16px");
 
         Input mobSearchInput = new Input();
         mobSearchInput.setPlaceholder("Cari barang thrift impianmu...");
         mobSearchInput.getElement().getStyle()
-            .set("background", "transparent")
-            .set("border", "none")
-            .set("outline", "none")
-            .set("color", "#FFFFFF")
-            .set("font-size", "13px")
-            .set("width", "100%");
+                .set("background", "transparent")
+                .set("border", "none")
+                .set("outline", "none")
+                .set("color", "#FFFFFF")
+                .set("font-size", "13px")
+                .set("width", "100%");
 
         mobSearchInput.getElement().addEventListener("keydown", e -> {
             UI.getCurrent().getPage().executeJs(
-                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
-            ).then(String.class, query -> {
-                if (query != null && !query.isBlank()) {
-                    UI.getCurrent().navigate("pasar-smkn24", new QueryParameters(java.util.Map.of("q", List.of(query))));
-                } else {
-                    UI.getCurrent().navigate("pasar-smkn24");
-                }
-            });
+                    "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement())
+                    .then(String.class, query -> {
+                        if (query != null && !query.isBlank()) {
+                            UI.getCurrent().navigate("pasar-smkn24",
+                                    new QueryParameters(java.util.Map.of("q", List.of(query))));
+                        } else {
+                            UI.getCurrent().navigate("pasar-smkn24");
+                        }
+                    });
         }).setFilter("event.key === 'Enter'");
 
         searchWrap.add(searchIcon, mobSearchInput);
 
         Button filterBtn = new Button(VaadinIcon.SLIDERS.create());
         filterBtn.getElement().getStyle()
-            .set("background", "#F5C45E")
-            .set("color", "#001934")
-            .set("border", "none")
-            .set("border-radius", "10px")
-            .set("width", "38px")
-            .set("height", "38px")
-            .set("min-width", "38px")
-            .set("cursor", "pointer")
-            .set("flex-shrink", "0");
+                .set("background", "#F5C45E")
+                .set("color", "#001934")
+                .set("border", "none")
+                .set("border-radius", "10px")
+                .set("width", "38px")
+                .set("height", "38px")
+                .set("min-width", "38px")
+                .set("cursor", "pointer")
+                .set("flex-shrink", "0");
 
         filterBtn.addClickListener(e -> {
-            UI.getCurrent().getPage().executeJs("var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
+            UI.getCurrent().getPage().executeJs(
+                    "var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
         });
 
         mobileHeaderBar.add(searchWrap, filterBtn);
         return mobileHeaderBar;
     }
 
-    /* -----------------------------------------------------------------
-       6. FOOTER (Light Blue #EFF4FF, 4 Columns + Bottom Bar - Figma Exact)
-       ----------------------------------------------------------------- */
+    /*
+     * -----------------------------------------------------------------
+     * 6. FOOTER (Light Blue #EFF4FF, 4 Columns + Bottom Bar - Figma Exact)
+     * -----------------------------------------------------------------
+     */
     private Component createFooter() {
         Div footerContainer = new Div();
         footerContainer.setWidthFull();
@@ -584,16 +606,18 @@ public class HomeView extends VerticalLayout {
         col1.addClassName("rw-footer-col");
         Span brand = new Span("ReWear");
         brand.addClassName("rw-footer-brand");
-        Paragraph desc = new Paragraph("Platform marketplace komunitas SMKN 24 Jakarta. Mendorong ekonomi sirkular dan keberlanjutan di lingkungan sekolah.");
+        Paragraph desc = new Paragraph(
+                "Platform marketplace komunitas SMKN 24 Jakarta. Mendorong ekonomi sirkular dan keberlanjutan di lingkungan sekolah.");
         desc.addClassName("rw-footer-desc");
 
         Div socials = new Div();
         socials.addClassName("rw-footer-socials");
         socials.getElement().setProperty("innerHTML",
-            "<a href='javascript:void(0)' class='rw-social-btn' title='Web'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8'/><path d='M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
-            "<a href='javascript:void(0)' class='rw-social-btn' title='Email'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' stroke='currentColor' stroke-width='1.8'/><polyline points='22,6 12,13 2,6' stroke='currentColor' stroke-width='1.8'/></svg></a>" +
-            "<a href='javascript:void(0)' class='rw-social-btn' title='Kontak'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z' stroke='currentColor' stroke-width='1.8'/></svg></a>"
-        );
+                "<a href='javascript:void(0)' class='rw-social-btn' title='Web'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='1.8'/><path d='M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z' stroke='currentColor' stroke-width='1.8'/></svg></a>"
+                        +
+                        "<a href='javascript:void(0)' class='rw-social-btn' title='Email'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' stroke='currentColor' stroke-width='1.8'/><polyline points='22,6 12,13 2,6' stroke='currentColor' stroke-width='1.8'/></svg></a>"
+                        +
+                        "<a href='javascript:void(0)' class='rw-social-btn' title='Kontak'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><path d='M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z' stroke='currentColor' stroke-width='1.8'/></svg></a>");
         col1.add(brand, desc, socials);
 
         // Col 2 — Belanja
@@ -605,14 +629,14 @@ public class HomeView extends VerticalLayout {
         listBelanja.addClassName("rw-footer-links");
 
         listBelanja.add(
-            createFooterLink("Semua Kategori", () -> UI.getCurrent().navigate("pasar-smkn24")),
-            createFooterLink("Pasar SMKN 24", () -> UI.getCurrent().navigate("pasar-smkn24")),
-            createFooterLink("Promo Hari Ini", () -> {
-                UI.getCurrent().navigate("pasar-smkn24");
-                Notification.show("Menampilkan barang promo menarik di Pasar SMKN 24!", 3000, Notification.Position.TOP_CENTER);
-            }),
-            createFooterLink("Barang Thrift", () -> filterAndRenderProducts("Pakaian", true))
-        );
+                createFooterLink("Semua Kategori", () -> UI.getCurrent().navigate("pasar-smkn24")),
+                createFooterLink("Pasar SMKN 24", () -> UI.getCurrent().navigate("pasar-smkn24")),
+                createFooterLink("Promo Hari Ini", () -> {
+                    UI.getCurrent().navigate("pasar-smkn24");
+                    Notification.show("Menampilkan barang promo menarik di Pasar SMKN 24!", 3000,
+                            Notification.Position.TOP_CENTER);
+                }),
+                createFooterLink("Barang Thrift", () -> filterAndRenderProducts("Pakaian", true)));
         col2.add(hBelanja, listBelanja);
 
         // Col 3 — Dukungan
@@ -624,31 +648,31 @@ public class HomeView extends VerticalLayout {
         listDukungan.addClassName("rw-footer-links");
 
         listDukungan.add(
-            createFooterLink("Pusat Bantuan", () -> openFooterInfoModal("Pusat Bantuan ReWear SMKN 24",
-                "<p>Butuh bantuan transaksi atau penggunaan aplikasi?</p>" +
-                "<ul>" +
-                "<li><b>Jam Operasional:</b> Senin - Jumat (07.00 - 16.00 WIB)</li>" +
-                "<li><b>Email Support:</b> support@rewear.smkn24.sch.id</li>" +
-                "<li><b>Lokasi Layanan:</b> Sekretariat OSIS / Lab RPL SMKN 24 Jakarta</li>" +
-                "</ul>")),
-            createFooterLink("Cara Berjualan", () -> openFooterInfoModal("Panduan Berjualan di ReWear",
-                "<ol style='padding-left:18px;'>" +
-                "<li>Pastikan akun Anda sudah terverifikasi sebagai <b>Warga SMKN 24</b>.</li>" +
-                "<li>Klik tombol <b>+ Jual</b> di menu navigasi utama.</li>" +
-                "<li>Unggah foto produk yang jelas, isi judul, deskripsi, dan harga pas.</li>" +
-                "<li>Pilih opsi pengiriman (COD Lingkungan Sekolah atau Escrow Safe Pay).</li>" +
-                "<li>Klik <b>Tayangkan Produk</b>!</li>" +
-                "</ol>")),
-            createFooterLink("Kebijakan Privasi", () -> openFooterInfoModal("Kebijakan Privasi",
-                "<p>ReWear SMKN 24 menghargai kerahasiaan data pengguna kami. Semua data pribadi (nama, nomor telepon, transaksi) dilindungi dan hanya dipergunakan untuk keperluan verifikasi komunitas sekolah SMKN 24 Jakarta.</p>")),
-            createFooterLink("Syarat & Ketentuan", () -> openFooterInfoModal("Syarat & Ketentuan Komunitas",
-                "<p>Ketentuan utama bertransaksi di ReWear SMKN 24:</p>" +
-                "<ul>" +
-                "<li>Dilarang menjual barang terlarang / senjata / zat berbahaya.</li>" +
-                "<li>Hanya barang thrift/preloved layak pakai yang diizinkan.</li>" +
-                "<li>Segala bentuk penipuan akan berakibat pembekuan akun dan tindakan disiplin sekolah.</li>" +
-                "</ul>"))
-        );
+                createFooterLink("Pusat Bantuan", () -> openFooterInfoModal("Pusat Bantuan ReWear SMKN 24",
+                        "<p>Butuh bantuan transaksi atau penggunaan aplikasi?</p>" +
+                                "<ul>" +
+                                "<li><b>Jam Operasional:</b> Senin - Jumat (07.00 - 16.00 WIB)</li>" +
+                                "<li><b>Email Support:</b> support@rewear.smkn24.sch.id</li>" +
+                                "<li><b>Lokasi Layanan:</b> Sekretariat OSIS / Lab RPL SMKN 24 Jakarta</li>" +
+                                "</ul>")),
+                createFooterLink("Cara Berjualan", () -> openFooterInfoModal("Panduan Berjualan di ReWear",
+                        "<ol style='padding-left:18px;'>" +
+                                "<li>Pastikan akun Anda sudah terverifikasi sebagai <b>Warga SMKN 24</b>.</li>" +
+                                "<li>Klik tombol <b>+ Jual</b> di menu navigasi utama.</li>" +
+                                "<li>Unggah foto produk yang jelas, isi judul, deskripsi, dan harga pas.</li>" +
+                                "<li>Pilih opsi pengiriman (COD Lingkungan Sekolah atau Escrow Safe Pay).</li>" +
+                                "<li>Klik <b>Tayangkan Produk</b>!</li>" +
+                                "</ol>")),
+                createFooterLink("Kebijakan Privasi", () -> openFooterInfoModal("Kebijakan Privasi",
+                        "<p>ReWear SMKN 24 menghargai kerahasiaan data pengguna kami. Semua data pribadi (nama, nomor telepon, transaksi) dilindungi dan hanya dipergunakan untuk keperluan verifikasi komunitas sekolah SMKN 24 Jakarta.</p>")),
+                createFooterLink("Syarat & Ketentuan", () -> openFooterInfoModal("Syarat & Ketentuan Komunitas",
+                        "<p>Ketentuan utama bertransaksi di ReWear SMKN 24:</p>" +
+                                "<ul>" +
+                                "<li>Dilarang menjual barang terlarang / senjata / zat berbahaya.</li>" +
+                                "<li>Hanya barang thrift/preloved layak pakai yang diizinkan.</li>" +
+                                "<li>Segala bentuk penipuan akan berakibat pembekuan akun dan tindakan disiplin sekolah.</li>"
+                                +
+                                "</ul>")));
         col3.add(hDukungan, listDukungan);
 
         // Col 4 — Tentang Kami
@@ -660,18 +684,17 @@ public class HomeView extends VerticalLayout {
         listTentang.addClassName("rw-footer-links");
 
         listTentang.add(
-            createFooterLink("Tentang ReWear", () -> openFooterInfoModal("Tentang ReWear SMKN 24",
-                "<p>ReWear adalah platform marketplace barang preloved/thrift yang dirancang khusus untuk seluruh siswa, guru, dan staf SMKN 24 Jakarta demi mendukung ekonomi sirkular dan ramah lingkungan.</p>")),
-            createFooterLink("Komunitas Kami", () -> openFooterInfoModal("Komunitas ReWear SMKN 24",
-                "<p>Bergabunglah bersama 1.000+ anggota aktif komunitas SMKN 24 Jakarta yang saling berbagi dan menghemat dengan gaya hidup sustainable fashion.</p>")),
-            createFooterLink("Blog & Edukasi", () -> openFooterInfoModal("Blog ReWear",
-                "<p>Temukan tips seputar perawatan baju preloved, tren thrift fashion 2026, dan artikel keberlanjutan lingkungan di buletin ReWear SMKN 24.</p>")),
-            createFooterLink("Kontak", () -> openFooterInfoModal("Hubungi Kami",
-                "<p>Tim Pengembang & Moderator ReWear SMKN 24 Jakarta:</p>" +
-                "<p>Jl. Bambu Hitam, Bambu Apus, Cipayung, Jakarta Timur<br>" +
-                "Email: rewear@smkn24.sch.id<br>" +
-                "Telp/WA: +62 812-3456-7890</p>"))
-        );
+                createFooterLink("Tentang ReWear", () -> openFooterInfoModal("Tentang ReWear SMKN 24",
+                        "<p>ReWear adalah platform marketplace barang preloved/thrift yang dirancang khusus untuk seluruh siswa, guru, dan staf SMKN 24 Jakarta demi mendukung ekonomi sirkular dan ramah lingkungan.</p>")),
+                createFooterLink("Komunitas Kami", () -> openFooterInfoModal("Komunitas ReWear SMKN 24",
+                        "<p>Bergabunglah bersama 1.000+ anggota aktif komunitas SMKN 24 Jakarta yang saling berbagi dan menghemat dengan gaya hidup sustainable fashion.</p>")),
+                createFooterLink("Blog & Edukasi", () -> openFooterInfoModal("Blog ReWear",
+                        "<p>Temukan tips seputar perawatan baju preloved, tren thrift fashion 2026, dan artikel keberlanjutan lingkungan di buletin ReWear SMKN 24.</p>")),
+                createFooterLink("Kontak", () -> openFooterInfoModal("Hubungi Kami",
+                        "<p>Tim Pengembang & Moderator ReWear SMKN 24 Jakarta:</p>" +
+                                "<p>Jl. Bambu Hitam, Bambu Apus, Cipayung, Jakarta Timur<br>" +
+                                "Email: rewear@smkn24.sch.id<br>" +
+                                "Telp/WA: +62 812-3456-7890</p>")));
         col4.add(hTentang, listTentang);
 
         inner.add(col1, col2, col3, col4);
@@ -695,11 +718,11 @@ public class HomeView extends VerticalLayout {
     private Component createFooterLink(String text, Runnable onClick) {
         Span link = new Span(text);
         link.getElement().getStyle()
-            .set("cursor", "pointer")
-            .set("font-size", "13px")
-            .set("color", "#43474E")
-            .set("display", "block")
-            .set("transition", "color 0.15s ease");
+                .set("cursor", "pointer")
+                .set("font-size", "13px")
+                .set("color", "#43474E")
+                .set("display", "block")
+                .set("transition", "color 0.15s ease");
         link.addClickListener(e -> onClick.run());
         return link;
     }
@@ -714,7 +737,8 @@ public class HomeView extends VerticalLayout {
         content.getElement().getStyle().set("line-height", "1.6").set("color", "#334155").set("font-size", "14px");
 
         Button closeBtn = new Button("Tutup", e -> dialog.close());
-        closeBtn.getElement().getStyle().set("background", "#001934").set("color", "#FFFFFF").set("border-radius", "8px").set("font-weight", "700");
+        closeBtn.getElement().getStyle().set("background", "#001934").set("color", "#FFFFFF")
+                .set("border-radius", "8px").set("font-weight", "700");
         dialog.getFooter().add(closeBtn);
 
         dialog.add(content);
@@ -722,7 +746,8 @@ public class HomeView extends VerticalLayout {
     }
 
     private String extractImgUrl(String imagesJson, String fallback) {
-        if (imagesJson == null || !imagesJson.contains("images/")) return fallback;
+        if (imagesJson == null || !imagesJson.contains("images/"))
+            return fallback;
         return imagesJson.replace("[\"", "").replace("\"]", "").trim();
     }
 }
