@@ -227,6 +227,8 @@ public class HomeView extends VerticalLayout {
         return card;
     }
 
+    private String activeSearchKeyword = "";
+
     /* -----------------------------------------------------------------
        3. PASAR SMKN 24 SECTION (Background #EFF4FF - Figma Exact)
        ----------------------------------------------------------------- */
@@ -239,9 +241,18 @@ public class HomeView extends VerticalLayout {
         Div innerContainer = new Div();
         innerContainer.addClassName("pasar-sekolah-inner");
 
+        Div topRow = new Div();
+        topRow.getElement().getStyle()
+            .set("display", "flex")
+            .set("flex-wrap", "wrap")
+            .set("justify-content", "space-between")
+            .set("align-items", "center")
+            .set("gap", "16px")
+            .set("margin-bottom", "16px");
+
         Div sectionHeader = new Div();
         sectionHeader.getElement().setProperty("innerHTML",
-            "<div class='pasar-header'>" +
+            "<div class='pasar-header' style='margin-bottom:0;'>" +
             "<div class='pasar-icon-wrapper'>" +
             "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>" +
             "</div>" +
@@ -249,6 +260,20 @@ public class HomeView extends VerticalLayout {
             "<p class='pasar-title-sub'>Produk eksklusif dari warga sekolah terverifikasi</p></div>" +
             "</div>"
         );
+
+        // Live Search Input Box
+        com.vaadin.flow.component.textfield.TextField searchField = new com.vaadin.flow.component.textfield.TextField();
+        searchField.setPlaceholder("Cari produk di Pasar SMKN 24...");
+        searchField.setPrefixComponent(com.vaadin.flow.component.icon.VaadinIcon.SEARCH.create());
+        searchField.setClearButtonVisible(true);
+        searchField.setWidth("280px");
+        searchField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
+        searchField.addValueChangeListener(e -> {
+            this.activeSearchKeyword = e.getValue() != null ? e.getValue().trim().toLowerCase() : "";
+            filterAndRenderProducts(this.activeCategoryFilter, false);
+        });
+
+        topRow.add(sectionHeader, searchField);
 
         // Filter Pills Row
         filterPillsContainer.setWidthFull();
@@ -262,7 +287,7 @@ public class HomeView extends VerticalLayout {
         cardsGrid.addClassName("products-grid-container");
         cardsGrid.setWidthFull();
 
-        innerContainer.add(sectionHeader, filterPillsContainer, cardsGrid);
+        innerContainer.add(topRow, filterPillsContainer, cardsGrid);
         container.add(innerContainer);
         return container;
     }
@@ -289,6 +314,14 @@ public class HomeView extends VerticalLayout {
                     p.getCategory().getName().equalsIgnoreCase(categoryName) ||
                     (p.getCategory().getSlug() != null && p.getCategory().getSlug().equalsIgnoreCase(categoryName))
                 ))
+                .toList();
+        }
+
+        if (activeSearchKeyword != null && !activeSearchKeyword.isBlank()) {
+            filtered = filtered.stream()
+                .filter(p -> (p.getName() != null && p.getName().toLowerCase().contains(activeSearchKeyword)) ||
+                             (p.getDescription() != null && p.getDescription().toLowerCase().contains(activeSearchKeyword)) ||
+                             (p.getCategory() != null && p.getCategory().getName() != null && p.getCategory().getName().toLowerCase().contains(activeSearchKeyword)))
                 .toList();
         }
 

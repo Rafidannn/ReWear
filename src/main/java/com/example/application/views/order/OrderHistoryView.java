@@ -459,6 +459,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 Notification notif = Notification.show("Pesanan Selesai! Terima kasih telah bertransaksi di ReWear.", 3000, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 buildView();
+                openReviewModal(order, user);
             });
 
             actionContainer.add(btnKomplain, btnSelesai);

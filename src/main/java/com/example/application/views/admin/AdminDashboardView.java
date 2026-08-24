@@ -27,7 +27,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -358,7 +358,10 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             .set("border", "1px solid #E2E8F0")
             .set("border-radius", "14px")
             .set("padding", "20px")
-            .set("box-shadow", "0 2px 6px rgba(0,25,52,0.03)");
+            .set("box-shadow", "0 2px 6px rgba(0,25,52,0.03)")
+            .set("overflow-x", "auto")
+            .set("max-width", "100%")
+            .set("box-sizing", "border-box");
 
         H3 t = new H3(title);
         t.getStyle().set("font-size", "16px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 4px 0");
@@ -434,12 +437,24 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
                 actions.add(btnVerify);
             }
 
-            // Suspend / Unsuspend Button
+            // Suspend / Unsuspend Button with ConfirmDialog
             boolean isSuspended = u.getAccountStatus() == AccountStatus.SUSPENDED;
             Button btnSuspend = new Button(isSuspended ? "Pulihkan" : "Blokir", e -> {
-                userService.toggleAccountSuspension(u);
-                Notification.show("Status akun " + u.getFullName() + " berhasil diubah.", 2500, Notification.Position.TOP_CENTER);
-                renderActiveTab();
+                ConfirmDialog dialog = new ConfirmDialog();
+                dialog.setHeader(isSuspended ? "Konfirmasi Pemulihan Akun" : "Konfirmasi Blokir Akun");
+                dialog.setText(isSuspended 
+                    ? "Apakah Anda yakin ingin memulihkan akun " + u.getFullName() + "? Pengguna dapat login dan bertransaksi kembali."
+                    : "Apakah Anda yakin ingin memblokir (suspend) akun " + u.getFullName() + "? Pengguna tidak akan dapat login atau melakukan transaksi.");
+                dialog.setCancelable(true);
+                dialog.setCancelText("Batal");
+                dialog.setConfirmText(isSuspended ? "Ya, Pulihkan" : "Ya, Blokir");
+                dialog.setConfirmButtonTheme(isSuspended ? "primary" : "error primary");
+                dialog.addConfirmListener(event -> {
+                    userService.toggleAccountSuspension(u);
+                    Notification.show("Status akun " + u.getFullName() + " berhasil diubah.", 2500, Notification.Position.TOP_CENTER);
+                    renderActiveTab();
+                });
+                dialog.open();
             });
             btnSuspend.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             btnSuspend.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", isSuspended ? "#16A34A" : "#EF4444");
@@ -534,9 +549,19 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
                 actions.add(btnRestore);
             } else {
                 Button btnTakedown = new Button("Takedown", e -> {
-                    productService.takedownProduct(p, "Pelanggaran aturan listing");
-                    Notification.show("Produk #" + p.getId() + " berhasil di-takedown dari pasar.", 2500, Notification.Position.TOP_CENTER);
-                    renderActiveTab();
+                    ConfirmDialog dialog = new ConfirmDialog();
+                    dialog.setHeader("Konfirmasi Takedown Produk");
+                    dialog.setText("Apakah Anda yakin ingin men-takedown produk '" + p.getName() + "' (ID: #" + p.getId() + ")? Produk akan segera disembunyikan dari seluruh katalog dan beranda.");
+                    dialog.setCancelable(true);
+                    dialog.setCancelText("Batal");
+                    dialog.setConfirmText("Ya, Takedown");
+                    dialog.setConfirmButtonTheme("error primary");
+                    dialog.addConfirmListener(event -> {
+                        productService.takedownProduct(p, "Pelanggaran aturan listing");
+                        Notification.show("Produk #" + p.getId() + " berhasil di-takedown dari pasar.", 2500, Notification.Position.TOP_CENTER);
+                        renderActiveTab();
+                    });
+                    dialog.open();
                 });
                 btnTakedown.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
                 btnTakedown.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#EF4444");
