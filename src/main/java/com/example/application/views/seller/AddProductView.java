@@ -323,18 +323,66 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
             .set("cursor", "pointer");
 
         btnSubmit.addClickListener(e -> {
-            String name = nameField.getValue();
+            errorBox.setVisible(false);
+            String name = nameField.getValue() != null ? nameField.getValue().trim() : "";
             Category category = categoryCombo.getValue();
             Double priceVal = priceField.getValue();
             Integer stockVal = stockField.getValue();
             ConditionType condition = conditionGroup.getValue();
             boolean isSchoolMarket = isSchoolMarketCheck.getValue();
-            String desc = descArea.getValue();
+            String desc = descArea.getValue() != null ? descArea.getValue().trim() : "";
 
-            if (name == null || name.isBlank() || category == null ||
-                priceVal == null || priceVal <= 0 || stockVal == null || stockVal <= 0) {
-                errorBox.setText("Mohon lengkapi Nama Barang, Kategori, Harga, dan Stok dengan benar.");
+            if (name.length() < 3) {
+                errorBox.setText("Nama barang terlalu pendek. Harap masukkan minimal 3 karakter.");
                 errorBox.setVisible(true);
+                nameField.focus();
+                return;
+            }
+
+            if (category == null) {
+                errorBox.setText("Silakan pilih kategori barang terlebih dahulu.");
+                errorBox.setVisible(true);
+                categoryCombo.focus();
+                return;
+            }
+
+            if (priceVal == null || priceVal < 1000.0) {
+                errorBox.setText("Harga barang minimal Rp 1.000.");
+                errorBox.setVisible(true);
+                priceField.focus();
+                return;
+            }
+
+            if (priceVal > 50000000.0) {
+                errorBox.setText("Harga barang maksimal Rp 50.000.000.");
+                errorBox.setVisible(true);
+                priceField.focus();
+                return;
+            }
+
+            if (stockVal == null || stockVal < 1) {
+                errorBox.setText("Jumlah stok barang minimal 1 unit.");
+                errorBox.setVisible(true);
+                stockField.focus();
+                return;
+            }
+
+            if (condition == null) {
+                errorBox.setText("Silakan pilih kondisi barang (Baru atau Bekas).");
+                errorBox.setVisible(true);
+                return;
+            }
+
+            if (uploadedImagePaths.isEmpty()) {
+                errorBox.setText("Harap unggah minimal 1 foto barang asli untuk memudahkan calon pembeli.");
+                errorBox.setVisible(true);
+                return;
+            }
+
+            if (desc.length() < 10) {
+                errorBox.setText("Deskripsi barang terlalu singkat. Harap jelaskan kondisi/kelengkapan barang minimal 10 karakter.");
+                errorBox.setVisible(true);
+                descArea.focus();
                 return;
             }
 
@@ -347,21 +395,16 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
             }
 
             // Bangun JSON array dari semua foto
-            String imagesJson;
-            if (!uploadedImagePaths.isEmpty()) {
-                StringBuilder sb = new StringBuilder("[");
-                for (int idx = 0; idx < uploadedImagePaths.size(); idx++) {
-                    sb.append("\"").append(uploadedImagePaths.get(idx)).append("\"");
-                    if (idx < uploadedImagePaths.size() - 1) sb.append(",");
-                }
-                sb.append("]");
-                imagesJson = sb.toString();
-            } else {
-                imagesJson = "[\"images/buku.jpeg\"]";
+            StringBuilder sb = new StringBuilder("[");
+            for (int idx = 0; idx < uploadedImagePaths.size(); idx++) {
+                sb.append("\"").append(uploadedImagePaths.get(idx)).append("\"");
+                if (idx < uploadedImagePaths.size() - 1) sb.append(",");
             }
+            sb.append("]");
+            String imagesJson = sb.toString();
 
             Product product = new Product();
-            product.setName(name.trim());
+            product.setName(name);
             product.setCategory(category);
             product.setPrice(BigDecimal.valueOf(priceVal));
             product.setStock(stockVal);
@@ -374,9 +417,9 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
 
             try {
                 productService.saveProduct(product);
-                Notification notif = Notification.show("Barang berhasil ditayangkan di ReWear.", 3000, Notification.Position.TOP_CENTER);
+                Notification notif = Notification.show("Barang berhasil ditayangkan di ReWear!", 3000, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                UI.getCurrent().navigate("");
+                UI.getCurrent().navigate(isSchoolMarket ? "pasar-smkn24" : "");
             } catch (Exception ex) {
                 errorBox.setText("Gagal menyimpan barang: " + ex.getMessage());
                 errorBox.setVisible(true);
