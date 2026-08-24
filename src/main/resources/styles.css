@@ -4172,3 +4172,15 @@ div.hero-banner,
         border-radius: 16px !important;
     }
 }
+
+@media (min-width: 769px) {
+    .rw-mobile-home-header {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .rw-mobile-home-header {
+        display: flex !important;
+    }
+}

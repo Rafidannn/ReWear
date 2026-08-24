@@ -28,19 +28,25 @@ public class PaymentService {
     private final BankAccountRepository bankAccountRepository;
     private final com.example.application.repository.user.UserRepository userRepository;
     private final com.example.application.repository.order.OrderStatusLogRepository orderStatusLogRepository;
+    private final com.example.application.repository.order.OrderItemRepository orderItemRepository;
+    private final com.example.application.repository.product.ProductRepository productRepository;
 
     public PaymentService(PaymentRepository paymentRepository,
                           SellerPayoutRepository sellerPayoutRepository,
                           OrderRepository orderRepository,
                           BankAccountRepository bankAccountRepository,
                           com.example.application.repository.user.UserRepository userRepository,
-                          com.example.application.repository.order.OrderStatusLogRepository orderStatusLogRepository) {
+                          com.example.application.repository.order.OrderStatusLogRepository orderStatusLogRepository,
+                          com.example.application.repository.order.OrderItemRepository orderItemRepository,
+                          com.example.application.repository.product.ProductRepository productRepository) {
         this.paymentRepository = paymentRepository;
         this.sellerPayoutRepository = sellerPayoutRepository;
         this.orderRepository = orderRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.userRepository = userRepository;
         this.orderStatusLogRepository = orderStatusLogRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.productRepository = productRepository;
     }
 
     public Payment createOrUpdatePayment(Order order, String paymentMethod, String paymentGateway, String paymentProofUrl, BigDecimal grossAmount) {
@@ -100,10 +106,34 @@ public class PaymentService {
 
         Order order = payment.getOrder();
         if (order != null) {
+            order.setStatus(OrderStatus.DIBATALKAN);
+            order.setUpdatedAt(LocalDateTime.now());
+            orderRepository.save(order);
+
+            // 1. AUTO-RESTOCK: Kembalikan kuantitas stok produk ke database
+            try {
+                List<com.example.application.model.order.OrderItem> items = orderItemRepository.findByOrder(order);
+                for (com.example.application.model.order.OrderItem item : items) {
+                    if (item.getProduct() != null) {
+                        com.example.application.model.product.Product product = item.getProduct();
+                        int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+                        int currentStock = product.getStock() != null ? product.getStock() : 0;
+                        int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
+
+                        product.setStock(currentStock + qty);
+                        product.setSoldCount(Math.max(0, currentSold - qty));
+                        if (product.getStatus() == com.example.application.model.product.ProductStatus.SOLD_OUT) {
+                            product.setStatus(com.example.application.model.product.ProductStatus.ACTIVE);
+                        }
+                        productRepository.save(product);
+                    }
+                }
+            } catch (Exception ignored) {}
+
             com.example.application.model.order.OrderStatusLog log = new com.example.application.model.order.OrderStatusLog();
             log.setOrder(order);
-            log.setStatus(order.getStatus());
-            log.setNotes("Bukti pembayaran ditolak Admin: " + (reason != null ? reason : "Bukti tidak valid / nominal tidak cocok."));
+            log.setStatus(OrderStatus.DIBATALKAN);
+            log.setNotes("Bukti pembayaran ditolak Admin: " + (reason != null && !reason.isBlank() ? reason : "Bukti transfer tidak valid / nominal tidak sesuai.") + ". Pesanan dibatalkan & stok dikembalikan.");
             log.setActor(admin);
             orderStatusLogRepository.save(log);
         }
@@ -216,7 +246,16 @@ public class PaymentService {
         if (payout == null) return null;
         payout.setStatus(PayoutStatus.REJECTED);
         payout.setProcessedAt(LocalDateTime.now());
-        payout.setAdminNotes(rejectionNotes != null ? rejectionNotes.trim() : "Ditolak oleh admin");
+        payout.setAdminNotes(rejectionNotes != null && !rejectionNotes.isBlank() ? rejectionNotes.trim() : "Ditolak oleh admin");
+
+        // Refund saldo penarikan kembali ke saldo aktif penjual
+        User seller = payout.getSeller();
+        if (seller != null && payout.getAmount() != null) {
+            BigDecimal currentBalance = seller.getBalance() != null ? seller.getBalance() : BigDecimal.ZERO;
+            seller.setBalance(currentBalance.add(payout.getAmount()));
+            userRepository.save(seller);
+        }
+
         return sellerPayoutRepository.save(payout);
     }
 }

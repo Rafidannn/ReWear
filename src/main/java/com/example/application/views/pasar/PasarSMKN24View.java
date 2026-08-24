@@ -114,7 +114,6 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
         Div mobileHeaderBar = new Div();
         mobileHeaderBar.addClassName("rw-mobile-home-header");
         mobileHeaderBar.getElement().getStyle()
-            .set("display", "flex")
             .set("align-items", "center")
             .set("gap", "10px")
             .set("padding", "10px 16px")
