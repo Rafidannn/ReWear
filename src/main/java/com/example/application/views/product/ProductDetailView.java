@@ -472,69 +472,75 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         // Stock & Quantity Selector for Desktop
         int maxStock = product.getStock() != null ? Math.max(0, product.getStock()) : 1;
         int[] selectedQty = {maxStock > 0 ? 1 : 0};
-        boolean isOutOfStock = maxStock <= 0;
+        boolean isOutOfStock = maxStock <= 0 || product.getStatus() == ProductStatus.SOLD_OUT;
+        boolean isTakedown = product.getStatus() == ProductStatus.REMOVED || product.getDeletedAt() != null;
 
         // Desktop Quantity & Purchase Box
         Div desktopPurchaseBox = new Div();
         desktopPurchaseBox.getElement().getStyle()
             .set("display", "flex")
             .set("flex-direction", "column")
-            .set("gap", "16px")
-            .set("margin-top", "8px")
-            .set("padding-top", "16px")
-            .set("border-top", "1px solid #E2E8F0");
+            .set("gap", "12px")
+            .set("margin-top", "16px")
+            .set("width", "100%");
 
-        // Qty Stepper Row
-        Div qtyRow = new Div();
-        qtyRow.addClassName("rw-qty-row-box");
+        if (isTakedown) {
+            Div takedownAlert = new Div();
+            takedownAlert.getElement().getStyle()
+                .set("background", "#FEE2E2")
+                .set("border", "1.5px solid #F87171")
+                .set("border-radius", "10px")
+                .set("padding", "12px 16px")
+                .set("color", "#DC2626")
+                .set("font-size", "13px")
+                .set("font-weight", "700")
+                .set("margin-bottom", "8px");
+            takedownAlert.setText("Perhatian: Produk ini telah di-takedown oleh moderator dan tidak tersedia untuk dibeli.");
+            desktopPurchaseBox.add(takedownAlert);
+        }
 
-        Span qtyLabel = new Span("Jumlah Pembelian");
-        qtyLabel.getElement().getStyle().set("font-size", "14px").set("font-weight", "700").set("color", "#0F172A");
+        HorizontalLayout qtyRow = new HorizontalLayout();
+        qtyRow.setWidthFull();
+        qtyRow.setAlignItems(FlexComponent.Alignment.CENTER);
+        qtyRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
 
-        Div qtyStepper = new Div();
-        qtyStepper.addClassName("rw-qty-stepper-box");
+        Span qtyLabel = new Span("Jumlah Pembelian:");
+        qtyLabel.getStyle().set("font-size", "14px").set("font-weight", "600").set("color", "#001934");
 
-        Button btnMinus = new Button("-");
-        btnMinus.addClassName("rw-qty-btn");
+        HorizontalLayout qtyControl = new HorizontalLayout();
+        qtyControl.setAlignItems(FlexComponent.Alignment.CENTER);
+        qtyControl.setSpacing(true);
+
         Span qtyDisplay = new Span(String.valueOf(selectedQty[0]));
-        qtyDisplay.getElement().getStyle().set("font-size", "15px").set("font-weight", "800").set("min-width", "32px").set("text-align", "center");
-        Button btnPlus = new Button("+");
-        btnPlus.addClassName("rw-qty-btn");
+        qtyDisplay.getStyle().set("font-size", "15px").set("font-weight", "800").set("color", "#001934").set("min-width", "28px").set("text-align", "center");
 
-        btnMinus.addClickListener(e -> {
+        Button btnMinus = new Button("-", e -> {
             if (selectedQty[0] > 1) {
                 selectedQty[0]--;
                 qtyDisplay.setText(String.valueOf(selectedQty[0]));
             }
         });
+        btnMinus.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnMinus.getStyle().set("font-size", "16px").set("font-weight", "800").set("cursor", "pointer");
 
-        btnPlus.addClickListener(e -> {
+        Button btnPlus = new Button("+", e -> {
             if (selectedQty[0] < maxStock) {
                 selectedQty[0]++;
                 qtyDisplay.setText(String.valueOf(selectedQty[0]));
-            } else {
-                Notification.show("Maksimal stok tercapai (" + maxStock + ")", 2000, Notification.Position.TOP_CENTER);
             }
         });
+        btnPlus.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        btnPlus.getStyle().set("font-size", "16px").set("font-weight", "800").set("cursor", "pointer");
 
-        qtyStepper.add(btnMinus, qtyDisplay, btnPlus);
+        if (isOutOfStock || isTakedown) {
+            btnMinus.setEnabled(false);
+            btnPlus.setEnabled(false);
+        }
 
-        Span stockBadge = new Span(isOutOfStock ? "Stok Habis" : "Stok: " + maxStock + " unit");
-        stockBadge.getElement().getStyle()
-            .set("font-size", "12px")
-            .set("font-weight", "700")
-            .set("color", isOutOfStock ? "#DC2626" : "#059669")
-            .set("background", isOutOfStock ? "#FEE2E2" : "#D1FAE5")
-            .set("padding", "4px 10px")
-            .set("border-radius", "9999px")
-            .set("white-space", "nowrap");
+        qtyControl.add(btnMinus, qtyDisplay, btnPlus);
+        qtyRow.add(qtyLabel, qtyControl);
+        desktopPurchaseBox.add(qtyRow);
 
-        Div qtyRight = new Div(qtyStepper, stockBadge);
-        qtyRight.getElement().getStyle().set("display", "flex").set("flex-direction", "row").set("align-items", "center").set("gap", "10px");
-
-        qtyRow.add(qtyLabel, qtyRight);
-
-        // Desktop Action Buttons Row (+ Keranjang, Beli Sekarang, Chat)
         HorizontalLayout desktopActionRow = new HorizontalLayout();
         desktopActionRow.setWidthFull();
         desktopActionRow.setSpacing(true);
@@ -551,10 +557,10 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("font-size", "14px")
             .set("cursor", "pointer");
 
-        if (isOutOfStock) btnAddToCart.setEnabled(false);
+        if (isOutOfStock || isTakedown) btnAddToCart.setEnabled(false);
 
         btnAddToCart.addClickListener(e -> {
-            if (isOutOfStock) return;
+            if (isOutOfStock || isTakedown) return;
             if (!AuthGuard.requireLogin(UI.getCurrent())) return;
             User user = AuthGuard.getCurrentUser();
             cartService.addToCart(user, product, selectedQty[0]);
@@ -563,11 +569,11 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
 
-        Button btnBuyNow = new Button(isOutOfStock ? "Stok Habis" : "Beli Sekarang");
+        Button btnBuyNow = new Button(isTakedown ? "Produk Di-Takedown" : (isOutOfStock ? "Stok Habis" : "Beli Sekarang"));
         btnBuyNow.getElement().getStyle()
             .set("flex", "1")
             .set("height", "48px")
-            .set("background", "#001934")
+            .set("background", isTakedown ? "#EF4444" : "#001934")
             .set("color", "#FFFFFF")
             .set("border", "none")
             .set("border-radius", "10px")
@@ -575,9 +581,13 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("font-size", "14px")
             .set("cursor", "pointer");
 
-        if (isOutOfStock) btnBuyNow.setEnabled(false);
+        if (isOutOfStock || isTakedown) btnBuyNow.setEnabled(false);
 
         btnBuyNow.addClickListener(e -> {
+            if (isTakedown) {
+                Notification.show("Produk ini telah di-takedown oleh moderator.", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
             if (isOutOfStock) {
                 Notification.show("Produk ini sudah habis (Stok: 0)", 3000, Notification.Position.TOP_CENTER);
                 return;

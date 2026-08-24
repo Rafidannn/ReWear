@@ -144,7 +144,7 @@ public class ModerationService {
     }
 
     public List<Report> getPendingReports() {
-        return reportRepository.findByStatus(ReportStatus.PENDING);
+        return reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.PENDING);
     }
 
     public Report submitReport(Report report) {
@@ -184,7 +184,7 @@ public class ModerationService {
     }
 
     public List<Report> getAllReports() {
-        return reportRepository.findAll();
+        return reportRepository.findAllByOrderByCreatedAtDesc();
     }
 
     public Report resolveReport(Report report, String notes) {

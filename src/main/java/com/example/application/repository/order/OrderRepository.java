@@ -23,6 +23,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.buyer LEFT JOIN FETCH o.seller WHERE o.buyer = :buyer ORDER BY o.createdAt DESC")
     List<Order> findBuyerOrdersWithDetails(@Param("buyer") User buyer);
 
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.buyer LEFT JOIN FETCH o.seller ORDER BY o.createdAt DESC")
+    List<Order> findAllWithDetails();
+
     List<Order> findByStatus(OrderStatus status);
     List<Order> findAllByOrderByCreatedAtDesc();
 }

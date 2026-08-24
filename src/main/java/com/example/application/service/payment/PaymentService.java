@@ -62,14 +62,14 @@ public class PaymentService {
     }
 
     public List<Payment> getPendingVerificationPayments() {
-        return paymentRepository.findAllByOrderByCreatedAtDesc().stream()
+        return paymentRepository.findAllWithOrderAndBuyer().stream()
             .filter(p -> p.getTransactionStatus() == com.example.application.model.payment.TransactionStatus.PENDING &&
                          p.getPaymentProofUrl() != null && !p.getPaymentProofUrl().isBlank())
             .toList();
     }
 
     public List<Payment> getAllPayments() {
-        return paymentRepository.findAllByOrderByCreatedAtDesc();
+        return paymentRepository.findAllWithOrderAndBuyer();
     }
 
     public void approvePayment(Payment payment, String adminNotes, User admin) {

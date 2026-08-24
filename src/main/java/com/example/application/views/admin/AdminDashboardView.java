@@ -148,11 +148,16 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         tabsBar.setSpacing(true);
         tabsBar.getElement().getStyle()
             .set("background", "#FFFFFF")
-            .set("padding", "6px")
+            .set("padding", "6px 10px")
             .set("border-radius", "12px")
             .set("border", "1px solid #E2E8F0")
             .set("margin-bottom", "24px")
-            .set("box-shadow", "0 1px 3px rgba(0,25,52,0.04)");
+            .set("box-shadow", "0 1px 3px rgba(0,25,52,0.04)")
+            .set("overflow-x", "auto")
+            .set("display", "flex")
+            .set("flex-wrap", "nowrap")
+            .set("box-sizing", "border-box")
+            .set("-webkit-overflow-scrolling", "touch");
 
         tabOverviewBtn = createTabButton("Ringkasan Platform", VaadinIcon.DASHBOARD, "overview");
         tabUsersBtn = createTabButton("Manajemen Pengguna", VaadinIcon.USERS, "users");
@@ -181,8 +186,10 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             .set("font-size", "13px")
             .set("font-weight", "700")
             .set("border-radius", "8px")
-            .set("padding", "10px 18px")
+            .set("padding", "8px 14px")
             .set("cursor", "pointer")
+            .set("flex-shrink", "0")
+            .set("white-space", "nowrap")
             .set("transition", "all 0.2s ease");
 
         updateTabButtonHighlight(btn, tabKey.equals(activeTab));

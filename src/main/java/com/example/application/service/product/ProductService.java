@@ -62,18 +62,20 @@ public class ProductService {
     }
 
     public List<Product> findAllProducts() {
-        return productRepository.findAll();
+        return productRepository.findAllWithSellerAndCategory();
     }
 
     public Product takedownProduct(Product product, String reason) {
         if (product == null) return null;
         product.setStatus(ProductStatus.REMOVED);
+        product.setDeletedAt(java.time.LocalDateTime.now());
         return productRepository.save(product);
     }
 
     public Product activateProduct(Product product) {
         if (product == null) return null;
         product.setStatus(ProductStatus.ACTIVE);
+        product.setDeletedAt(null);
         return productRepository.save(product);
     }
 

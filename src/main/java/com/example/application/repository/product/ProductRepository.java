@@ -23,4 +23,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.seller s WHERE p.isSchoolMarket = true AND p.status = :status AND p.deletedAt IS NULL ORDER BY p.id DESC")
     List<Product> findSchoolMarketWithCategory(@Param("status") ProductStatus status);
+
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.seller s ORDER BY p.id DESC")
+    List<Product> findAllWithSellerAndCategory();
 }

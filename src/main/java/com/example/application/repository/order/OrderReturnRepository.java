@@ -5,6 +5,7 @@ import com.example.application.model.order.OrderReturn;
 import com.example.application.model.order.ReturnStatus;
 import com.example.application.model.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,4 +18,7 @@ public interface OrderReturnRepository extends JpaRepository<OrderReturn, Long> 
     List<OrderReturn> findByBuyerOrderByCreatedAtDesc(User buyer);
     List<OrderReturn> findAllByOrderByCreatedAtDesc();
     List<OrderReturn> findByStatusOrderByCreatedAtDesc(ReturnStatus status);
+
+    @Query("SELECT r FROM OrderReturn r LEFT JOIN FETCH r.order o LEFT JOIN FETCH r.buyer b LEFT JOIN FETCH o.seller s ORDER BY r.createdAt DESC")
+    List<OrderReturn> findAllWithDetails();
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -19,4 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.school WHERE u.email = :email")
     Optional<User> findByEmailWithSchool(@Param("email") String email);
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.school ORDER BY u.id DESC")
+    List<User> findAllWithSchool();
 }

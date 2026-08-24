@@ -35,7 +35,7 @@ public class UserService {
     }
 
     public List<User> findAllUsers() {
-        return userRepository.findAll();
+        return userRepository.findAllWithSchool();
     }
 
     public Optional<User> findById(Long id) {

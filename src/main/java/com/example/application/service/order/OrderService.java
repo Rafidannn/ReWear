@@ -50,7 +50,7 @@ public class OrderService {
     }
 
     public List<Order> getAllOrders() {
-        return orderRepository.findAllByOrderByCreatedAtDesc();
+        return orderRepository.findAllWithDetails();
     }
 
     @Transactional
@@ -181,12 +181,15 @@ public class OrderService {
         return returnRepository.findByOrder(order);
     }
 
+
     public List<OrderReturn> getAllReturns() {
-        return returnRepository.findAllByOrderByCreatedAtDesc();
+        return returnRepository.findAllWithDetails();
     }
 
     public List<OrderReturn> getPendingReturns() {
-        return returnRepository.findByStatusOrderByCreatedAtDesc(ReturnStatus.PENDING);
+        return returnRepository.findAllWithDetails().stream()
+            .filter(r -> r.getStatus() == ReturnStatus.PENDING)
+            .toList();
     }
 
     public List<OrderReturn> getReturnsByBuyer(User buyer) {
