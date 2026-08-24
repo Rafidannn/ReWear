@@ -9,8 +9,21 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 @Repository
 public interface UserSchoolVerificationRepository extends JpaRepository<UserSchoolVerification, Long> {
-    Optional<UserSchoolVerification> findByUser(User user);
-    List<UserSchoolVerification> findByStatus(VerificationStatus status);
+    
+    @Query("SELECT v FROM UserSchoolVerification v LEFT JOIN FETCH v.user LEFT JOIN FETCH v.school WHERE v.user = :user")
+    Optional<UserSchoolVerification> findByUser(@Param("user") User user);
+
+    @Query("SELECT v FROM UserSchoolVerification v LEFT JOIN FETCH v.user LEFT JOIN FETCH v.school WHERE v.user.id = :userId")
+    Optional<UserSchoolVerification> findByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT v FROM UserSchoolVerification v LEFT JOIN FETCH v.user LEFT JOIN FETCH v.school WHERE v.status = :status ORDER BY v.createdAt DESC")
+    List<UserSchoolVerification> findByStatus(@Param("status") VerificationStatus status);
+
+    @Query("SELECT v FROM UserSchoolVerification v LEFT JOIN FETCH v.user LEFT JOIN FETCH v.school ORDER BY v.createdAt DESC")
+    List<UserSchoolVerification> findAllWithDetails();
 }

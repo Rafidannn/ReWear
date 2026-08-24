@@ -125,16 +125,61 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public UserSchoolVerification submitSchoolVerification(User user, School school, String schoolNumber, String proofUrl) {
+        if (user == null) return null;
+        UserSchoolVerification v = verificationRepository.findByUser(user).orElseGet(() -> {
+            UserSchoolVerification newV = new UserSchoolVerification();
+            newV.setUser(user);
+            return newV;
+        });
+
+        v.setSchool(school != null ? school : user.getSchool());
+        v.setSchoolNumber(schoolNumber != null ? schoolNumber.trim() : null);
+        if (proofUrl != null && !proofUrl.isBlank()) {
+            v.setProofUrl(proofUrl);
+        }
+        v.setStatus(VerificationStatus.PENDING);
+        v.setRejectionReason(null);
+        return verificationRepository.save(v);
+    }
+
+    public List<UserSchoolVerification> getPendingVerifications() {
+        return verificationRepository.findByStatus(VerificationStatus.PENDING);
+    }
+
+    public Optional<UserSchoolVerification> getVerificationByUserId(Long userId) {
+        if (userId == null) return Optional.empty();
+        return verificationRepository.findByUserId(userId);
+    }
+
+    public User rejectUserSchoolVerification(User user, String rejectionReason) {
+        if (user == null) return null;
+        Optional<UserSchoolVerification> verOpt = verificationRepository.findByUser(user);
+        if (verOpt.isPresent()) {
+            UserSchoolVerification v = verOpt.get();
+            v.setStatus(VerificationStatus.REJECTED);
+            v.setRejectionReason(rejectionReason != null && !rejectionReason.isBlank() ? rejectionReason : "Dokumen KTA tidak valid / buram.");
+            verificationRepository.save(v);
+        }
+        return user;
+    }
+
     public User verifyUserSchool(User user, School school) {
         if (user == null) return null;
         if (school != null) {
             user.setSchool(school);
+        } else if (user.getSchool() == null) {
+            List<School> allSchools = findAllSchools();
+            if (!allSchools.isEmpty()) {
+                user.setSchool(allSchools.get(0));
+            }
         }
         // update existing verification if any
         Optional<UserSchoolVerification> verOpt = verificationRepository.findByUser(user);
         if (verOpt.isPresent()) {
             UserSchoolVerification v = verOpt.get();
             v.setStatus(VerificationStatus.APPROVED);
+            v.setRejectionReason(null);
             verificationRepository.save(v);
         }
         return userRepository.save(user);

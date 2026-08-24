@@ -3,7 +3,9 @@ package com.example.application.views.user;
 import com.example.application.model.product.Product;
 import com.example.application.model.user.User;
 import com.example.application.repository.moderation.ReviewRepository;
-import com.example.application.repository.order.OrderRepository;
+import com.example.application.model.user.School;
+import com.example.application.model.user.UserSchoolVerification;
+import com.example.application.model.user.VerificationStatus;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.product.ProductService;
 import com.example.application.service.user.UserService;
@@ -307,6 +309,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             navList.add(createNavItem("Pesanan Saya", "orders", VaadinIcon.CART));
             navList.add(createNavItem("Wishlist", "wishlist", VaadinIcon.HEART));
             navList.add(createNavItem("ReWear Pay", "rewearpay", VaadinIcon.CREDIT_CARD));
+            navList.add(createNavItem("Verifikasi Siswa", "verification", VaadinIcon.ACADEMY_CAP));
             navList.add(createNavItem("Pengaturan", "settings", VaadinIcon.COG));
         } else {
             // For other's profile: show Chat button instead
@@ -390,6 +393,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
                 break;
             case "profile":
                 mainCard.add(renderProfileInfoTab());
+                break;
+            case "verification":
+                if (!isOwnProfile) { mainCard.add(renderProfileInfoTab()); break; }
+                mainCard.add(renderVerificationTab());
                 break;
             case "wishlist":
                 if (!isOwnProfile) { mainCard.add(renderProfileInfoTab()); break; }
@@ -1242,6 +1249,50 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
         wrapper.add(title, subtitle);
 
+        // Student verification status banner
+        boolean isVerified = targetUser != null && targetUser.getSchool() != null;
+        Div ktaBanner = new Div();
+        ktaBanner.getElement().getStyle()
+            .set("display", "flex").set("align-items", "center").set("justify-content", "space-between")
+            .set("border-radius", "12px").set("padding", "14px 20px").set("margin-bottom", "20px");
+
+        if (isVerified) {
+            ktaBanner.getElement().getStyle().set("background", "#FEF3C7").set("border", "1px solid #FCD34D");
+            ktaBanner.getElement().setProperty("innerHTML",
+                "<div style='display:flex;align-items:center;gap:12px;'>" +
+                "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#D97706' stroke-width='2.5'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>" +
+                "<div><strong style='color:#92400E;font-size:14px;'>Warga SMKN 24 Terverifikasi</strong>" +
+                "<div style='color:#78350F;font-size:12px;'>Identitas Anda telah terverifikasi resmi oleh Admin Sekolah.</div></div></div>"
+            );
+        } else {
+            java.util.Optional<UserSchoolVerification> verOpt = userService.getVerification(targetUser);
+            if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.PENDING) {
+                ktaBanner.getElement().getStyle().set("background", "#EFF6FF").set("border", "1px solid #BFDBFE");
+                ktaBanner.getElement().setProperty("innerHTML",
+                    "<div style='display:flex;align-items:center;gap:12px;'>" +
+                    "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#2563EB' stroke-width='2'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>" +
+                    "<div><strong style='color:#1E40AF;font-size:14px;'>Pengajuan KTA Sedang Ditinjau</strong>" +
+                    "<div style='color:#1E3A8A;font-size:12px;'>Foto KTA Anda sedang dalam antrean review oleh Admin Sekolah.</div></div></div>"
+                );
+            } else {
+                ktaBanner.getElement().getStyle().set("background", "#F0FDF4").set("border", "1px solid #BBF7D0");
+                Div leftInfo = new Div();
+                leftInfo.getElement().setProperty("innerHTML",
+                    "<div style='display:flex;align-items:center;gap:12px;'>" +
+                    "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#16A34A' stroke-width='2'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>" +
+                    "<div><strong style='color:#166534;font-size:14px;'>Belum Verifikasi Siswa?</strong>" +
+                    "<div style='color:#15803D;font-size:12px;'>Unggah Kartu Pelajar (KTA) untuk membuka akses penuh Pasar SMKN 24.</div></div></div>"
+                );
+                Button btnGoVerify = new Button("Verifikasi Sekarang", VaadinIcon.ARROW_RIGHT.create(), e -> {
+                    activeTab = "verification";
+                    buildMainLayout();
+                });
+                btnGoVerify.getStyle().set("background", "#001934").set("color", "#F5C45E").set("font-size", "12px").set("font-weight", "700").set("border-radius", "8px").set("border", "none").set("cursor", "pointer");
+                ktaBanner.add(leftInfo, btnGoVerify);
+            }
+        }
+        wrapper.add(ktaBanner);
+
         Div formGrid = new Div();
         formGrid.getElement().getStyle()
             .set("display", "grid")
@@ -1252,7 +1303,7 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         String emailVal = targetUser != null && targetUser.getEmail() != null ? targetUser.getEmail() : "-";
         String phoneVal = targetUser != null && targetUser.getPhone() != null ? targetUser.getPhone() : "";
         String schoolVal = (targetUser != null && targetUser.getSchool() != null && targetUser.getSchool().getName() != null)
-            ? targetUser.getSchool().getName() : "SMKN 24 Jakarta";
+            ? targetUser.getSchool().getName() : "Belum Terverifikasi (Umum)";
         String roleVal = targetUser != null && targetUser.getRole() != null ? targetUser.getRole().name() : "Warga SMKN 24";
 
         TextField txtName = new TextField("Nama Lengkap", nameVal, "");
@@ -1308,6 +1359,191 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         });
 
         wrapper.add(formGrid, btnSave);
+        return wrapper;
+    }
+
+    // ==========================================
+    // TAB: VERIFIKASI IDENTITAS SISWA (KTA)
+    // ==========================================
+
+    private Component renderVerificationTab() {
+        Div wrapper = new Div();
+        wrapper.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "20px");
+
+        H2 title = new H2("Verifikasi Identitas Siswa SMKN 24");
+        title.getElement().getStyle().set("font-size", "24px").set("font-weight", "800").set("color", "#001934").set("margin", "0 0 6px 0");
+
+        Paragraph subtitle = new Paragraph("Unggah Kartu Pelajar (KTA) / NISN resmi untuk mendapatkan lencana terverifikasi dan akses eksklusif Pasar SMKN 24.");
+        subtitle.getElement().getStyle().set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 16px 0");
+
+        wrapper.add(title, subtitle);
+
+        boolean isVerified = targetUser != null && targetUser.getSchool() != null;
+        java.util.Optional<UserSchoolVerification> verOpt = (targetUser != null) ? userService.getVerification(targetUser) : java.util.Optional.empty();
+
+        if (isVerified) {
+            Div verifiedCard = new Div();
+            verifiedCard.getElement().getStyle()
+                .set("background", "#FEF3C7")
+                .set("border", "1.5px solid #F5C45E")
+                .set("border-radius", "16px")
+                .set("padding", "24px")
+                .set("display", "flex")
+                .set("gap", "16px")
+                .set("align-items", "center");
+
+            verifiedCard.getElement().setProperty("innerHTML",
+                "<div style='width:48px;height:48px;border-radius:12px;background:#D97706;display:flex;align-items:center;justify-content:center;color:#FFF;'>" +
+                "<svg width='26' height='26' viewBox='0 0 24 24' fill='none' stroke='#FFF' stroke-width='2.5'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>" +
+                "</div>" +
+                "<div>" +
+                "<h3 style='margin:0 0 4px 0;font-size:18px;font-weight:800;color:#92400E;'>Akun Terverifikasi Warga SMKN 24</h3>" +
+                "<p style='margin:0;font-size:13px;color:#78350F;line-height:1.5;'>Identitas Anda telah diverifikasi oleh Admin Sekolah sebagai <strong>" + targetUser.getSchool().getName() + "</strong>. Anda memiliki hak akses penuh ke fitur penjualan dan pembelian Pasar Preloved SMKN 24.</p>" +
+                "</div>"
+            );
+            wrapper.add(verifiedCard);
+            return wrapper;
+        }
+
+        if (verOpt.isPresent()) {
+            UserSchoolVerification ver = verOpt.get();
+            if (ver.getStatus() == VerificationStatus.PENDING) {
+                Div pendingCard = new Div();
+                pendingCard.getElement().getStyle()
+                    .set("background", "#EFF6FF")
+                    .set("border", "1.5px solid #93C5FD")
+                    .set("border-radius", "16px")
+                    .set("padding", "24px")
+                    .set("display", "flex")
+                    .set("flex-direction", "column")
+                    .set("gap", "16px");
+
+                Div infoRow = new Div();
+                infoRow.getElement().getStyle().set("display", "flex").set("gap", "16px").set("align-items", "center");
+                infoRow.getElement().setProperty("innerHTML",
+                    "<div style='width:48px;height:48px;border-radius:12px;background:#2563EB;display:flex;align-items:center;justify-content:center;color:#FFF;flex-shrink:0;'>" +
+                    "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#FFF' stroke-width='2'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>" +
+                    "</div>" +
+                    "<div>" +
+                    "<h3 style='margin:0 0 4px 0;font-size:17px;font-weight:800;color:#1E40AF;'>Pengajuan KTA Sedang Ditinjau Admin</h3>" +
+                    "<p style='margin:0;font-size:13px;color:#1E3A8A;line-height:1.5;'>Pengajuan verifikasi Kartu Pelajar (NISN: <strong>" + (ver.getSchoolNumber() != null ? ver.getSchoolNumber() : "-") + "</strong>) sedang dalam proses peninjauan oleh Admin Sekolah.</p>" +
+                    "</div>"
+                );
+                pendingCard.add(infoRow);
+
+                if (ver.getProofUrl() != null && !ver.getProofUrl().isBlank()) {
+                    String cleanProof = ver.getProofUrl().startsWith("/") ? ver.getProofUrl() : "/" + ver.getProofUrl();
+                    Image proofPreview = new Image(cleanProof, "Foto KTA");
+                    proofPreview.setWidth("100%");
+                    proofPreview.setMaxHeight("240px");
+                    proofPreview.getStyle().set("object-fit", "contain").set("border-radius", "10px").set("border", "1px solid #CBD5E1").set("background", "#FFFFFF").set("padding", "4px");
+                    pendingCard.add(proofPreview);
+                }
+                wrapper.add(pendingCard);
+                return wrapper;
+            } else if (ver.getStatus() == VerificationStatus.REJECTED) {
+                Div rejectedBanner = new Div();
+                rejectedBanner.getElement().getStyle()
+                    .set("background", "#FEF2F2")
+                    .set("border", "1.5px solid #FCA5A5")
+                    .set("border-radius", "12px")
+                    .set("padding", "16px")
+                    .set("font-size", "13px")
+                    .set("color", "#991B1B");
+                rejectedBanner.getElement().setProperty("innerHTML",
+                    "<strong>Pengajuan Sebelumnya Ditolak Admin:</strong> " +
+                    (ver.getRejectionReason() != null ? ver.getRejectionReason() : "Foto KTA buram atau tidak terbaca.") +
+                    "<br>Silakan lengkapi formulir di bawah dengan foto KTA yang lebih jelas untuk mengajukan ulang."
+                );
+                wrapper.add(rejectedBanner);
+            }
+        }
+
+        // Submission Form
+        Div formCard = new Div();
+        formCard.getElement().getStyle()
+            .set("background", "#F8FAFC")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "16px")
+            .set("padding", "24px")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("gap", "16px");
+
+        List<School> schools = userService.findAllSchools();
+        ComboBox<School> schoolCombo = new ComboBox<>("Sekolah Asal");
+        schoolCombo.setItemLabelGenerator(School::getName);
+        schoolCombo.setItems(schools);
+        if (!schools.isEmpty()) schoolCombo.setValue(schools.get(0));
+        schoolCombo.setWidthFull();
+
+        TextField nisnField = new TextField("Nomor Induk Siswa (NISN / NIS)");
+        nisnField.setPlaceholder("Contoh: 0071234567");
+        nisnField.setRequired(true);
+        nisnField.setWidthFull();
+
+        Div uploadSection = new Div();
+        uploadSection.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "8px");
+
+        Span uploadLabel = new Span("Unggah Foto Kartu Pelajar (KTA) / Surat Keterangan:");
+        uploadLabel.getElement().getStyle().set("font-size", "13px").set("font-weight", "700").set("color", "#001934");
+
+        MemoryBuffer buffer = new MemoryBuffer();
+        Upload upload = new Upload(buffer);
+        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp");
+        upload.setMaxFileSize(5 * 1024 * 1024);
+
+        String[] uploadedKtaPath = new String[1];
+        Image previewImg = new Image();
+        previewImg.setVisible(false);
+        previewImg.getStyle().set("width", "100%").set("max-height", "220px").set("object-fit", "contain").set("border-radius", "8px").set("border", "1px solid #CBD5E1").set("background", "#FFFFFF");
+
+        upload.addSucceededListener(event -> {
+            try {
+                String origName = event.getFileName();
+                String ext = origName.contains(".") ? origName.substring(origName.lastIndexOf(".")) : ".jpg";
+                String fileName = "kta_" + System.currentTimeMillis() + ext;
+                File uploadDir = new File(WebMvcConfig.UPLOAD_BASE_DIR);
+                if (!uploadDir.exists()) uploadDir.mkdirs();
+                File destFile = new File(uploadDir, fileName);
+                try (InputStream in = buffer.getInputStream(); FileOutputStream out = new FileOutputStream(destFile)) {
+                    in.transferTo(out);
+                }
+                uploadedKtaPath[0] = "images/uploads/" + fileName;
+                previewImg.setSrc("/" + uploadedKtaPath[0]);
+                previewImg.setVisible(true);
+                Notification.show("Foto KTA berhasil diunggah!", 2500, Notification.Position.TOP_CENTER);
+            } catch (Exception ex) {
+                Notification.show("Gagal mengunggah foto: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER);
+            }
+        });
+
+        uploadSection.add(uploadLabel, upload, previewImg);
+
+        Button btnSubmitKta = new Button("Kirim Pengajuan Verifikasi KTA", VaadinIcon.CHECK.create());
+        btnSubmitKta.getElement().getStyle()
+            .set("background", "#001934").set("color", "#F5C45E").set("font-weight", "800")
+            .set("border-radius", "10px").set("padding", "12px 24px").set("cursor", "pointer")
+            .set("border", "none").set("font-size", "14px").set("margin-top", "8px");
+
+        btnSubmitKta.addClickListener(e -> {
+            if (nisnField.isEmpty()) {
+                Notification.show("Harap masukkan Nomor Induk Siswa (NISN/NIS).", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            if (uploadedKtaPath[0] == null || uploadedKtaPath[0].isBlank()) {
+                Notification.show("Harap unggah foto Kartu Pelajar (KTA).", 3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+            School selectedSchool = schoolCombo.getValue();
+            userService.submitSchoolVerification(targetUser, selectedSchool, nisnField.getValue(), uploadedKtaPath[0]);
+            Notification notif = Notification.show("Pengajuan verifikasi KTA berhasil dikirimkan ke Admin Sekolah!", 3500, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            buildMainLayout();
+        });
+
+        formCard.add(schoolCombo, nisnField, uploadSection, btnSubmitKta);
+        wrapper.add(formCard);
         return wrapper;
     }
 

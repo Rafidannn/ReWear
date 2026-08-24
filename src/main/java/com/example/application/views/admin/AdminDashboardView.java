@@ -16,6 +16,8 @@ import com.example.application.model.user.AccountStatus;
 import com.example.application.model.user.Role;
 import com.example.application.model.user.School;
 import com.example.application.model.user.User;
+import com.example.application.model.user.UserSchoolVerification;
+import com.example.application.model.user.VerificationStatus;
 import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.order.OrderService;
 import com.example.application.service.payment.PaymentService;
@@ -405,11 +407,30 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
 
         grid.addComponentColumn(u -> {
             boolean isVerified = u.getSchool() != null;
-            Span badge = new Span(isVerified ? "WARGA SMKN 24" : "UMUM");
+            if (isVerified) {
+                Span badge = new Span("WARGA SMKN 24");
+                badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+                badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+                return badge;
+            }
+            java.util.Optional<UserSchoolVerification> verOpt = userService.getVerification(u);
+            if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.PENDING) {
+                Span badge = new Span("PENGAJUAN KTA");
+                badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+                badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF").set("border", "1px solid #BFDBFE");
+                return badge;
+            }
+            if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.REJECTED) {
+                Span badge = new Span("KTA DITOLAK");
+                badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+                badge.getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
+                return badge;
+            }
+            Span badge = new Span("UMUM");
             badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
-            badge.getStyle().set("background", isVerified ? "#FEF3C7" : "#F1F5F9").set("color", isVerified ? "#92400E" : "#64748B");
+            badge.getStyle().set("background", "#F1F5F9").set("color", "#64748B");
             return badge;
-        }).setHeader("Status Sekolah").setWidth("140px").setFlexGrow(0);
+        }).setHeader("Status Sekolah").setWidth("150px").setFlexGrow(0);
 
         grid.addComponentColumn(u -> {
             boolean isSuspended = u.getAccountStatus() == AccountStatus.SUSPENDED;
@@ -423,18 +444,26 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             HorizontalLayout actions = new HorizontalLayout();
             actions.setSpacing(true);
 
-            // Verifikasi Sekolah Button
+            java.util.Optional<UserSchoolVerification> verOpt = userService.getVerification(u);
+
+            // Verifikasi Sekolah / Tinjau KTA Button
             if (u.getSchool() == null) {
-                Button btnVerify = new Button("Verifikasi", e -> {
-                    List<School> schools = userService.findAllSchools();
-                    School defaultSchool = schools.isEmpty() ? null : schools.get(0);
-                    userService.verifyUserSchool(u, defaultSchool);
-                    Notification.show("Pengguna " + u.getFullName() + " berhasil diverifikasi sebagai Siswa SMKN 24.", 2500, Notification.Position.TOP_CENTER);
-                    renderActiveTab();
-                });
-                btnVerify.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-                btnVerify.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB");
-                actions.add(btnVerify);
+                if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.PENDING) {
+                    Button btnReviewKta = new Button("Tinjau KTA", VaadinIcon.ACADEMY_CAP.create(), e -> openReviewKtaDialog(u, verOpt.get()));
+                    btnReviewKta.getStyle().set("background", "#001934").set("color", "#F5C45E").set("font-size", "11px").set("font-weight", "700").set("border-radius", "6px").set("padding", "4px 8px");
+                    actions.add(btnReviewKta);
+                } else {
+                    Button btnVerify = new Button("Verifikasi", e -> {
+                        List<School> schools = userService.findAllSchools();
+                        School defaultSchool = schools.isEmpty() ? null : schools.get(0);
+                        userService.verifyUserSchool(u, defaultSchool);
+                        Notification.show("Pengguna " + u.getFullName() + " berhasil diverifikasi sebagai Siswa SMKN 24.", 2500, Notification.Position.TOP_CENTER);
+                        renderActiveTab();
+                    });
+                    btnVerify.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                    btnVerify.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB");
+                    actions.add(btnVerify);
+                }
             }
 
             // Suspend / Unsuspend Button with ConfirmDialog
@@ -466,7 +495,7 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
 
             actions.add(btnSuspend, btnRole);
             return actions;
-        }).setHeader("Aksi Admin").setWidth("220px").setFlexGrow(0);
+        }).setHeader("Aksi Admin").setWidth("280px").setFlexGrow(0);
 
         grid.setItems(users);
 
@@ -475,6 +504,84 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         wrapper.add(card);
 
         return wrapper;
+    }
+
+    private void openReviewKtaDialog(User u, UserSchoolVerification ver) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Tinjau Pengajuan KTA - " + (u.getFullName() != null ? u.getFullName() : "Siswa"));
+        d.setWidth("480px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Div details = new Div();
+        details.getStyle().set("background", "#F8FAFC").set("padding", "12px").set("border-radius", "8px").set("border", "1px solid #CBD5E1").set("width", "100%").set("box-sizing", "border-box");
+        details.getElement().setProperty("innerHTML",
+            "<div style='font-size:13px;color:#001934;margin-bottom:4px;'><strong>Nama Siswa:</strong> " + (u.getFullName() != null ? u.getFullName() : "-") + "</div>" +
+            "<div style='font-size:13px;color:#001934;margin-bottom:4px;'><strong>Email:</strong> " + (u.getEmail() != null ? u.getEmail() : "-") + "</div>" +
+            "<div style='font-size:13px;color:#001934;margin-bottom:4px;'><strong>Nomor Induk Siswa (NISN):</strong> <span style='color:#2563EB;font-weight:700;'>" + (ver.getSchoolNumber() != null ? ver.getSchoolNumber() : "-") + "</span></div>" +
+            "<div style='font-size:12px;color:#64748B;'><strong>Sekolah Tujuan:</strong> " + (ver.getSchool() != null ? ver.getSchool().getName() : "SMKN 24 Jakarta") + "</div>"
+        );
+        layout.add(details);
+
+        if (ver.getProofUrl() != null && !ver.getProofUrl().isBlank()) {
+            String cleanUrl = ver.getProofUrl().startsWith("/") ? ver.getProofUrl() : "/" + ver.getProofUrl();
+            Image proofImg = new Image(cleanUrl, "Foto Kartu Pelajar");
+            proofImg.setWidth("100%");
+            proofImg.setMaxHeight("260px");
+            proofImg.getStyle().set("object-fit", "contain").set("border-radius", "8px").set("border", "1px solid #CBD5E1").set("background", "#FFFFFF").set("padding", "4px");
+            layout.add(proofImg);
+        } else {
+            Div noImg = new Div(new Text("Tidak ada lampiran foto KTA."));
+            noImg.getStyle().set("color", "#64748B").set("font-size", "13px").set("padding", "12px");
+            layout.add(noImg);
+        }
+
+        Button btnApprove = new Button("Setujui Verifikasi", VaadinIcon.CHECK.create());
+        btnApprove.getStyle().set("background", "#16A34A").set("color", "#FFFFFF").set("font-weight", "700");
+        btnApprove.addClickListener(e -> {
+            userService.verifyUserSchool(u, ver.getSchool());
+            Notification notif = Notification.show("Verifikasi KTA disetujui! Pengguna kini berstatus Warga SMKN 24.", 3000, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            d.close();
+            renderActiveTab();
+        });
+
+        Button btnReject = new Button("Tolak Pengajuan", VaadinIcon.CLOSE.create());
+        btnReject.getStyle().set("background", "#DC2626").set("color", "#FFFFFF").set("font-weight", "700");
+        btnReject.addClickListener(e -> {
+            Dialog rejectDialog = new Dialog();
+            rejectDialog.setHeaderTitle("Alasan Penolakan KTA");
+            rejectDialog.setWidth("380px");
+
+            com.vaadin.flow.component.textfield.TextField reasonField = new com.vaadin.flow.component.textfield.TextField("Alasan:");
+            reasonField.setPlaceholder("Contoh: Foto KTA buram / nama tidak sesuai");
+            reasonField.setValue("Foto KTA buram atau tidak terbaca.");
+            reasonField.setWidthFull();
+
+            Button btnConfirmReject = new Button("Konfirmasi Tolak", evt -> {
+                String reason = reasonField.getValue();
+                userService.rejectUserSchoolVerification(u, reason);
+                Notification.show("Pengajuan verifikasi KTA ditolak.", 2500, Notification.Position.TOP_CENTER);
+                rejectDialog.close();
+                d.close();
+                renderActiveTab();
+            });
+            btnConfirmReject.getStyle().set("background", "#DC2626").set("color", "#FFFFFF");
+
+            Button btnCancelReject = new Button("Batal", evt -> rejectDialog.close());
+
+            rejectDialog.add(reasonField);
+            rejectDialog.getFooter().add(btnCancelReject, btnConfirmReject);
+            rejectDialog.open();
+        });
+
+        Button btnClose = new Button("Tutup", e -> d.close());
+
+        d.getFooter().add(btnClose, btnReject, btnApprove);
+        d.add(layout);
+        d.open();
     }
 
     private void openChangeRoleDialog(User user) {
