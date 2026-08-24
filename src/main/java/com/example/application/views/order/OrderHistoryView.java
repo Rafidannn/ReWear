@@ -245,15 +245,14 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 Div thumb = new Div();
                 thumb.getElement().getStyle()
                     .set("width", "54px").set("height", "54px").set("border-radius", "10px")
-                    .set("background", "#F1F5F9").set("flex-shrink", "0")
-                    .set("display", "flex").set("align-items", "center").set("justify-content", "center");
-                if (firstItem.getProduct() != null && firstItem.getProduct().getImages() != null && !firstItem.getProduct().getImages().isBlank()) {
-                    thumb.getElement().getStyle()
-                        .set("background-image", "url('" + firstItem.getProduct().getImages() + "')")
-                        .set("background-size", "cover").set("background-position", "center");
-                } else {
-                    thumb.getElement().setProperty("innerHTML", "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>");
-                }
+                    .set("background", "#F1F5F9").set("flex-shrink", "0").set("overflow", "hidden")
+                    .set("display", "flex").set("align-items", "center").set("justify-content", "center")
+                    .set("border", "1px solid #E2E8F0");
+
+                String imgUrl = (firstItem.getProduct() != null) ? extractImgUrl(firstItem.getProduct().getImages(), "/images/buku.jpeg") : "/images/buku.jpeg";
+                Image pImg = new Image(imgUrl, firstItem.getProductNameSnapshot());
+                pImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
+                thumb.add(pImg);
 
                 Div pInfo = new Div();
                 pInfo.getElement().getStyle().set("flex", "1");
@@ -333,18 +332,10 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 .set("display", "flex").set("align-items", "center").set("justify-content", "center")
                 .set("border", "1px solid #E2E8F0");
 
-            String rawImg = null;
-            if (firstItem.getProduct() != null && firstItem.getProduct().getImages() != null && !firstItem.getProduct().getImages().isBlank()) {
-                rawImg = firstItem.getProduct().getImages().split(",")[0].trim();
-            }
-            if (rawImg != null && !rawImg.isBlank()) {
-                String imgUrl = rawImg.startsWith("/") ? rawImg : "/" + rawImg;
-                Image pImg = new Image(imgUrl, firstItem.getProductNameSnapshot());
-                pImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
-                thumb.add(pImg);
-            } else {
-                thumb.getElement().setProperty("innerHTML", "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='2'><path d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/></svg>");
-            }
+            String imgUrl = (firstItem.getProduct() != null) ? extractImgUrl(firstItem.getProduct().getImages(), "/images/buku.jpeg") : "/images/buku.jpeg";
+            Image pImg = new Image(imgUrl, firstItem.getProductNameSnapshot());
+            pImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
+            thumb.add(pImg);
 
             Div pInfo = new Div();
             pInfo.getElement().getStyle().set("flex", "1");
@@ -1395,5 +1386,14 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         d.getFooter().add(btnClose);
         d.add(layout);
         d.open();
+    }
+
+    private String extractImgUrl(String imagesJson, String fallback) {
+        if (imagesJson == null || imagesJson.isBlank()) return fallback;
+        String clean = imagesJson.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").replace("\\", "").trim();
+        if (clean.isEmpty()) return fallback;
+        String first = clean.split(",")[0].trim();
+        if (first.isEmpty()) return fallback;
+        return first.startsWith("/") ? first : "/" + first;
     }
 }

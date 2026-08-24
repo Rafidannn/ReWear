@@ -452,14 +452,11 @@ public class ChatView extends Div implements BeforeEnterObserver {
 
     private String extractImgUrl(String imagesJson) {
         if (imagesJson == null || imagesJson.isBlank()) return "images/buku.jpeg";
-        String s = imagesJson.trim();
-        if (s.startsWith("[")) {
-            s = s.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").trim();
-            String[] parts = s.split(",");
-            if (parts.length > 0 && !parts[0].trim().isEmpty()) return parts[0].trim();
-        }
-        if (s.startsWith("http") || s.startsWith("images/") || s.startsWith("uploads/")) return s;
-        return "images/buku.jpeg";
+        String clean = imagesJson.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").replace("\\", "").trim();
+        if (clean.isEmpty()) return "images/buku.jpeg";
+        String first = clean.split(",")[0].trim();
+        if (first.isEmpty()) return "images/buku.jpeg";
+        return first.startsWith("/") ? first : "/" + first;
     }
 
     private void openReportUserDialog(User targetUser, Conversation conversation) {

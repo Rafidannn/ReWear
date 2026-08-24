@@ -1051,10 +1051,12 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
     }
 
     private String extractImgUrl(String imagesJson, String fallback) {
-        if (imagesJson == null || !imagesJson.contains("images/")) {
-            return fallback;
-        }
-        return imagesJson.replace("[\"", "").replace("\"]", "").trim();
+        if (imagesJson == null || imagesJson.isBlank()) return fallback;
+        String clean = imagesJson.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").replace("\\", "").trim();
+        if (clean.isEmpty()) return fallback;
+        String first = clean.split(",")[0].trim();
+        if (first.isEmpty()) return fallback;
+        return first.startsWith("/") ? first : "/" + first;
     }
 
     private String getSellerSchool(Product product) {

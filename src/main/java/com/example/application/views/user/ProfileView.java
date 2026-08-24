@@ -2033,17 +2033,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
     private String extractImgUrl(String imagesJson, String fallback) {
         if (imagesJson == null || imagesJson.isBlank()) return fallback;
-        String s = imagesJson.trim();
-        if (s.startsWith("[")) {
-            s = s.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").trim();
-            String[] parts = s.split(",");
-            if (parts.length > 0 && !parts[0].trim().isEmpty()) {
-                return parts[0].trim();
-            }
-        }
-        if (s.startsWith("http") || s.startsWith("images/") || s.startsWith("uploads/")) {
-            return s;
-        }
-        return fallback;
+        String clean = imagesJson.replace("[", "").replace("]", "").replace("\"", "").replace("'", "").replace("\\", "").trim();
+        if (clean.isEmpty()) return fallback;
+        String first = clean.split(",")[0].trim();
+        if (first.isEmpty()) return fallback;
+        return first.startsWith("/") ? first : "/" + first;
     }
 }
