@@ -127,28 +127,41 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         Div containerWrapper = new Div();
         containerWrapper.addClassName("product-detail-page-container");
 
-        // ---- 0. MOBILE TOP HEADER (Figma Exact: Back Icon + "Detail") ----
+        // ---- 0. MOBILE TOP HEADER (Detail Title + Prominent Share Button) ----
         Div mobTopHeader = new Div();
         mobTopHeader.addClassName("pd-top-mobile-header");
-
-        Icon mobNavBack = VaadinIcon.ARROW_LEFT.create();
-        mobNavBack.getElement().getStyle()
-            .set("cursor", "pointer")
-            .set("color", "#001934")
-            .set("font-size", "18px");
-        mobNavBack.addClickListener(e -> UI.getCurrent().getPage().getHistory().back());
+        mobTopHeader.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "space-between")
+            .set("padding", "12px 16px")
+            .set("background", "#FFFFFF")
+            .set("border-bottom", "1px solid #E2E8F0");
 
         H2 mobTitle = new H2("Detail");
         mobTitle.addClassName("pd-top-mobile-header-title");
+        mobTitle.getElement().getStyle()
+            .set("font-size", "17px")
+            .set("font-weight", "800")
+            .set("color", "#001934")
+            .set("margin", "0");
 
-        Icon mobShareBtn = VaadinIcon.SHARE.create();
+        Div mobShareBtn = new Div();
+        Icon shareIcon = VaadinIcon.SHARE.create();
+        shareIcon.setSize("20px");
+        shareIcon.getElement().getStyle().set("color", "#001934");
+        mobShareBtn.add(shareIcon);
         mobShareBtn.getElement().getStyle()
             .set("cursor", "pointer")
-            .set("color", "#001934")
-            .set("font-size", "18px")
-            .set("padding", "6px")
-            .set("border-radius", "8px")
-            .set("transition", "background 0.2s");
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("width", "38px")
+            .set("height", "38px")
+            .set("border-radius", "50%")
+            .set("background", "#F1F5F9")
+            .set("border", "1px solid #E2E8F0");
+
         mobShareBtn.addClickListener(e -> {
             UI.getCurrent().getPage().executeJs(
                 "var shareData = {" +
@@ -176,7 +189,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             notif.addThemeVariants(NotificationVariant.LUMO_PRIMARY);
         });
 
-        mobTopHeader.add(mobNavBack, mobTitle, mobShareBtn);
+        mobTopHeader.add(mobTitle, mobShareBtn);
 
 
         // ---- 1. TOP NAV / BREADCRUMBS (Desktop Only) ----
@@ -230,7 +243,24 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         leftGallery.setSpacing(true);
 
         String imagesJson = product.getImages();
-        String mainImgUrl = extractImgUrl(imagesJson, "images/buku.jpeg");
+        List<String> imgList = new ArrayList<>();
+        if (imagesJson != null && !imagesJson.isBlank()) {
+            String clean = imagesJson.trim();
+            if (clean.startsWith("[")) {
+                clean = clean.replace("[", "").replace("]", "").replace("\"", "");
+                for (String part : clean.split(",")) {
+                    if (!part.trim().isEmpty()) {
+                        imgList.add(part.trim());
+                    }
+                }
+            } else {
+                imgList.add(clean);
+            }
+        }
+        if (imgList.isEmpty()) {
+            imgList.add("images/buku.jpeg");
+        }
+        String mainImgUrl = imgList.get(0);
 
         // Main Image Display
         Div mainImgBox = new Div();
@@ -258,65 +288,59 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         mobFloatingBack.addClickListener(e -> UI.getCurrent().getPage().getHistory().back());
         mainImgBox.add(mobFloatingBack);
 
-        // Floating Dots Indicator (Mobile Only)
-        Div mobDots = new Div();
-        mobDots.addClassName("pd-mobile-dots-indicator");
-        Span d1 = new Span(); d1.addClassNames("pd-dot", "active");
-        Span d2 = new Span(); d2.addClassName("pd-dot");
-        Span d3 = new Span(); d3.addClassName("pd-dot");
-        mobDots.add(d1, d2, d3);
-
-        List<Span> dotList = List.of(d1, d2, d3);
-        d1.addClickListener(e -> {
-            dotList.forEach(d -> d.removeClassName("active"));
-            d1.addClassName("active");
-            heroImg.setSrc(mainImgUrl);
-        });
-        d2.addClickListener(e -> {
-            dotList.forEach(d -> d.removeClassName("active"));
-            d2.addClassName("active");
-        });
-        d3.addClickListener(e -> {
-            dotList.forEach(d -> d.removeClassName("active"));
-            d3.addClassName("active");
-        });
-        mainImgBox.add(mobDots);
-
+        // Floating Dots Indicator (Mobile Only - Only shown if multiple images exist)
+        if (imgList.size() > 1) {
+            Div mobDots = new Div();
+            mobDots.addClassName("pd-mobile-dots-indicator");
+            List<Span> dotList = new ArrayList<>();
+            for (int i = 0; i < imgList.size() && i < 6; i++) {
+                final int currentIdx = i;
+                final String url = imgList.get(i);
+                Span dot = new Span();
+                dot.addClassName("pd-dot");
+                if (i == 0) dot.addClassName("active");
+                dot.addClickListener(e -> {
+                    dotList.forEach(d -> d.removeClassName("active"));
+                    dot.addClassName("active");
+                    heroImg.setSrc(url);
+                });
+                dotList.add(dot);
+                mobDots.add(dot);
+            }
+            mainImgBox.add(mobDots);
+        }
 
         // Desktop Multiple Thumbnails
         VerticalLayout thumbsCol = new VerticalLayout();
         thumbsCol.addClassName("pd-thumbs-col");
-        if (imagesJson != null && imagesJson.contains("\",\"")) {
-            String[] imgList = imagesJson.replace("[\"", "").replace("\"]", "").split("\",\"");
-            if (imgList.length > 1) {
-                List<Div> thumbDivs = new ArrayList<>();
-                for (int i = 0; i < imgList.length && i < 4; i++) {
-                    String url = imgList[i].trim();
-                    Div thumb = new Div();
-                    thumb.getElement().getStyle()
-                        .set("width", "72px")
-                        .set("height", "72px")
-                        .set("border-radius", "8px")
-                        .set("overflow", "hidden")
-                        .set("border", i == 0 ? "2px solid #001934" : "1.5px solid #E2E8F0")
-                        .set("cursor", "pointer");
-                    Image tImg = new Image(url, "Thumb");
-                    tImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
-                    thumb.add(tImg);
+        if (imgList.size() > 1) {
+            List<Div> thumbDivs = new ArrayList<>();
+            for (int i = 0; i < imgList.size() && i < 4; i++) {
+                final int currentIdx = i;
+                final String url = imgList.get(i);
+                Div thumb = new Div();
+                thumb.getElement().getStyle()
+                    .set("width", "72px")
+                    .set("height", "72px")
+                    .set("border-radius", "8px")
+                    .set("overflow", "hidden")
+                    .set("border", i == 0 ? "2px solid #001934" : "1.5px solid #E2E8F0")
+                    .set("cursor", "pointer");
+                Image tImg = new Image(url, "Thumb");
+                tImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover");
+                thumb.add(tImg);
 
-                    final int currentIdx = i;
-                    thumb.addClickListener(e -> {
-                        heroImg.setSrc(url);
-                        for (int k = 0; k < thumbDivs.size(); k++) {
-                            thumbDivs.get(k).getElement().getStyle().set("border", k == currentIdx ? "2px solid #001934" : "1.5px solid #E2E8F0");
-                        }
-                    });
+                thumb.addClickListener(e -> {
+                    heroImg.setSrc(url);
+                    for (int k = 0; k < thumbDivs.size(); k++) {
+                        thumbDivs.get(k).getElement().getStyle().set("border", k == currentIdx ? "2px solid #001934" : "1.5px solid #E2E8F0");
+                    }
+                });
 
-                    thumbDivs.add(thumb);
-                    thumbsCol.add(thumb);
-                }
-                leftGallery.add(thumbsCol);
+                thumbDivs.add(thumb);
+                thumbsCol.add(thumb);
             }
+            leftGallery.add(thumbsCol);
         }
 
         leftGallery.add(mainImgBox);

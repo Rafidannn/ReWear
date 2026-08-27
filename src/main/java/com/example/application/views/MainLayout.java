@@ -15,6 +15,8 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.contextmenu.ContextMenu;
+import com.vaadin.flow.component.contextmenu.MenuItem;
+import com.vaadin.flow.component.menubar.MenuBar;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Layout;
@@ -224,21 +226,29 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
                 "<div class='rw-avatar-circle' title='" + currentUser.getFullName() + "'>" + initial + "</div>"
             );
 
-            ContextMenu menu = new ContextMenu(avatar);
-            menu.setOpenOnClick(true);
+            MenuBar userMenuBar = new MenuBar();
+            userMenuBar.addClassName("rw-nav-user-menubar");
+            userMenuBar.getElement().getStyle()
+                .set("background", "transparent")
+                .set("border", "none")
+                .set("cursor", "pointer")
+                .set("padding", "0")
+                .set("margin", "0");
+
+            MenuItem userItem = userMenuBar.addItem(avatar);
             if (currentUser.getRole() == Role.SUPER_ADMIN || currentUser.getRole() == Role.MODERATOR) {
-                menu.addItem("Panel Admin & Moderasi", e -> UI.getCurrent().navigate("admin"));
+                userItem.getSubMenu().addItem("Panel Admin & Moderasi", e -> UI.getCurrent().navigate("admin"));
             }
-            menu.addItem("Profil Saya", e -> UI.getCurrent().navigate("profile"));
-            menu.addItem("Dashboard Penjual", e -> UI.getCurrent().navigate("seller"));
-            menu.addItem("Pesanan Saya", e -> UI.getCurrent().navigate("orders"));
-            menu.addItem("Keluar", e -> {
+            userItem.getSubMenu().addItem("Profil Saya", e -> UI.getCurrent().navigate("profile"));
+            userItem.getSubMenu().addItem("Dashboard Penjual", e -> UI.getCurrent().navigate("seller"));
+            userItem.getSubMenu().addItem("Pesanan Saya", e -> UI.getCurrent().navigate("orders"));
+            userItem.getSubMenu().addItem("Keluar", e -> {
                 VaadinSession.getCurrent().setAttribute(User.class, null);
                 Notification.show("Berhasil keluar.");
                 UI.getCurrent().navigate("");
                 UI.getCurrent().getPage().reload();
             });
-            rightSideItem = avatar;
+            rightSideItem = userMenuBar;
         }
 
         // ---- Tombol "Jual" (Gold Pill Button) ----

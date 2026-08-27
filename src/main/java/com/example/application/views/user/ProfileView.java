@@ -1,6 +1,7 @@
 package com.example.application.views.user;
 
 import com.example.application.model.product.Product;
+import com.example.application.model.user.Role;
 import com.example.application.model.user.User;
 import com.example.application.repository.moderation.ReviewRepository;
 import com.example.application.model.user.School;
@@ -306,6 +307,15 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
         // Only show private tabs if viewing own profile
         if (isOwnProfile) {
+            if (targetUser != null && (targetUser.getRole() == Role.SUPER_ADMIN || targetUser.getRole() == Role.MODERATOR)) {
+                Div adminItem = createNavItem("Panel Admin & Moderasi", "admin", VaadinIcon.SHIELD);
+                adminItem.getElement().getStyle()
+                    .set("background", "#FEF3C7")
+                    .set("color", "#92400E")
+                    .set("font-weight", "800")
+                    .set("border", "1px solid #FDE68A");
+                navList.add(adminItem);
+            }
             navList.add(createNavItem("Pesanan Saya", "orders", VaadinIcon.CART));
             navList.add(createNavItem("Wishlist", "wishlist", VaadinIcon.HEART));
             navList.add(createNavItem("ReWear Pay", "rewearpay", VaadinIcon.CREDIT_CARD));
@@ -356,6 +366,10 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
         item.add(ic, text);
 
         item.addClickListener(e -> {
+            if ("admin".equalsIgnoreCase(key)) {
+                UI.getCurrent().navigate("admin");
+                return;
+            }
             if ("orders".equalsIgnoreCase(key) || "pesanan".equalsIgnoreCase(key)) {
                 UI.getCurrent().navigate("orders");
                 return;

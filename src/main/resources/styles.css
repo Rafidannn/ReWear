@@ -4205,4 +4205,18 @@ div.hero-banner,
     .rw-mobile-home-header {
         display: flex !important;
     }
+
+    .rw-profile-dashboard-grid {
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    .rw-profile-left-sidebar {
+        width: 100% !important;
+        padding: 16px 12px !important;
+    }
+
+    .rw-profile-right-content {
+        width: 100% !important;
+    }
 }
