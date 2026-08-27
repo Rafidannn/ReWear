@@ -467,21 +467,29 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         Div sellerBtns = new Div();
         sellerBtns.getElement().getStyle()
             .set("display", "flex")
-            .set("align-items", "center")
-            .set("gap", "8px")
+            .set("flex-direction", "column")
+            .set("align-items", "stretch")
+            .set("justify-content", "center")
+            .set("gap", "6px")
             .set("margin-left", "auto")
-            .set("flex-shrink", "0");
+            .set("flex-shrink", "0")
+            .set("min-width", "72px");
 
         Button btnChatSeller = new Button("Chat", VaadinIcon.COMMENT.create());
         btnChatSeller.getElement().getStyle()
             .set("background", "#001934")
             .set("color", "#F5C45E")
             .set("font-weight", "800")
-            .set("font-size", "12px")
-            .set("border-radius", "8px")
+            .set("font-size", "11.5px")
+            .set("border-radius", "6px")
             .set("border", "none")
-            .set("padding", "6px 12px")
-            .set("cursor", "pointer");
+            .set("padding", "0 10px")
+            .set("height", "28px")
+            .set("cursor", "pointer")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("width", "100%");
         btnChatSeller.addClickListener(e -> {
             if (!AuthGuard.requireLogin(UI.getCurrent())) return;
             if (product.getSeller() != null) {
@@ -498,11 +506,16 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("background", "#FFFFFF")
             .set("color", "#001934")
             .set("border", "1px solid #CBD5E1")
-            .set("border-radius", "8px")
+            .set("border-radius", "6px")
             .set("font-weight", "700")
-            .set("font-size", "12px")
-            .set("padding", "6px 12px")
-            .set("cursor", "pointer");
+            .set("font-size", "11.5px")
+            .set("padding", "0 10px")
+            .set("height", "28px")
+            .set("cursor", "pointer")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("width", "100%");
         btnToko.addClickListener(e -> {
             if (product.getSeller() != null) {
                 UI.getCurrent().navigate("profile/" + product.getSeller().getId() + "?tab=products");
