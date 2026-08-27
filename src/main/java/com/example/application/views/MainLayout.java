@@ -366,19 +366,19 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     private Div createMobileNavItem(String label, String svgHtml, String title, String routePath) {
         Div item = new Div();
         item.addClassName("rw-mobile-nav-item");
+        item.getElement().getStyle().set("cursor", "pointer");
+
         Div iconDiv = new Div();
         iconDiv.addClassName("rw-mob-nav-icon");
+        iconDiv.getElement().getStyle().set("pointer-events", "none");
         iconDiv.getElement().setProperty("innerHTML", svgHtml);
+
         Span textSpan = new Span(label);
         textSpan.addClassName("rw-mob-nav-label");
+        textSpan.getElement().getStyle().set("pointer-events", "none");
+
         item.add(iconDiv, textSpan);
-        item.addClickListener(e -> {
-            if ("profile".equals(routePath) || "chat".equals(routePath) || "sell".equals(routePath)) {
-                if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate(routePath);
-            } else {
-                UI.getCurrent().navigate(routePath);
-            }
-        });
+        item.addClickListener(e -> UI.getCurrent().navigate(routePath));
         return item;
     }
 }
