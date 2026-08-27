@@ -368,29 +368,42 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         // Seller Card
         Div sellerCard = new Div();
         sellerCard.addClassName("pd-seller-card");
+        sellerCard.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "space-between")
+            .set("width", "100%")
+            .set("box-sizing", "border-box")
+            .set("background", "#F8FAFC")
+            .set("border", "1px solid #E2E8F0")
+            .set("border-radius", "14px")
+            .set("padding", "12px 14px")
+            .set("gap", "10px");
 
         Div sellerLeft = new Div();
         sellerLeft.addClassName("pd-seller-left");
         sellerLeft.getElement().getStyle()
             .set("display", "flex")
             .set("align-items", "center")
-            .set("gap", "12px");
+            .set("gap", "10px")
+            .set("min-width", "0")
+            .set("flex", "1");
 
         Component sellerAvatar;
         String avatarUrl = (product.getSeller() != null) ? product.getSeller().getAvatarUrl() : null;
         if (avatarUrl != null && !avatarUrl.isBlank() && !avatarUrl.contains("buku.jpeg")) {
             Image img = new Image(avatarUrl, "Seller");
             img.getElement().getStyle()
-                .set("width", "44px").set("height", "44px").set("border-radius", "9999px").set("object-fit", "cover");
+                .set("width", "42px").set("height", "42px").set("border-radius", "9999px").set("object-fit", "cover").set("flex-shrink", "0");
             sellerAvatar = img;
         } else {
             String initials = getInitials(getSellerName(product));
             Div badge = new Div(new Span(initials));
             badge.getElement().getStyle()
-                .set("width", "44px").set("height", "44px").set("border-radius", "9999px")
+                .set("width", "42px").set("height", "42px").set("border-radius", "9999px")
                 .set("background", "#001934").set("color", "#F5C45E")
                 .set("font-weight", "800").set("display", "flex")
-                .set("align-items", "center").set("justify-content", "center");
+                .set("align-items", "center").set("justify-content", "center").set("flex-shrink", "0");
             sellerAvatar = badge;
         }
 
@@ -401,48 +414,69 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("flex-direction", "column")
             .set("align-items", "flex-start")
             .set("justify-content", "center")
-            .set("gap", "2px");
+            .set("gap", "2px")
+            .set("min-width", "0");
 
         Div sNameRow = new Div();
         sNameRow.addClassName("pd-seller-name-row");
         sNameRow.getElement().getStyle()
             .set("display", "flex")
             .set("align-items", "center")
-            .set("gap", "6px");
+            .set("gap", "6px")
+            .set("flex-wrap", "nowrap");
 
         Span sellerName = new Span(getSellerName(product));
         sellerName.addClassName("pd-seller-name");
+        sellerName.getElement().getStyle()
+            .set("font-size", "14px")
+            .set("font-weight", "800")
+            .set("color", "#001934")
+            .set("white-space", "nowrap");
 
         Span sellerRole = new Span("WARGA 24");
         sellerRole.addClassName("pd-seller-warga-badge");
+        sellerRole.getElement().getStyle()
+            .set("white-space", "nowrap")
+            .set("flex-shrink", "0")
+            .set("font-size", "10px")
+            .set("font-weight", "800")
+            .set("padding", "2px 8px")
+            .set("border-radius", "9999px")
+            .set("background", "#F5C45E")
+            .set("color", "#001934");
 
         sNameRow.add(sellerName, sellerRole);
 
         int totalReviewCount = reviews.isEmpty() ? 42 : reviews.size();
-        HorizontalLayout sellerSub = new HorizontalLayout();
+        Div sellerSub = new Div();
         sellerSub.addClassName("pd-seller-sub");
-        sellerSub.setAlignItems(FlexComponent.Alignment.CENTER);
-        sellerSub.setSpacing(false);
-        sellerSub.getElement().getStyle().set("margin-top", "2px");
+        sellerSub.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "4px")
+            .set("margin-top", "2px");
         Icon yellowStar = VaadinIcon.STAR.create();
-        yellowStar.getStyle().set("width", "13px").set("height", "13px").set("color", "#F59E0B").set("margin-right", "4px");
+        yellowStar.getStyle().set("width", "12px").set("height", "12px").set("color", "#F59E0B").set("margin-right", "2px");
         Span subText = new Span(String.format("%.1f", avgRating) + " (" + totalReviewCount + " ulasan)");
         subText.getStyle().set("font-size", "12px").set("color", "#64748B").set("font-weight", "600");
         sellerSub.add(yellowStar, subText);
 
         sellerInfo.add(sNameRow, sellerSub);
-
         sellerLeft.add(sellerAvatar, sellerInfo);
 
-        HorizontalLayout sellerBtns = new HorizontalLayout();
-        sellerBtns.setAlignItems(FlexComponent.Alignment.CENTER);
-        sellerBtns.setSpacing(true);
+        Div sellerBtns = new Div();
+        sellerBtns.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "8px")
+            .set("margin-left", "auto")
+            .set("flex-shrink", "0");
 
         Button btnChatSeller = new Button("Chat", VaadinIcon.COMMENT.create());
         btnChatSeller.getElement().getStyle()
             .set("background", "#001934")
             .set("color", "#F5C45E")
-            .set("font-weight", "700")
+            .set("font-weight", "800")
             .set("font-size", "12px")
             .set("border-radius", "8px")
             .set("border", "none")
@@ -460,6 +494,15 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         Button btnToko = new Button("Toko");
         btnToko.addClassName("pd-btn-toko");
+        btnToko.getElement().getStyle()
+            .set("background", "#FFFFFF")
+            .set("color", "#001934")
+            .set("border", "1px solid #CBD5E1")
+            .set("border-radius", "8px")
+            .set("font-weight", "700")
+            .set("font-size", "12px")
+            .set("padding", "6px 12px")
+            .set("cursor", "pointer");
         btnToko.addClickListener(e -> {
             if (product.getSeller() != null) {
                 UI.getCurrent().navigate("profile/" + product.getSeller().getId() + "?tab=products");
@@ -499,56 +542,111 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             desktopPurchaseBox.add(takedownAlert);
         }
 
-        HorizontalLayout qtyRow = new HorizontalLayout();
-        qtyRow.setWidthFull();
-        qtyRow.setAlignItems(FlexComponent.Alignment.CENTER);
-        qtyRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        Div qtyRow = new Div();
+        qtyRow.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "space-between")
+            .set("width", "100%")
+            .set("margin", "6px 0 10px 0");
 
+        Div qtyLabelCol = new Div();
         Span qtyLabel = new Span("Jumlah Pembelian:");
-        qtyLabel.getStyle().set("font-size", "14px").set("font-weight", "600").set("color", "#001934");
+        qtyLabel.getElement().getStyle().set("font-size", "14px").set("font-weight", "700").set("color", "#001934").set("display", "block");
+        Span stockLabel = new Span("Stok total: " + maxStock + " unit");
+        stockLabel.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("display", "block").set("margin-top", "1px");
+        qtyLabelCol.add(qtyLabel, stockLabel);
 
-        HorizontalLayout qtyControl = new HorizontalLayout();
-        qtyControl.setAlignItems(FlexComponent.Alignment.CENTER);
-        qtyControl.setSpacing(true);
+        // Modern Horizontal Stepper Box: [ - ] [ 1 ] [ + ]
+        Div stepperBox = new Div();
+        stepperBox.getElement().getStyle()
+            .set("display", "inline-flex")
+            .set("align-items", "center")
+            .set("border", "1.5px solid #CBD5E1")
+            .set("border-radius", "10px")
+            .set("background", "#FFFFFF")
+            .set("overflow", "hidden")
+            .set("box-shadow", "0 1px 4px rgba(0,25,52,0.04)");
+
+        Button btnMinus = new Button("-");
+        btnMinus.getElement().getStyle()
+            .set("min-width", "36px")
+            .set("width", "36px")
+            .set("height", "36px")
+            .set("border", "none")
+            .set("background", "transparent")
+            .set("color", "#001934")
+            .set("font-size", "18px")
+            .set("font-weight", "800")
+            .set("cursor", "pointer")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("padding", "0")
+            .set("margin", "0");
 
         Span qtyDisplay = new Span(String.valueOf(selectedQty[0]));
-        qtyDisplay.getStyle().set("font-size", "15px").set("font-weight", "800").set("color", "#001934").set("min-width", "28px").set("text-align", "center");
+        qtyDisplay.getElement().getStyle()
+            .set("min-width", "40px")
+            .set("text-align", "center")
+            .set("font-size", "15px")
+            .set("font-weight", "800")
+            .set("color", "#001934")
+            .set("border-left", "1px solid #E2E8F0")
+            .set("border-right", "1px solid #E2E8F0")
+            .set("line-height", "36px");
 
-        Button btnMinus = new Button("-", e -> {
+        Button btnPlus = new Button("+");
+        btnPlus.getElement().getStyle()
+            .set("min-width", "36px")
+            .set("width", "36px")
+            .set("height", "36px")
+            .set("border", "none")
+            .set("background", "transparent")
+            .set("color", "#001934")
+            .set("font-size", "18px")
+            .set("font-weight", "800")
+            .set("cursor", "pointer")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("padding", "0")
+            .set("margin", "0");
+
+        btnMinus.addClickListener(e -> {
             if (selectedQty[0] > 1) {
                 selectedQty[0]--;
                 qtyDisplay.setText(String.valueOf(selectedQty[0]));
             }
         });
-        btnMinus.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        btnMinus.getStyle().set("font-size", "16px").set("font-weight", "800").set("cursor", "pointer");
-
-        Button btnPlus = new Button("+", e -> {
+        btnPlus.addClickListener(e -> {
             if (selectedQty[0] < maxStock) {
                 selectedQty[0]++;
                 qtyDisplay.setText(String.valueOf(selectedQty[0]));
+            } else {
+                Notification.show("Maksimal stok tercapai (" + maxStock + ")", 2000, Notification.Position.TOP_CENTER);
             }
         });
-        btnPlus.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        btnPlus.getStyle().set("font-size", "16px").set("font-weight", "800").set("cursor", "pointer");
 
         if (isOutOfStock || isTakedown) {
             btnMinus.setEnabled(false);
             btnPlus.setEnabled(false);
         }
 
-        qtyControl.add(btnMinus, qtyDisplay, btnPlus);
-        qtyRow.add(qtyLabel, qtyControl);
+        stepperBox.add(btnMinus, qtyDisplay, btnPlus);
+        qtyRow.add(qtyLabelCol, stepperBox);
         desktopPurchaseBox.add(qtyRow);
 
-        HorizontalLayout desktopActionRow = new HorizontalLayout();
-        desktopActionRow.setWidthFull();
-        desktopActionRow.setSpacing(true);
+        Div desktopActionRow = new Div();
+        desktopActionRow.getElement().getStyle()
+            .set("display", "flex")
+            .set("gap", "12px")
+            .set("width", "100%");
 
         Button btnAddToCart = new Button("+ Keranjang", VaadinIcon.CART_O.create());
         btnAddToCart.getElement().getStyle()
             .set("flex", "1")
-            .set("height", "48px")
+            .set("height", "46px")
             .set("background", "#FFFFFF")
             .set("color", "#001934")
             .set("border", "2px solid #001934")
@@ -572,7 +670,7 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         Button btnBuyNow = new Button(isTakedown ? "Produk Di-Takedown" : (isOutOfStock ? "Stok Habis" : "Beli Sekarang"));
         btnBuyNow.getElement().getStyle()
             .set("flex", "1")
-            .set("height", "48px")
+            .set("height", "46px")
             .set("background", isTakedown ? "#EF4444" : "#001934")
             .set("color", "#FFFFFF")
             .set("border", "none")

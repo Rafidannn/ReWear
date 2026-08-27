@@ -3777,6 +3777,28 @@ div.hero-banner,
     border-color: #001934 !important;
 }
 
+@media (max-width: 768px) {
+    .pd-seller-card {
+        padding: 10px 12px !important;
+        gap: 8px !important;
+        justify-content: space-between !important;
+    }
+    .pd-seller-name-row {
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+    }
+    .pd-seller-name {
+        font-size: 13.5px !important;
+        white-space: nowrap !important;
+    }
+    .pd-seller-warga-badge {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        font-size: 9.5px !important;
+        padding: 2px 6px !important;
+    }
+}
+
 /* Tabs Section */
 .pd-tabs-header {
     display: flex !important;
