@@ -506,6 +506,12 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
 
         sellerInfo.add(sNameRow, sellerSub);
         sellerLeft.add(sellerAvatar, sellerInfo);
+        sellerLeft.getElement().getStyle().set("cursor", "pointer");
+        sellerLeft.addClickListener(e -> {
+            if (product.getSeller() != null) {
+                UI.getCurrent().navigate("profile/" + product.getSeller().getId());
+            }
+        });
 
         Div sellerBtns = new Div();
         sellerBtns.getElement().getStyle()
