@@ -18,7 +18,10 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
 
 import java.math.BigDecimal;
@@ -62,6 +65,7 @@ public class HomeView extends VerticalLayout {
             .set("max-width", "100%");
 
         add(
+            createMobileHeaderBar(),
             createHeroSection(),
             createCategorySection(),
             createSchoolMarketSection(),
@@ -71,6 +75,75 @@ public class HomeView extends VerticalLayout {
 
         // Initial product rendering
         filterAndRenderProducts("Semua", false);
+    }
+
+    private Component createMobileHeaderBar() {
+        Div mobileHeaderBar = new Div();
+        mobileHeaderBar.addClassName("rw-mobile-home-header");
+        mobileHeaderBar.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "10px")
+            .set("padding", "10px 16px")
+            .set("background", "#001934")
+            .set("width", "100%")
+            .set("box-sizing", "border-box")
+            .set("position", "sticky")
+            .set("top", "0")
+            .set("z-index", "98");
+
+        Div searchWrap = new Div();
+        searchWrap.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "8px")
+            .set("background", "rgba(255, 255, 255, 0.12)")
+            .set("border", "1px solid rgba(255, 255, 255, 0.2)")
+            .set("border-radius", "10px")
+            .set("padding", "8px 12px")
+            .set("flex", "1");
+
+        Icon searchIcon = VaadinIcon.SEARCH.create();
+        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px");
+
+        Input mobSearchInput = new Input();
+        mobSearchInput.setPlaceholder("Cari barang thrift impianmu...");
+        mobSearchInput.getElement().getStyle()
+            .set("background", "transparent")
+            .set("border", "none")
+            .set("outline", "none")
+            .set("color", "#FFFFFF")
+            .set("font-size", "13px")
+            .set("width", "100%")
+            .set("font-family", "inherit");
+
+        mobSearchInput.getElement().addEventListener("keydown", e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return arguments[0].target ? arguments[0].target.value.trim() : ''", mobSearchInput.getElement()
+            ).then(String.class, query -> {
+                if (query != null && !query.isBlank()) {
+                    UI.getCurrent().navigate("pasar-smkn24",
+                        new QueryParameters(java.util.Map.of("q", java.util.List.of(query))));
+                } else {
+                    UI.getCurrent().navigate("pasar-smkn24");
+                }
+            });
+        }).setFilter("event.key === 'Enter'");
+
+        searchWrap.add(searchIcon, mobSearchInput);
+
+        Icon bellIcon = VaadinIcon.BELL_O.create();
+        bellIcon.getElement().getStyle()
+            .set("color", "#FFFFFF")
+            .set("cursor", "pointer")
+            .set("width", "20px")
+            .set("height", "20px");
+        bellIcon.addClickListener(e -> {
+            if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("notifications");
+        });
+
+        mobileHeaderBar.add(searchWrap, bellIcon);
+        return mobileHeaderBar;
     }
 
     /* -----------------------------------------------------------------
