@@ -145,16 +145,35 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         mobShareBtn.getElement().getStyle()
             .set("cursor", "pointer")
             .set("color", "#001934")
-            .set("font-size", "18px");
+            .set("font-size", "18px")
+            .set("padding", "6px")
+            .set("border-radius", "8px")
+            .set("transition", "background 0.2s");
         mobShareBtn.addClickListener(e -> {
             UI.getCurrent().getPage().executeJs(
+                "var shareData = {" +
+                "  title: $0," +
+                "  text: 'Cek produk ' + $0 + ' di ReWear SMKN 24!'," +
+                "  url: window.location.href" +
+                "};" +
                 "if (navigator.share) {" +
-                "  navigator.share({title: $0, url: window.location.href});" +
+                "  navigator.share(shareData).catch(function(err) {" +
+                "    if (navigator.clipboard) {" +
+                "      navigator.clipboard.writeText(window.location.href);" +
+                "    }" +
+                "  });" +
+                "} else if (navigator.clipboard) {" +
+                "  navigator.clipboard.writeText(window.location.href).then(function() {" +
+                "    alert('Tautan produk berhasil disalin ke clipboard!\\n\\n' + window.location.href);" +
+                "  }).catch(function() {" +
+                "    prompt('Salin tautan produk:', window.location.href);" +
+                "  });" +
                 "} else {" +
-                "  navigator.clipboard.writeText(window.location.href);" +
-                "  alert('Tautan produk berhasil disalin!');" +
+                "  prompt('Salin tautan produk:', window.location.href);" +
                 "}", product.getName()
             );
+            Notification notif = Notification.show("Membuka menu bagikan link produk...", 2000, Notification.Position.TOP_CENTER);
+            notif.addThemeVariants(NotificationVariant.LUMO_PRIMARY);
         });
 
         mobTopHeader.add(mobNavBack, mobTitle, mobShareBtn);
