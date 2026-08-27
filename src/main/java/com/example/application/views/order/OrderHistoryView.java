@@ -231,7 +231,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
                 "</span>"
             );
 
-            Span statusBadge = buildStatusBadge(order.getStatus());
+            Span statusBadge = buildStatusBadge(order);
             header.add(leftDate, statusBadge);
             card.add(header);
 
@@ -313,7 +313,7 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         orderMeta.add(orderNum, orderDate);
         headerLeft.add(methodIconBox, orderMeta);
 
-        Span statusBadge = buildStatusBadge(order.getStatus());
+        Span statusBadge = buildStatusBadge(order);
         header.add(headerLeft, statusBadge);
         card.add(header);
 
@@ -479,24 +479,54 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
 
             actionContainer.add(btnLacak, btnTerima);
         } else if (order.getStatus() == OrderStatus.MENUNGGU_PEMBAYARAN) {
-            // Status MENUNGGU PEMBAYARAN -> Tombol Upload Bukti & Instruksi
-            Button btnUploadProof = new Button("Unggah Bukti Bayar", VaadinIcon.UPLOAD.create());
-            btnUploadProof.getElement().getStyle()
-                .set("background", "#16A34A").set("color", "#FFFFFF")
-                .set("border", "none").set("border-radius", "10px")
-                .set("font-weight", "800").set("font-size", "13px")
-                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
-            btnUploadProof.addClickListener(e -> openUploadPaymentProofDialog(order));
+            Optional<com.example.application.model.payment.Payment> pOpt = paymentService.getPaymentByOrder(order);
+            boolean hasProof = pOpt.isPresent() && pOpt.get().getPaymentProofUrl() != null && !pOpt.get().getPaymentProofUrl().isBlank();
 
-            Button btnInstruksi = new Button("Instruksi Bayar", VaadinIcon.QRCODE.create());
-            btnInstruksi.getElement().getStyle()
-                .set("background", "#001934").set("color", "#FFFFFF")
-                .set("border", "none").set("border-radius", "10px")
-                .set("font-weight", "800").set("font-size", "13px")
-                .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
-            btnInstruksi.addClickListener(e -> openPaymentInstructionDialog(order));
+            if (hasProof) {
+                Button btnViewProof = new Button("Lihat Bukti Bayar", VaadinIcon.EYE.create());
+                btnViewProof.getElement().getStyle()
+                    .set("background", "#001934").set("color", "#FFFFFF")
+                    .set("border", "none").set("border-radius", "10px")
+                    .set("font-weight", "800").set("font-size", "13px")
+                    .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+                btnViewProof.addClickListener(e -> openViewPaymentProofDialog(order, pOpt.get()));
 
-            actionContainer.add(btnUploadProof, btnInstruksi);
+                Button btnReupload = new Button("Ganti Bukti", VaadinIcon.UPLOAD.create());
+                btnReupload.getElement().getStyle()
+                    .set("background", "#FFFFFF").set("color", "#001934")
+                    .set("border", "1.5px solid #CBD5E1").set("border-radius", "10px")
+                    .set("font-weight", "800").set("font-size", "13px")
+                    .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+                btnReupload.addClickListener(e -> openUploadPaymentProofDialog(order));
+
+                Button btnInstruksi = new Button("Instruksi Bayar", VaadinIcon.QRCODE.create());
+                btnInstruksi.getElement().getStyle()
+                    .set("background", "#F1F5F9").set("color", "#475569")
+                    .set("border", "none").set("border-radius", "10px")
+                    .set("font-weight", "800").set("font-size", "13px")
+                    .set("padding", "10px").set("cursor", "pointer");
+                btnInstruksi.addClickListener(e -> openPaymentInstructionDialog(order));
+
+                actionContainer.add(btnViewProof, btnReupload, btnInstruksi);
+            } else {
+                Button btnUploadProof = new Button("Unggah Bukti Bayar", VaadinIcon.UPLOAD.create());
+                btnUploadProof.getElement().getStyle()
+                    .set("background", "#16A34A").set("color", "#FFFFFF")
+                    .set("border", "none").set("border-radius", "10px")
+                    .set("font-weight", "800").set("font-size", "13px")
+                    .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+                btnUploadProof.addClickListener(e -> openUploadPaymentProofDialog(order));
+
+                Button btnInstruksi = new Button("Instruksi Bayar", VaadinIcon.QRCODE.create());
+                btnInstruksi.getElement().getStyle()
+                    .set("background", "#001934").set("color", "#FFFFFF")
+                    .set("border", "none").set("border-radius", "10px")
+                    .set("font-weight", "800").set("font-size", "13px")
+                    .set("padding", "10px").set("flex", "1").set("cursor", "pointer");
+                btnInstruksi.addClickListener(e -> openPaymentInstructionDialog(order));
+
+                actionContainer.add(btnUploadProof, btnInstruksi);
+            }
         } else {
             // Status DIPROSES / DIBAYAR
             Button btnChat = new Button("Chat Penjual", VaadinIcon.CHAT.create());
@@ -1075,42 +1105,25 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         return badge;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // HELPERS
-    // ══════════════════════════════════════════════════════════
-
-    private Div buildStatChip(String value, String label, String bg, String color) {
-        Div chip = new Div();
-        chip.getElement().getStyle()
-            .set("background", bg).set("border-radius", "12px")
-            .set("padding", "10px 16px").set("display", "flex")
-            .set("flex-direction", "column").set("gap", "2px")
-            .set("border", "1px solid " + color + "33");
-
-        Span v = new Span(value);
-        v.getElement().getStyle()
-            .set("font-size", "16px").set("font-weight", "900").set("color", color);
-
-        Span l = new Span(label);
-        l.getElement().getStyle()
-            .set("font-size", "11px").set("color", color).set("font-weight", "600")
-            .set("opacity", "0.8");
-
-        chip.add(v, l);
-        return chip;
-    }
-
-    private Span buildStatusBadge(OrderStatus status) {
+    private Span buildStatusBadge(Order order) {
         Span badge = new Span();
         badge.getElement().getStyle()
             .set("font-size", "12px").set("font-weight", "800")
             .set("padding", "5px 12px").set("border-radius", "20px")
             .set("white-space", "nowrap").set("letter-spacing", "0.3px");
 
+        OrderStatus status = order.getStatus();
         switch (status) {
             case MENUNGGU_PEMBAYARAN -> {
-                badge.setText("Menunggu Pembayaran");
-                badge.getElement().getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+                Optional<com.example.application.model.payment.Payment> pOpt = paymentService.getPaymentByOrder(order);
+                boolean hasProof = pOpt.isPresent() && pOpt.get().getPaymentProofUrl() != null && !pOpt.get().getPaymentProofUrl().isBlank();
+                if (hasProof) {
+                    badge.setText("Menunggu Verifikasi Admin");
+                    badge.getElement().getStyle().set("background", "#EFF6FF").set("color", "#1E40AF").set("border", "1px solid #BFDBFE");
+                } else {
+                    badge.setText("Menunggu Pembayaran");
+                    badge.getElement().getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+                }
             }
             case DIBAYAR -> {
                 badge.setText("Sudah Dibayar");
@@ -1149,9 +1162,9 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
             case MENUNGGU_PEMBAYARAN -> "linear-gradient(90deg, #F59E0B, #FBBF24)";
             case DIBAYAR            -> "linear-gradient(90deg, #10B981, #34D399)";
             case DIPROSES           -> "linear-gradient(90deg, #3B82F6, #60A5FA)";
-            case DIKIRIM            -> "linear-gradient(90deg, #059669, #10B981)";
-            case DITERIMA           -> "linear-gradient(90deg, #0EA5E9, #38BDF8)";
-            case SELESAI            -> "linear-gradient(90deg, #16A34A, #22C55E)";
+            case DIKIRIM            -> "linear-gradient(90deg, #059669, #34D399)";
+            case DITERIMA           -> "linear-gradient(90deg, #10B981, #6EE7B7)";
+            case SELESAI            -> "linear-gradient(90deg, #047857, #10B981)";
             case KOMPLAIN           -> "linear-gradient(90deg, #DC2626, #F87171)";
             case DIBATALKAN         -> "linear-gradient(90deg, #94A3B8, #CBD5E1)";
             default                 -> "linear-gradient(90deg, #CBD5E1, #E2E8F0)";
@@ -1384,6 +1397,45 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
 
         Button btnClose = new Button("Tutup", e -> d.close());
         d.getFooter().add(btnClose);
+        d.add(layout);
+        d.open();
+    }
+
+    private void openViewPaymentProofDialog(Order order, com.example.application.model.payment.Payment payment) {
+        Dialog d = new Dialog();
+        d.setHeaderTitle("Bukti Pembayaran - #" + order.getOrderNumber());
+        d.setWidth("460px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setSpacing(true);
+        layout.setPadding(false);
+
+        Div infoBox = new Div();
+        infoBox.getStyle().set("background", "#EFF6FF").set("padding", "12px").set("border-radius", "8px").set("border", "1px solid #BFDBFE").set("width", "100%").set("box-sizing", "border-box");
+        infoBox.getElement().setProperty("innerHTML",
+            "<div style='font-size:13px;color:#1E40AF;margin-bottom:4px;'><strong>Status:</strong> Menunggu Verifikasi Admin</div>" +
+            "<div style='font-size:12px;color:#1E3A8A;'>Metode: <strong>" + (payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "TRANSFER") + "</strong> • Total: <strong>Rp " + String.format("%,.0f", order.getTotalAmount()) + "</strong></div>"
+        );
+        layout.add(infoBox);
+
+        String proofUrl = payment.getPaymentProofUrl();
+        if (proofUrl != null && !proofUrl.isBlank()) {
+            String cleanUrl = proofUrl.startsWith("/") ? proofUrl : "/" + proofUrl;
+            Image proofImg = new Image(cleanUrl, "Foto Bukti Transfer");
+            proofImg.setWidth("100%");
+            proofImg.setMaxHeight("300px");
+            proofImg.getStyle().set("object-fit", "contain").set("border-radius", "8px").set("border", "1px solid #CBD5E1").set("background", "#FFFFFF").set("padding", "4px");
+            layout.add(proofImg);
+        }
+
+        Button btnClose = new Button("Tutup", e -> d.close());
+        Button btnChange = new Button("Ganti Bukti", VaadinIcon.UPLOAD.create(), e -> {
+            d.close();
+            openUploadPaymentProofDialog(order);
+        });
+        btnChange.getStyle().set("background", "#001934").set("color", "#FFFFFF");
+
+        d.getFooter().add(btnClose, btnChange);
         d.add(layout);
         d.open();
     }

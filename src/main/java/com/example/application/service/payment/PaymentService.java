@@ -78,6 +78,11 @@ public class PaymentService {
         return paymentRepository.findAllWithOrderAndBuyer();
     }
 
+    public java.util.Optional<Payment> getPaymentByOrder(Order order) {
+        if (order == null) return java.util.Optional.empty();
+        return paymentRepository.findFirstByOrderOrderByCreatedAtDesc(order);
+    }
+
     public void approvePayment(Payment payment, String adminNotes, User admin) {
         if (payment == null) return;
         payment.setTransactionStatus(com.example.application.model.payment.TransactionStatus.SETTLEMENT);

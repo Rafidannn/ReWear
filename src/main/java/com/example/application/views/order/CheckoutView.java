@@ -1075,6 +1075,13 @@ public class CheckoutView extends Div {
             buildDialogRow(VaadinIcon.CREDIT_CARD, "Pembayaran", payText),
             buildDialogRow(VaadinIcon.MONEY, "Total Tagihan", totalTagihanSpan.getText())
         );
+
+        if (selectedPaymentIndex != 0) {
+            String proofStatus = (uploadedPaymentProofPath != null && !uploadedPaymentProofPath.isBlank())
+                ? "Foto Bukti Terlampir ✓" : "Belum Dilampirkan (Bisa diunggah di Riwayat Pesanan)";
+            payBox.add(buildDialogRow(VaadinIcon.PICTURE, "Bukti Transfer", proofStatus));
+        }
+
         body.add(payBox);
 
         dialog.add(body);
@@ -1082,7 +1089,7 @@ public class CheckoutView extends Div {
         Button btnBack = new Button("Periksa Kembali", e -> dialog.close());
         btnBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        Button btnProceed = new Button("Ya, Pesanan Sesuai & Bayar", VaadinIcon.CHECK_CIRCLE.create(), e -> {
+        Button btnProceed = new Button("Ya, Pesanan Sesuai & Konfirmasi", VaadinIcon.CHECK_CIRCLE.create(), e -> {
             dialog.close();
             saveOrderToDatabase(itemsToPay);
         });
@@ -1249,9 +1256,14 @@ public class CheckoutView extends Div {
             }
 
             // Tampilkan sukses dan redirect
-            String notifMsg = selectedPaymentIndex == 0
-                ? "Pesanan Berhasil Dibuat & Dibayar! Order #" + lastOrderNumber
-                : "Pesanan Berhasil Dibuat! Silakan periksa status verifikasi pembayaran di Riwayat Pesanan.";
+            String notifMsg;
+            if (selectedPaymentIndex == 0) {
+                notifMsg = "Pesanan Berhasil Dibuat & Dibayar! Order #" + lastOrderNumber;
+            } else if (uploadedPaymentProofPath != null && !uploadedPaymentProofPath.isBlank()) {
+                notifMsg = "Pesanan Berhasil Dibuat! Bukti pembayaran telah terlampir dan sedang diverifikasi Admin.";
+            } else {
+                notifMsg = "Pesanan Berhasil Dibuat! Silakan transfer dan unggah bukti pembayaran di Riwayat Pesanan.";
+            }
 
             Notification successNotif = Notification.show(notifMsg, 4000, Notification.Position.TOP_CENTER);
             successNotif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
