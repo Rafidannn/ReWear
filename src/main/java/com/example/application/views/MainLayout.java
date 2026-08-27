@@ -35,6 +35,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     private Div mobNavCat;
     private Div mobNavChat;
     private Div mobNavProfile;
+    private Div mobBottomBarDiv;
 
     public MainLayout(CartService cartService) {
         this.cartService = cartService;
@@ -54,6 +55,14 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
                 linkKategori.addClassNames("rw-nav-link", "rw-nav-link-active");
                 linkPasar.removeClassName("rw-nav-link-active");
                 linkPasar.addClassName("rw-nav-link");
+            }
+        }
+        if (mobBottomBarDiv != null) {
+            boolean isStandaloneMobileView = path.startsWith("product") || path.startsWith("checkout");
+            if (isStandaloneMobileView) {
+                mobBottomBarDiv.getStyle().set("display", "none");
+            } else {
+                mobBottomBarDiv.getStyle().remove("display");
             }
         }
         if (mobNavHome != null) {
@@ -304,8 +313,8 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     }
 
     private Component createMobileBottomBar() {
-        Div bottomBar = new Div();
-        bottomBar.addClassName("rw-mobile-bottom-bar");
+        mobBottomBarDiv = new Div();
+        mobBottomBarDiv.addClassName("rw-mobile-bottom-bar");
 
         // Home
         mobNavHome = createMobileNavItem("Home",
@@ -340,8 +349,8 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'></path><circle cx='12' cy='7' r='4'></circle></svg>",
             "Profil", "profile");
 
-        bottomBar.add(mobNavHome, mobNavCat, fabWrap, mobNavChat, mobNavProfile);
-        return bottomBar;
+        mobBottomBarDiv.add(mobNavHome, mobNavCat, fabWrap, mobNavChat, mobNavProfile);
+        return mobBottomBarDiv;
     }
 
     private Div createMobileNavItem(String label, String svgHtml, String title, String routePath) {
