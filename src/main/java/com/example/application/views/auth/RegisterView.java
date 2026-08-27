@@ -263,6 +263,7 @@ public class RegisterView extends HorizontalLayout {
                     ver.setSchool(school);
                     ver.setSchoolNumber(nisn.trim());
                     ver.setSchoolEmail(email.trim().toLowerCase());
+                    ver.setProofUrl("images/default_kta.png");
                     ver.setStatus(VerificationStatus.APPROVED);
                     userService.requestSchoolVerification(ver);
                 }
