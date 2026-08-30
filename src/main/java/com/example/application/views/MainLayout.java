@@ -42,7 +42,8 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     public MainLayout(CartService cartService) {
         this.cartService = cartService;
         setPrimarySection(Section.NAVBAR);
-        addToNavbar(true, createTopNavbar(), createMobileBottomBar());
+        addToNavbar(false, createTopNavbar());
+        addToNavbar(true, createMobileBottomBar());
     }
 
     @Override
@@ -325,6 +326,20 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
     private Component createMobileBottomBar() {
         mobBottomBarDiv = new Div();
         mobBottomBarDiv.addClassName("rw-mobile-bottom-bar");
+        mobBottomBarDiv.getElement().getStyle()
+            .set("position", "fixed")
+            .set("bottom", "0")
+            .set("left", "0")
+            .set("right", "0")
+            .set("width", "100%")
+            .set("height", "60px")
+            .set("background", "#FFFFFF")
+            .set("border-top", "1px solid #E2E8F0")
+            .set("z-index", "999")
+            .set("box-shadow", "0 -2px 10px rgba(0, 25, 52, 0.05)")
+            .set("box-sizing", "border-box")
+            .set("align-items", "center")
+            .set("justify-content", "space-around");
 
         // Home
         mobNavHome = createMobileNavItem("Home",
@@ -339,10 +354,26 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         // Plus FAB
         Div fabWrap = new Div();
         fabWrap.addClassName("rw-mobile-fab-wrap");
+        fabWrap.getElement().getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("flex", "1");
         Div fab = new Div();
         fab.addClassName("rw-mobile-fab");
+        fab.getElement().getStyle()
+            .set("cursor", "pointer")
+            .set("width", "42px")
+            .set("height", "42px")
+            .set("border-radius", "50%")
+            .set("background", "#F5C45E")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("margin-top", "-14px")
+            .set("box-shadow", "0 3px 8px rgba(0, 25, 52, 0.18)");
         fab.getElement().setProperty("innerHTML",
-            "<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='5' x2='12' y2='19'></line><line x1='5' y1='12' x2='19' y2='12'></line></svg>"
+            "<svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='#001934' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' style='pointer-events:none;'><line x1='12' y1='5' x2='12' y2='19'></line><line x1='5' y1='12' x2='19' y2='12'></line></svg>"
         );
         fab.addClickListener(e -> {
             if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("sell");
