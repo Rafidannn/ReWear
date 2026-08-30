@@ -8,6 +8,8 @@ import com.example.application.service.moderation.ModerationService;
 import com.example.application.service.order.CartService;
 import com.example.application.service.product.ProductService;
 import com.example.application.service.user.WishlistService;
+import com.example.application.service.user.UserService;
+import com.example.application.model.user.VerificationStatus;
 import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
@@ -44,16 +46,19 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
     private final CartService cartService;
     private final WishlistService wishlistService;
     private final ModerationService moderationService;
+    private final UserService userService;
     private final Div contentArea = new Div();
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
     public ProductDetailView(ProductService productService, CartService cartService,
-                             WishlistService wishlistService, ModerationService moderationService) {
+                             WishlistService wishlistService, ModerationService moderationService,
+                             UserService userService) {
         this.productService = productService;
         this.cartService = cartService;
         this.wishlistService = wishlistService;
         this.moderationService = moderationService;
+        this.userService = userService;
 
         setSpacing(false);
         setPadding(false);
@@ -68,30 +73,78 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         add(contentArea);
     }
 
+
     @Override
     public void setParameter(BeforeEvent event, Long productId) {
         contentArea.removeAll();
 
-        Long targetId = productId != null ? productId : 1L;
-        Product product = null;
-
-        try {
-            Optional<Product> productOpt = productService.findById(targetId);
-            if (productOpt.isPresent()) {
-                product = productOpt.get();
-            } else {
-                List<Product> activeList = productService.findActiveProducts();
-                if (activeList != null && !activeList.isEmpty()) {
-                    product = activeList.get(0);
-                } else {
-                    product = createMockProduct(targetId);
-                }
-            }
-        } catch (Exception ex) {
-            product = createMockProduct(targetId);
+        if (productId == null) {
+            contentArea.add(buildProductNotFoundUI());
+            return;
         }
 
-        contentArea.add(buildProductDetailUI(product));
+        try {
+            Optional<Product> productOpt = productService.findById(productId);
+            if (productOpt.isEmpty()) {
+                contentArea.add(buildProductNotFoundUI());
+                return;
+            }
+
+            Product product = productOpt.get();
+
+            // P1.6: Tolak produk yang sudah dihapus, REMOVED, atau INACTIVE
+            if (product.getDeletedAt() != null
+                    || product.getStatus() == ProductStatus.REMOVED
+                    || product.getStatus() == ProductStatus.INACTIVE) {
+                contentArea.add(buildProductNotFoundUI());
+                return;
+            }
+
+            contentArea.add(buildProductDetailUI(product));
+        } catch (Exception ex) {
+            contentArea.add(buildProductNotFoundUI());
+        }
+    }
+
+    private com.vaadin.flow.component.Component buildProductNotFoundUI() {
+        Div wrapper = new Div();
+        wrapper.getElement().getStyle()
+            .set("display", "flex").set("flex-direction", "column")
+            .set("align-items", "center").set("justify-content", "center")
+            .set("min-height", "60vh").set("padding", "40px 24px")
+            .set("text-align", "center");
+
+        Div iconBox = new Div();
+        iconBox.getElement().getStyle()
+            .set("width", "72px").set("height", "72px")
+            .set("border-radius", "50%").set("background", "#F1F5F9")
+            .set("display", "flex").set("align-items", "center")
+            .set("justify-content", "center").set("margin", "0 auto 20px auto");
+        var icon = VaadinIcon.WARNING.create();
+        icon.setSize("32px");
+        icon.getElement().getStyle().set("color", "#94A3B8");
+        iconBox.add(icon);
+
+        H2 title = new H2("Produk Tidak Tersedia");
+        title.getElement().getStyle()
+            .set("font-size", "22px").set("font-weight", "800")
+            .set("color", "#001934").set("margin", "0 0 8px 0");
+
+        com.vaadin.flow.component.html.Paragraph desc = new com.vaadin.flow.component.html.Paragraph(
+            "Produk ini sudah tidak tersedia, telah dihapus, atau tidak ditemukan.");
+        desc.getElement().getStyle()
+            .set("font-size", "14px").set("color", "#64748B").set("margin", "0 0 28px 0");
+
+        Button btnHome = new Button("Kembali ke Beranda", VaadinIcon.HOME.create());
+        btnHome.getElement().getStyle()
+            .set("background", "#001934").set("color", "#FFFFFF")
+            .set("border", "none").set("border-radius", "10px")
+            .set("padding", "12px 28px").set("font-weight", "700")
+            .set("cursor", "pointer").set("font-size", "14px");
+        btnHome.addClickListener(e -> UI.getCurrent().navigate(""));
+
+        wrapper.add(iconBox, title, desc, btnHome);
+        return wrapper;
     }
 
     private Product createMockProduct(Long id) {
@@ -358,8 +411,17 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         Div condWishRow = new Div();
         condWishRow.addClassName("pd-cond-wish-row");
 
-        String rawCond = (product.getCondition() != null) ? product.getCondition().name().replace("_", " ") : "Barang Bekas";
-        String condBadgeText = rawCond.equalsIgnoreCase("USED") || rawCond.equalsIgnoreCase("BEKAS") || rawCond.equalsIgnoreCase("LIKE NEW") ? "Barang Bekas" : rawCond;
+        String rawCond = (product.getCondition() != null) ? product.getCondition().name().replace("_", " ") : "BEKAS";
+        String condBadgeText;
+        if (product.getCondition() == ConditionType.BARU) {
+            condBadgeText = "Barang Baru";
+        } else if (rawCond.equalsIgnoreCase("LIKE NEW") || rawCond.equalsIgnoreCase("LIKE_NEW") || rawCond.equalsIgnoreCase("SEPERTI BARU")) {
+            condBadgeText = "Seperti Baru";
+        } else if (rawCond.equalsIgnoreCase("BEKAS") || rawCond.equalsIgnoreCase("USED")) {
+            condBadgeText = "Bekas Layak Pakai";
+        } else {
+            condBadgeText = rawCond;
+        }
         Span badgeCond = new Span(condBadgeText);
         badgeCond.addClassName("pd-badge-cond");
 
@@ -403,9 +465,9 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         if (reviews == null) reviews = List.of();
 
         int soldCount = product.getSoldCount() != null ? product.getSoldCount() : 0;
-        double avgRating = 4.9;
+        double avgRating = 0.0;
         if (!reviews.isEmpty()) {
-            avgRating = reviews.stream().mapToInt(r -> r.getRating() != null ? r.getRating() : 5).average().orElse(4.9);
+            avgRating = reviews.stream().mapToInt(r -> r.getRating() != null ? r.getRating() : 5).average().orElse(0.0);
         }
 
         // Seller Card
@@ -476,21 +538,27 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("color", "#001934")
             .set("white-space", "nowrap");
 
-        Span sellerRole = new Span("WARGA 24");
-        sellerRole.addClassName("pd-seller-warga-badge");
-        sellerRole.getElement().getStyle()
-            .set("white-space", "nowrap")
-            .set("flex-shrink", "0")
-            .set("font-size", "10px")
-            .set("font-weight", "800")
-            .set("padding", "2px 8px")
-            .set("border-radius", "9999px")
-            .set("background", "#F5C45E")
-            .set("color", "#001934");
+        // P1.7: Tampilkan badge WARGA 24 hanya jika seller terverifikasi (APPROVED)
+        User seller = product.getSeller();
+        boolean isSellerVerified = seller != null && seller.getId() != null && userService.isSchoolVerified(seller);
 
-        sNameRow.add(sellerName, sellerRole);
+        sNameRow.add(sellerName);
 
-        int totalReviewCount = reviews.isEmpty() ? 42 : reviews.size();
+        if (isSellerVerified) {
+            Span sellerRole = new Span("WARGA 24");
+            sellerRole.addClassName("pd-seller-warga-badge");
+            sellerRole.getElement().getStyle()
+                .set("white-space", "nowrap")
+                .set("flex-shrink", "0")
+                .set("font-size", "10px")
+                .set("font-weight", "800")
+                .set("padding", "2px 8px")
+                .set("border-radius", "9999px")
+                .set("background", "#F5C45E")
+                .set("color", "#001934");
+            sNameRow.add(sellerRole);
+        }
+
         Div sellerSub = new Div();
         sellerSub.addClassName("pd-seller-sub");
         sellerSub.getElement().getStyle()
@@ -498,11 +566,18 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
             .set("align-items", "center")
             .set("gap", "4px")
             .set("margin-top", "2px");
-        Icon yellowStar = VaadinIcon.STAR.create();
-        yellowStar.getStyle().set("width", "12px").set("height", "12px").set("color", "#F59E0B").set("margin-right", "2px");
-        Span subText = new Span(String.format("%.1f", avgRating) + " (" + totalReviewCount + " ulasan)");
-        subText.getStyle().set("font-size", "12px").set("color", "#64748B").set("font-weight", "600");
-        sellerSub.add(yellowStar, subText);
+
+        if (reviews.isEmpty()) {
+            Span subText = new Span("Belum ada ulasan");
+            subText.getStyle().set("font-size", "12px").set("color", "#94A3B8").set("font-weight", "600");
+            sellerSub.add(subText);
+        } else {
+            Icon yellowStar = VaadinIcon.STAR.create();
+            yellowStar.getStyle().set("width", "12px").set("height", "12px").set("color", "#F59E0B").set("margin-right", "2px");
+            Span subText = new Span(String.format("%.1f", avgRating) + " (" + reviews.size() + " ulasan)");
+            subText.getStyle().set("font-size", "12px").set("color", "#64748B").set("font-weight", "600");
+            sellerSub.add(yellowStar, subText);
+        }
 
         sellerInfo.add(sNameRow, sellerSub);
         sellerLeft.add(sellerAvatar, sellerInfo);

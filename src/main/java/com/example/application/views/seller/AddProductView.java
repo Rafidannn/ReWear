@@ -199,9 +199,12 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
             try {
                 InputStream inputStream = multiBuffer.getInputStream(event.getFileName());
                 String originalFileName = event.getFileName();
-                String extension = "";
-                int dotIdx = originalFileName.lastIndexOf('.');
-                if (dotIdx > 0) extension = originalFileName.substring(dotIdx);
+                // P1.5: Sanitasi ekstensi dari MIME type (bukan dari nama file client)
+                String extension = sanitizeExtension(event.getMIMEType());
+                if (extension == null) {
+                    Notification.show("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP.", 3000, Notification.Position.TOP_CENTER);
+                    return;
+                }
 
                 String newFileName = "prod_" + System.currentTimeMillis() + extension;
                 // URL path yang di-serve oleh WebMvcConfig → /images/uploads/{filename}
@@ -332,8 +335,8 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
             boolean isSchoolMarket = isSchoolMarketCheck.getValue();
             String desc = descArea.getValue() != null ? descArea.getValue().trim() : "";
 
-            if (name.length() < 3) {
-                errorBox.setText("Nama barang terlalu pendek. Harap masukkan minimal 3 karakter.");
+            if (name.length() < 5) {
+                errorBox.setText("Nama barang terlalu pendek. Harap masukkan minimal 5 karakter.");
                 errorBox.setVisible(true);
                 nameField.focus();
                 return;
@@ -467,5 +470,19 @@ public class AddProductView extends VerticalLayout implements BeforeEnterObserve
                 card.add(mainBadge);
             }
         });
+    }
+
+    /**
+     * P1.5: Memetakan MIME type ke ekstensi file yang aman.
+     * Mengembalikan null jika tipe tidak didukung.
+     */
+    private String sanitizeExtension(String mimeType) {
+        if (mimeType == null) return null;
+        return switch (mimeType.toLowerCase().trim()) {
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/png"               -> ".png";
+            case "image/webp"              -> ".webp";
+            default                        -> null;
+        };
     }
 }

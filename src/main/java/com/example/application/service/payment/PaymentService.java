@@ -11,6 +11,7 @@ import com.example.application.repository.order.OrderRepository;
 import com.example.application.repository.payment.PaymentRepository;
 import com.example.application.repository.payment.SellerPayoutRepository;
 import com.example.application.repository.user.BankAccountRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,9 @@ import java.util.List;
 @Service
 @Transactional
 public class PaymentService {
+
+    @Value("${rewear.payment.channels:GOPAY - 081234567890 (a.n. ReWear SMKN 24),SHOPEEPAY - 081234567890 (a.n. ReWear SMKN 24),DANA - 081234567890 (a.n. ReWear SMKN 24),OVO - 081234567890 (a.n. ReWear SMKN 24),BCA - 8820491823 (a.n. ReWear SMKN 24),MANDIRI - 1370019283712 (a.n. ReWear SMKN 24),BRI - 020601098234501 (a.n. ReWear SMKN 24)}")
+    private List<String> transferChannels;
 
     private final PaymentRepository paymentRepository;
     private final SellerPayoutRepository sellerPayoutRepository;
@@ -47,6 +51,10 @@ public class PaymentService {
         this.orderStatusLogRepository = orderStatusLogRepository;
         this.orderItemRepository = orderItemRepository;
         this.productRepository = productRepository;
+    }
+
+    public List<String> getTransferChannels() {
+        return transferChannels != null ? transferChannels : List.of();
     }
 
     public Payment createOrUpdatePayment(Order order, String paymentMethod, String paymentGateway, String paymentProofUrl, BigDecimal grossAmount) {

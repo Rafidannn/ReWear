@@ -264,15 +264,15 @@ public class RegisterView extends HorizontalLayout {
                     ver.setSchoolNumber(nisn.trim());
                     ver.setSchoolEmail(email.trim().toLowerCase());
                     ver.setProofUrl("images/default_kta.png");
-                    ver.setStatus(VerificationStatus.APPROVED);
+                    ver.setStatus(VerificationStatus.PENDING);
                     userService.requestSchoolVerification(ver);
                 }
 
                 String successMsg = isSchoolAccount 
-                    ? "Registrasi Berhasil! Status Warga SMKN 24 (NISN: " + nisn + ") Terverifikasi."
+                    ? "Registrasi Berhasil! Pengajuan identitas Warga SMKN 24 (NISN: " + nisn + ") sedang menunggu peninjauan Admin."
                     : "Registrasi Berhasil! Akun Publik siap digunakan.";
 
-                Notification notif = Notification.show(successMsg, 3500, Notification.Position.TOP_CENTER);
+                Notification notif = Notification.show(successMsg, 4500, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
                 UI.getCurrent().navigate("login");

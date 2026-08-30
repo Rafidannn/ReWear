@@ -25,6 +25,7 @@ import com.example.application.service.product.ProductService;
 import com.example.application.service.user.UserService;
 import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
+import com.example.application.views.home.HomeView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -100,12 +101,10 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (!AuthGuard.requireLogin(event.getUI())) return;
-
         User current = AuthGuard.getCurrentUser();
-        if (current != null && current.getRole() != Role.SUPER_ADMIN && current.getRole() != Role.MODERATOR) {
-            Notification notif = Notification.show("Mode Demonstrasi Admin: Anda dapat meninjau data platform secara lengkap.", 3500, Notification.Position.TOP_CENTER);
-            notif.addThemeVariants(NotificationVariant.LUMO_PRIMARY);
+        if (current == null || (current.getRole() != Role.SUPER_ADMIN && current.getRole() != Role.MODERATOR)) {
+            event.forwardTo(HomeView.class);
+            return;
         }
     }
 

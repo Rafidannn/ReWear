@@ -245,6 +245,9 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             userItem.getSubMenu().addItem("Pesanan Saya", e -> UI.getCurrent().navigate("orders"));
             userItem.getSubMenu().addItem("Keluar", e -> {
                 VaadinSession.getCurrent().setAttribute(User.class, null);
+                if (VaadinSession.getCurrent().getSession() != null) {
+                    VaadinSession.getCurrent().getSession().setAttribute("CURRENT_USER", null);
+                }
                 Notification.show("Berhasil keluar.");
                 UI.getCurrent().navigate("");
                 UI.getCurrent().getPage().reload();

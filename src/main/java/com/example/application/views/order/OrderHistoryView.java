@@ -1318,16 +1318,20 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
 
         upload.addSucceededListener(event -> {
             try {
-                String ext = event.getFileName().contains(".") ? event.getFileName().substring(event.getFileName().lastIndexOf(".")) : ".jpg";
+                String ext = sanitizeExtension(event.getMIMEType());
+                if (ext == null) {
+                    Notification.show("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP.", 3000, Notification.Position.TOP_CENTER);
+                    return;
+                }
                 String fileName = "payment_proof_" + System.currentTimeMillis() + ext;
-                java.io.File uploadDir = new java.io.File(WebMvcConfig.UPLOAD_BASE_DIR);
+                java.io.File uploadDir = new java.io.File(WebMvcConfig.PROOFS_BASE_DIR);
                 if (!uploadDir.exists()) uploadDir.mkdirs();
                 java.io.File destFile = new java.io.File(uploadDir, fileName);
                 try (java.io.InputStream in = buffer.getInputStream();
                      java.io.FileOutputStream out = new java.io.FileOutputStream(destFile)) {
                     in.transferTo(out);
                 }
-                uploadedPath[0] = "images/uploads/" + fileName;
+                uploadedPath[0] = "api/payment-proofs/" + fileName;
                 preview.setSrc("/" + uploadedPath[0]);
                 preview.setVisible(true);
                 Notification.show("Foto struk berhasil dimuat!", 2000, Notification.Position.TOP_CENTER);
@@ -1447,5 +1451,19 @@ public class OrderHistoryView extends Div implements BeforeEnterObserver {
         String first = clean.split(",")[0].trim();
         if (first.isEmpty()) return fallback;
         return first.startsWith("/") ? first : "/" + first;
+    }
+
+    /**
+     * P1.5: Memetakan MIME type ke ekstensi file yang aman.
+     * Mengembalikan null jika tipe tidak didukung.
+     */
+    private String sanitizeExtension(String mimeType) {
+        if (mimeType == null) return null;
+        return switch (mimeType.toLowerCase().trim()) {
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/png"               -> ".png";
+            case "image/webp"              -> ".webp";
+            default                        -> null;
+        };
     }
 }

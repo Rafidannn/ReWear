@@ -9,7 +9,9 @@ import com.example.application.service.order.CartService;
 import com.example.application.service.order.OrderService;
 import com.example.application.service.payment.PaymentService;
 import com.example.application.service.product.ProductService;
+import com.example.application.model.user.VerificationStatus;
 import com.example.application.service.user.AddressService;
+import com.example.application.service.user.UserService;
 import com.example.application.util.AuthGuard;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
@@ -48,6 +50,7 @@ public class CheckoutView extends Div {
     private final AddressService addressService;
     private final ProductService productService;
     private final PaymentService paymentService;
+    private final UserService userService;
 
     // Mode checkout: true = Pasar SMKN 24 (COD Sekolah), false = Reguler/Ekspedisi
     private boolean isPasarSmkn24Mode = true;
@@ -85,12 +88,13 @@ public class CheckoutView extends Div {
 
     private List<CartItem> allCartItems = new ArrayList<>();
 
-    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService, ProductService productService, PaymentService paymentService) {
+    public CheckoutView(CartService cartService, OrderService orderService, AddressService addressService, ProductService productService, PaymentService paymentService, UserService userService) {
         this.cartService = cartService;
         this.orderService = orderService;
         this.addressService = addressService;
         this.productService = productService;
         this.paymentService = paymentService;
+        this.userService = userService;
 
         if (!AuthGuard.requireLogin(UI.getCurrent())) return;
 
@@ -212,6 +216,12 @@ public class CheckoutView extends Div {
     }
 
     private void updateToggleStyles() {
+        long smkn24Count = allCartItems.stream().filter(CartItem::isSelected).filter(CartItem::isSmkn24Item).count();
+        long regularCount = allCartItems.stream().filter(CartItem::isSelected).filter(item -> !item.isSmkn24Item()).count();
+
+        btnTabSmkn24.setText("Pasar SMKN 24 (COD Sekolah)" + (smkn24Count > 0 ? " (" + smkn24Count + ")" : ""));
+        btnTabRegular.setText("Barang Reguler / Ekspedisi" + (regularCount > 0 ? " (" + regularCount + ")" : ""));
+
         if (isPasarSmkn24Mode) {
             btnTabSmkn24.addClassName("active");
             btnTabRegular.removeClassName("active");
@@ -607,6 +617,45 @@ public class CheckoutView extends Div {
         orderItemsContainer.removeAll();
         orderItemsContainer.addClassName("rw-checkout-items-list");
 
+        // P2.10: Tampilkan notifikasi jika ada barang terpilih di mode lain yang tidak ikut checkout
+        long otherModeCount = allCartItems.stream()
+            .filter(CartItem::isSelected)
+            .filter(item -> isPasarSmkn24Mode ? !item.isSmkn24Item() : item.isSmkn24Item())
+            .count();
+
+        if (otherModeCount > 0) {
+            String otherModeName = isPasarSmkn24Mode ? "Barang Reguler / Ekspedisi" : "Pasar SMKN 24 (COD Sekolah)";
+            Div otherModeNotice = new Div();
+            otherModeNotice.getStyle()
+                .set("background", "#FEF3C7")
+                .set("border", "1px solid #F59E0B")
+                .set("border-radius", "8px")
+                .set("padding", "10px 14px")
+                .set("margin-bottom", "14px")
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("justify-content", "space-between")
+                .set("gap", "10px");
+
+            Span noticeText = new Span("Ada " + otherModeCount + " barang di " + otherModeName + " yang perlu di-checkout terpisah.");
+            noticeText.getStyle().set("font-size", "12px").set("font-weight", "600").set("color", "#92400E");
+
+            Button btnSwitch = new Button("Beralih", e -> {
+                isPasarSmkn24Mode = !isPasarSmkn24Mode;
+                selectedShippingIndex = 0;
+                updateToggleStyles();
+                renderView();
+            });
+            btnSwitch.getStyle()
+                .set("background", "#92400E").set("color", "#FFFFFF")
+                .set("border", "none").set("border-radius", "6px")
+                .set("font-size", "11px").set("font-weight", "700")
+                .set("padding", "4px 10px").set("cursor", "pointer").set("white-space", "nowrap");
+
+            otherModeNotice.add(noticeText, btnSwitch);
+            orderItemsContainer.add(otherModeNotice);
+        }
+
         List<CartItem> selectedItems = getSelectedItems();
 
         if (selectedItems.isEmpty()) {
@@ -879,16 +928,21 @@ public class CheckoutView extends Div {
 
             upload.addSucceededListener(event -> {
                 try {
-                    String ext = event.getFileName().contains(".") ? event.getFileName().substring(event.getFileName().lastIndexOf(".")) : ".jpg";
+                    // P1.5: Sanitasi ekstensi dari MIME type
+                    String ext = sanitizeExtension(event.getMIMEType());
+                    if (ext == null) {
+                        Notification.show("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP.", 3000, Notification.Position.TOP_CENTER);
+                        return;
+                    }
                     String fileName = "qris_proof_" + System.currentTimeMillis() + ext;
-                    java.io.File uploadDir = new java.io.File(WebMvcConfig.UPLOAD_BASE_DIR);
+                    java.io.File uploadDir = new java.io.File(WebMvcConfig.PROOFS_BASE_DIR);
                     if (!uploadDir.exists()) uploadDir.mkdirs();
                     java.io.File destFile = new java.io.File(uploadDir, fileName);
                     try (java.io.InputStream in = buffer.getInputStream();
                          java.io.FileOutputStream out = new java.io.FileOutputStream(destFile)) {
                         in.transferTo(out);
                     }
-                    uploadedPaymentProofPath = "images/uploads/" + fileName;
+                    uploadedPaymentProofPath = "api/payment-proofs/" + fileName;
                     proofPreview.setSrc("/" + uploadedPaymentProofPath);
                     proofPreview.setVisible(true);
                     Notification.show("Bukti pembayaran berhasil diunggah!", 2500, Notification.Position.TOP_CENTER);
@@ -913,16 +967,12 @@ public class CheckoutView extends Div {
             tfTitle.getStyle().set("margin", "0 0 6px 0").set("color", "#001934").set("font-weight", "800");
 
             ComboBox<String> channelCombo = new ComboBox<>("Pilih Rekening / E-Wallet Tujuan");
-            channelCombo.setItems(
-                "GOPAY - 081234567890 (a.n. ReWear SMKN 24)",
-                "SHOPEEPAY - 081234567890 (a.n. ReWear SMKN 24)",
-                "DANA - 081234567890 (a.n. ReWear SMKN 24)",
-                "OVO - 081234567890 (a.n. ReWear SMKN 24)",
-                "BCA - 8820491823 (a.n. ReWear SMKN 24)",
-                "MANDIRI - 1370019283712 (a.n. ReWear SMKN 24)",
-                "BRI - 020601098234501 (a.n. ReWear SMKN 24)"
-            );
-            channelCombo.setValue("GOPAY - 081234567890 (a.n. ReWear SMKN 24)");
+            List<String> channels = paymentService.getTransferChannels();
+            channelCombo.setItems(channels);
+            if (!channels.isEmpty()) {
+                channelCombo.setValue(channels.get(0));
+                selectedTransferChannel = channels.get(0).split(" - ")[0].trim();
+            }
             channelCombo.setWidthFull();
             channelCombo.addValueChangeListener(e -> {
                 if (e.getValue() != null) {
@@ -953,16 +1003,21 @@ public class CheckoutView extends Div {
 
             upload.addSucceededListener(event -> {
                 try {
-                    String ext = event.getFileName().contains(".") ? event.getFileName().substring(event.getFileName().lastIndexOf(".")) : ".jpg";
+                    // P1.5: Sanitasi ekstensi dari MIME type
+                    String ext = sanitizeExtension(event.getMIMEType());
+                    if (ext == null) {
+                        Notification.show("Format file tidak didukung. Gunakan JPG, PNG, atau WEBP.", 3000, Notification.Position.TOP_CENTER);
+                        return;
+                    }
                     String fileName = "tf_proof_" + System.currentTimeMillis() + ext;
-                    java.io.File uploadDir = new java.io.File(WebMvcConfig.UPLOAD_BASE_DIR);
+                    java.io.File uploadDir = new java.io.File(WebMvcConfig.PROOFS_BASE_DIR);
                     if (!uploadDir.exists()) uploadDir.mkdirs();
                     java.io.File destFile = new java.io.File(uploadDir, fileName);
                     try (java.io.InputStream in = buffer.getInputStream();
                          java.io.FileOutputStream out = new java.io.FileOutputStream(destFile)) {
                         in.transferTo(out);
                     }
-                    uploadedPaymentProofPath = "images/uploads/" + fileName;
+                    uploadedPaymentProofPath = "api/payment-proofs/" + fileName;
                     proofPreview.setSrc("/" + uploadedPaymentProofPath);
                     proofPreview.setVisible(true);
                     Notification.show("Bukti pembayaran berhasil diunggah!", 2500, Notification.Position.TOP_CENTER);
@@ -1139,6 +1194,40 @@ public class CheckoutView extends Div {
         }
 
         try {
+            // P1.4: Validasi status verifikasi sekolah untuk mode Pasar SMKN 24
+            if (isPasarSmkn24Mode) {
+                boolean isVerified = userService.isSchoolVerified(buyer);
+                if (!isVerified) {
+                    Notification.show("Hanya warga SMKN 24 yang sudah terverifikasi dapat bertransaksi di Pasar SMKN 24. Silakan ajukan verifikasi di profil Anda.", 4500, Notification.Position.TOP_CENTER);
+                    return;
+                }
+            }
+
+            // P1.3: Cek saldo jika memilih ReWear Pay
+            double grandTotalForBalance = 0;
+            if (selectedPaymentIndex == 0) {
+                for (CartItem item : itemsToPay) {
+                    grandTotalForBalance += item.getPrice() * item.getQuantity();
+                }
+                if (!isPasarSmkn24Mode) {
+                    grandTotalForBalance += (selectedShippingIndex == 1 ? 22000 : selectedShippingIndex == 2 ? 9000 : 0);
+                    grandTotalForBalance += Math.max(2500, grandTotalForBalance * 0.01);
+                }
+                BigDecimal totalBD = BigDecimal.valueOf(grandTotalForBalance);
+                BigDecimal currentBalance = buyer.getBalance() != null ? buyer.getBalance() : BigDecimal.ZERO;
+                if (currentBalance.compareTo(totalBD) < 0) {
+                    Notification.show(
+                        "Saldo ReWear Pay tidak mencukupi. Saldo Anda: Rp " +
+                        String.format("%,.0f", currentBalance.doubleValue()) +
+                        ". Dibutuhkan: Rp " + String.format("%,.0f", grandTotalForBalance),
+                        4500, Notification.Position.TOP_CENTER);
+                    return;
+                }
+                // Potong saldo buyer
+                buyer.setBalance(currentBalance.subtract(totalBD));
+                userService.saveUser(buyer);
+            }
+
             // Tentukan alamat pengiriman sebagai string
             String shippingAddressStr = isPasarSmkn24Mode
                 ? "COD Sekolah - Lobby / Kantin Utama SMKN 24 Jakarta, Jl. Bambu Apus No. 24, Cipayung, Jakarta Timur"
@@ -1255,10 +1344,11 @@ public class CheckoutView extends Div {
                 session.setAttribute("DIRECT_CHECKOUT_ITEM", null);
             }
 
-            // Tampilkan sukses dan redirect
+            // P2.2: Tampilkan sukses dan redirect
             String notifMsg;
             if (selectedPaymentIndex == 0) {
-                notifMsg = "Pesanan Berhasil Dibuat & Dibayar! Order #" + lastOrderNumber;
+                notifMsg = "Pesanan Berhasil Dibuat! Saldo ReWear Pay Anda telah dipotong sebesar Rp "
+                    + String.format("%,.0f", grandTotalForBalance) + ". Order #" + lastOrderNumber;
             } else if (uploadedPaymentProofPath != null && !uploadedPaymentProofPath.isBlank()) {
                 notifMsg = "Pesanan Berhasil Dibuat! Bukti pembayaran telah terlampir dan sedang diverifikasi Admin.";
             } else {
@@ -1371,5 +1461,19 @@ public class CheckoutView extends Div {
 
         double total = currentSubtotal > 0 ? (currentSubtotal + currentShippingFee + currentServiceFee) : 0;
         totalTagihanSpan.setText("Rp" + String.format("%,.0f", total));
+    }
+
+    /**
+     * P1.5: Memetakan MIME type ke ekstensi file yang aman.
+     * Mengembalikan null jika tipe tidak didukung.
+     */
+    private String sanitizeExtension(String mimeType) {
+        if (mimeType == null) return null;
+        return switch (mimeType.toLowerCase().trim()) {
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/png"               -> ".png";
+            case "image/webp"              -> ".webp";
+            default                        -> null;
+        };
     }
 }

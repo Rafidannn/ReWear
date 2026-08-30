@@ -17,6 +17,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
     // Direktori uploads berada di root project, di luar classpath
     // sehingga Vaadin/Vite dev server tidak memblokir akses ke file baru.
     public static final String UPLOAD_BASE_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
+    // P1.5: Direktori bukti pembayaran terisolasi di luar public resource handler
+    public static final String PROOFS_BASE_DIR = System.getProperty("user.dir") + File.separator + "private_uploads" + File.separator + "proofs" + File.separator;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {

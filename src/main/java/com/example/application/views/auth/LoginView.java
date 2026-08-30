@@ -142,6 +142,9 @@ public class LoginView extends HorizontalLayout {
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
                 VaadinSession.getCurrent().setAttribute(User.class, user);
+                if (VaadinSession.getCurrent().getSession() != null) {
+                    VaadinSession.getCurrent().getSession().setAttribute("CURRENT_USER", user);
+                }
 
                 Notification notif = Notification.show("Berhasil masuk! Selamat datang, " + user.getFullName(), 2500, Notification.Position.TOP_CENTER);
                 notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);

@@ -84,6 +84,15 @@ public class UserService {
         return verificationRepository.findByUser(user);
     }
 
+    public boolean isSchoolVerified(User user) {
+        if (user == null) return false;
+        Optional<UserSchoolVerification> verOpt = getVerification(user);
+        if (verOpt.isPresent()) {
+            return verOpt.get().getStatus() == VerificationStatus.APPROVED;
+        }
+        return user.getSchool() != null;
+    }
+
     public UserSchoolVerification requestSchoolVerification(UserSchoolVerification verification) {
         verification.setStatus(VerificationStatus.PENDING);
         return verificationRepository.save(verification);
