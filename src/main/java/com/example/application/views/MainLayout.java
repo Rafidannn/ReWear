@@ -14,6 +14,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.contextmenu.ContextMenu;
 import com.vaadin.flow.component.contextmenu.MenuItem;
 import com.vaadin.flow.component.menubar.MenuBar;
@@ -63,8 +64,12 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         if (mobBottomBarDiv != null) {
             boolean isStandaloneMobileView = path.startsWith("product") || path.startsWith("checkout");
             if (isStandaloneMobileView) {
+                mobBottomBarDiv.addClassName("rw-hide-bottom-bar");
+                addClassName("rw-hide-mobile-bar");
                 mobBottomBarDiv.getStyle().set("display", "none");
             } else {
+                mobBottomBarDiv.removeClassName("rw-hide-bottom-bar");
+                removeClassName("rw-hide-mobile-bar");
                 mobBottomBarDiv.getStyle().remove("display");
             }
         }
@@ -113,6 +118,20 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             "</svg>"
         );
 
+        // Filter icon button
+        Div filterIcoDiv = new Div();
+        filterIcoDiv.addClassName("rw-nav-filter-icon");
+        filterIcoDiv.getElement().setProperty("innerHTML",
+            "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#74777F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3'></polygon></svg>"
+        );
+        filterIcoDiv.getElement().getStyle()
+            .set("cursor", "pointer")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("padding", "0 6px");
+        filterIcoDiv.getElement().setAttribute("title", "Filter Pencarian");
+        filterIcoDiv.addClickListener(e -> openGlobalFilterDialog());
+
         // Tekan Enter di search → navigate ke Pasar SMKN 24 dengan keyword
         searchInput.getElement().addEventListener("keydown", e -> {
             UI.getCurrent().getPage().executeJs(
@@ -141,7 +160,7 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
             });
         });
 
-        searchBar.add(searchInput, searchIcoDiv);
+        searchBar.add(searchInput, filterIcoDiv, searchIcoDiv);
 
         // "Kategori" → scroll ke section kategori di home
         linkKategori = new Span("Kategori");
@@ -414,5 +433,53 @@ public final class MainLayout extends AppLayout implements BeforeEnterObserver {
         item.add(iconDiv, textSpan);
         item.addClickListener(e -> UI.getCurrent().navigate(routePath));
         return item;
+    }
+
+    private void openGlobalFilterDialog() {
+        com.vaadin.flow.component.dialog.Dialog dialog = new com.vaadin.flow.component.dialog.Dialog();
+        dialog.setHeaderTitle("Filter Pencarian");
+        dialog.setWidth("380px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setPadding(false);
+        layout.setSpacing(true);
+
+        com.vaadin.flow.component.combobox.ComboBox<String> catCombo = new com.vaadin.flow.component.combobox.ComboBox<>("Kategori Produk");
+        catCombo.setItems("Semua Kategori", "Seragam Sekolah", "Pakaian & Thrift", "Sepatu & Sandal", "Tas & Ransel", "Buku & Alat Tulis", "Aksesoris", "Elektronik");
+        catCombo.setValue("Semua Kategori");
+        catCombo.setWidthFull();
+
+        com.vaadin.flow.component.combobox.ComboBox<String> condCombo = new com.vaadin.flow.component.combobox.ComboBox<>("Kondisi Barang");
+        condCombo.setItems("Semua Kondisi", "Seperti Baru", "Bekas (Preloved)", "Baru");
+        condCombo.setValue("Semua Kondisi");
+        condCombo.setWidthFull();
+
+        com.vaadin.flow.component.combobox.ComboBox<String> sortCombo = new com.vaadin.flow.component.combobox.ComboBox<>("Urutkan Berdasarkan");
+        sortCombo.setItems("Terbaru", "Harga Termurah", "Harga Tertinggi", "Nama A-Z");
+        sortCombo.setValue("Terbaru");
+        sortCombo.setWidthFull();
+
+        layout.add(catCombo, condCombo, sortCombo);
+
+        Button btnApply = new Button("Terapkan Filter", e -> {
+            java.util.Map<String, java.util.List<String>> params = new java.util.HashMap<>();
+            String selectedCat = catCombo.getValue();
+            if (selectedCat != null && !selectedCat.equalsIgnoreCase("Semua Kategori")) {
+                params.put("cat", java.util.List.of(selectedCat));
+            }
+            UI.getCurrent().navigate("pasar-smkn24", new QueryParameters(params));
+            dialog.close();
+        });
+        btnApply.getElement().getStyle()
+            .set("background", "#001934")
+            .set("color", "#F5C45E")
+            .set("font-weight", "700")
+            .set("border-radius", "8px")
+            .set("border", "none")
+            .set("width", "100%");
+
+        dialog.getFooter().add(btnApply);
+        dialog.add(layout);
+        dialog.open();
     }
 }

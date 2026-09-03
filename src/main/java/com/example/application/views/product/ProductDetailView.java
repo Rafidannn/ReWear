@@ -290,10 +290,16 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         mainGrid.setAlignItems(FlexComponent.Alignment.START);
 
         // --- LEFT GALLERY ---
-        HorizontalLayout leftGallery = new HorizontalLayout();
+        Div leftGallery = new Div();
         leftGallery.addClassName("pd-left-gallery");
-        leftGallery.setWidth("48%");
-        leftGallery.setSpacing(true);
+        leftGallery.getElement().getStyle()
+            .set("display", "flex")
+            .set("flex-direction", "row")
+            .set("gap", "16px")
+            .set("width", "48%")
+            .set("min-width", "0")
+            .set("flex-shrink", "0")
+            .set("align-items", "flex-start");
 
         String imagesJson = product.getImages();
         List<String> imgList = new ArrayList<>();
@@ -321,14 +327,22 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         mainImgBox.getElement().getStyle()
             .set("position", "relative")
             .set("flex", "1")
-            .set("height", "440px")
+            .set("min-width", "0")
+            .set("height", "480px")
             .set("border-radius", "16px")
             .set("overflow", "hidden")
             .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0");
+            .set("border", "1px solid #E2E8F0")
+            .set("box-shadow", "0 4px 16px rgba(0, 25, 52, 0.04)");
 
         Image heroImg = new Image(mainImgUrl, product.getName());
-        heroImg.getElement().getStyle().set("width", "100%").set("height", "100%").set("object-fit", "cover").set("cursor", "zoom-in");
+        heroImg.addClassName("pd-hero-img");
+        heroImg.getElement().getStyle()
+            .set("width", "100%")
+            .set("height", "100%")
+            .set("object-fit", "cover")
+            .set("display", "block")
+            .set("cursor", "zoom-in");
         heroImg.addClickListener(e -> openImageLightbox(heroImg.getSrc()));
         mainImgBox.add(heroImg);
 
@@ -364,9 +378,16 @@ public class ProductDetailView extends VerticalLayout implements HasUrlParameter
         }
 
         // Desktop Multiple Thumbnails
-        VerticalLayout thumbsCol = new VerticalLayout();
-        thumbsCol.addClassName("pd-thumbs-col");
         if (imgList.size() > 1) {
+            Div thumbsCol = new Div();
+            thumbsCol.addClassName("pd-thumbs-col");
+            thumbsCol.getElement().getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "12px")
+                .set("width", "76px")
+                .set("flex-shrink", "0");
+
             List<Div> thumbDivs = new ArrayList<>();
             for (int i = 0; i < imgList.size() && i < 4; i++) {
                 final int currentIdx = i;

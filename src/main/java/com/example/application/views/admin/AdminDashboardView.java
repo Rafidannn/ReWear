@@ -407,24 +407,29 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
         }).setHeader("Peran (Role)").setWidth("130px").setFlexGrow(0);
 
         grid.addComponentColumn(u -> {
-            boolean isVerified = u.getSchool() != null;
-            if (isVerified) {
+            java.util.Optional<UserSchoolVerification> verOpt = userService.getVerification(u);
+            if (verOpt.isPresent()) {
+                if (verOpt.get().getStatus() == VerificationStatus.APPROVED) {
+                    Span badge = new Span("WARGA SMKN 24");
+                    badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+                    badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
+                    return badge;
+                } else if (verOpt.get().getStatus() == VerificationStatus.PENDING) {
+                    Span badge = new Span("PENGAJUAN KTA");
+                    badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+                    badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF").set("border", "1px solid #BFDBFE");
+                    return badge;
+                } else if (verOpt.get().getStatus() == VerificationStatus.REJECTED) {
+                    Span badge = new Span("KTA DITOLAK");
+                    badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
+                    badge.getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
+                    return badge;
+                }
+            }
+            if (u.getSchool() != null) {
                 Span badge = new Span("WARGA SMKN 24");
                 badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
                 badge.getStyle().set("background", "#FEF3C7").set("color", "#92400E");
-                return badge;
-            }
-            java.util.Optional<UserSchoolVerification> verOpt = userService.getVerification(u);
-            if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.PENDING) {
-                Span badge = new Span("PENGAJUAN KTA");
-                badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
-                badge.getStyle().set("background", "#EFF6FF").set("color", "#1E40AF").set("border", "1px solid #BFDBFE");
-                return badge;
-            }
-            if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.REJECTED) {
-                Span badge = new Span("KTA DITOLAK");
-                badge.getStyle().set("font-size", "11px").set("font-weight", "700").set("padding", "3px 8px").set("border-radius", "6px");
-                badge.getStyle().set("background", "#FEE2E2").set("color", "#DC2626");
                 return badge;
             }
             Span badge = new Span("UMUM");
@@ -448,23 +453,21 @@ public class AdminDashboardView extends VerticalLayout implements BeforeEnterObs
             java.util.Optional<UserSchoolVerification> verOpt = userService.getVerification(u);
 
             // Verifikasi Sekolah / Tinjau KTA Button
-            if (u.getSchool() == null) {
-                if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.PENDING) {
-                    Button btnReviewKta = new Button("Tinjau KTA", VaadinIcon.ACADEMY_CAP.create(), e -> openReviewKtaDialog(u, verOpt.get()));
-                    btnReviewKta.getStyle().set("background", "#001934").set("color", "#F5C45E").set("font-size", "11px").set("font-weight", "700").set("border-radius", "6px").set("padding", "4px 8px");
-                    actions.add(btnReviewKta);
-                } else {
-                    Button btnVerify = new Button("Verifikasi", e -> {
-                        List<School> schools = userService.findAllSchools();
-                        School defaultSchool = schools.isEmpty() ? null : schools.get(0);
-                        userService.verifyUserSchool(u, defaultSchool);
-                        Notification.show("Pengguna " + u.getFullName() + " berhasil diverifikasi sebagai Siswa SMKN 24.", 2500, Notification.Position.TOP_CENTER);
-                        renderActiveTab();
-                    });
-                    btnVerify.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-                    btnVerify.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB");
-                    actions.add(btnVerify);
-                }
+            if (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.PENDING) {
+                Button btnReviewKta = new Button("Tinjau KTA", VaadinIcon.ACADEMY_CAP.create(), e -> openReviewKtaDialog(u, verOpt.get()));
+                btnReviewKta.getStyle().set("background", "#001934").set("color", "#F5C45E").set("font-size", "11px").set("font-weight", "700").set("border-radius", "6px").set("padding", "4px 8px");
+                actions.add(btnReviewKta);
+            } else if (u.getSchool() == null || (verOpt.isPresent() && verOpt.get().getStatus() == VerificationStatus.REJECTED)) {
+                Button btnVerify = new Button("Verifikasi", e -> {
+                    List<School> schools = userService.findAllSchools();
+                    School defaultSchool = schools.isEmpty() ? null : schools.get(0);
+                    userService.verifyUserSchool(u, defaultSchool);
+                    Notification.show("Pengguna " + u.getFullName() + " berhasil diverifikasi sebagai Siswa SMKN 24.", 2500, Notification.Position.TOP_CENTER);
+                    renderActiveTab();
+                });
+                btnVerify.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                btnVerify.getStyle().set("font-size", "12px").set("font-weight", "700").set("color", "#2563EB");
+                actions.add(btnVerify);
             }
 
             // Suspend / Unsuspend Button with ConfirmDialog

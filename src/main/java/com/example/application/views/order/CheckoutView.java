@@ -112,23 +112,12 @@ public class CheckoutView extends Div {
         Div wrapper = new Div();
         wrapper.addClassName("rw-checkout-wrapper");
 
-        HorizontalLayout titleRow = new HorizontalLayout();
-        titleRow.setWidthFull();
-        titleRow.setAlignItems(FlexComponent.Alignment.CENTER);
-        titleRow.setSpacing(true);
-        titleRow.getElement().getStyle().set("margin-bottom", "16px");
+        Div titleRow = new Div();
+        titleRow.addClassName("rw-checkout-title-row");
 
         Button btnBack = new Button("Kembali", VaadinIcon.ARROW_LEFT.create());
         btnBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        btnBack.getElement().getStyle()
-            .set("color", "#001934")
-            .set("font-weight", "700")
-            .set("font-size", "13px")
-            .set("cursor", "pointer")
-            .set("padding", "6px 14px")
-            .set("background", "#FFFFFF")
-            .set("border", "1px solid #E2E8F0")
-            .set("border-radius", "8px");
+        btnBack.addClassName("rw-checkout-back-btn");
         btnBack.addClickListener(e -> {
             VaadinSession s = VaadinSession.getCurrent();
             if (s != null) {
@@ -139,7 +128,6 @@ public class CheckoutView extends Div {
 
         H2 pageTitle = new H2("Konfirmasi Pesanan");
         pageTitle.addClassName("rw-checkout-page-title");
-        pageTitle.getElement().getStyle().set("margin", "0");
 
         titleRow.add(btnBack, pageTitle);
         wrapper.add(titleRow);
@@ -219,8 +207,8 @@ public class CheckoutView extends Div {
         long smkn24Count = allCartItems.stream().filter(CartItem::isSelected).filter(CartItem::isSmkn24Item).count();
         long regularCount = allCartItems.stream().filter(CartItem::isSelected).filter(item -> !item.isSmkn24Item()).count();
 
-        btnTabSmkn24.setText("Pasar SMKN 24 (COD Sekolah)" + (smkn24Count > 0 ? " (" + smkn24Count + ")" : ""));
-        btnTabRegular.setText("Barang Reguler / Ekspedisi" + (regularCount > 0 ? " (" + regularCount + ")" : ""));
+        btnTabSmkn24.setText("Pasar 24 (COD)" + (smkn24Count > 0 ? " (" + smkn24Count + ")" : ""));
+        btnTabRegular.setText("Barang Reguler" + (regularCount > 0 ? " (" + regularCount + ")" : ""));
 
         if (isPasarSmkn24Mode) {
             btnTabSmkn24.addClassName("active");
@@ -702,6 +690,9 @@ public class CheckoutView extends Div {
                 infoCol.add(badge);
             }
 
+            Div actionCol = new Div();
+            actionCol.addClassName("rw-item-action-col");
+
             Div priceCol = new Div("Rp" + String.format("%,.0f", item.getPrice() * item.getQuantity()));
             priceCol.addClassName("rw-item-price-col");
 
@@ -714,7 +705,8 @@ public class CheckoutView extends Div {
                 Notification.show("Item " + item.getTitle() + " dibatalkan dari checkout.", 2000, Notification.Position.TOP_CENTER);
             });
 
-            itemRow.add(thumbWrap, infoCol, priceCol, btnCancelItem);
+            actionCol.add(priceCol, btnCancelItem);
+            itemRow.add(thumbWrap, infoCol, actionCol);
             orderItemsContainer.add(itemRow);
 
             if (i < selectedItems.size() - 1) {

@@ -34,6 +34,7 @@ public class HomeView extends VerticalLayout {
     private final ProductService productService;
     private final CategoryService categoryService;
     private final ModerationService moderationService;
+    private final com.example.application.service.user.UserService userService;
 
     private static final String SVG_CHECK =
         "<svg width='11' height='11' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
@@ -47,13 +48,16 @@ public class HomeView extends VerticalLayout {
 
     private final Div cardsGrid = new Div();
     private final Div filterPillsContainer = new Div();
+    private final Div regularCardsGrid = new Div();
     private String activeCategoryFilter = "Semua";
+    private String activeRegularCategory = "Semua";
     private Span marketCountBadge;
 
-    public HomeView(ProductService productService, CategoryService categoryService, ModerationService moderationService) {
+    public HomeView(ProductService productService, CategoryService categoryService, ModerationService moderationService, com.example.application.service.user.UserService userService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.moderationService = moderationService;
+        this.userService = userService;
 
         setSpacing(false);
         setPadding(false);
@@ -74,7 +78,8 @@ public class HomeView extends VerticalLayout {
         );
 
         // Initial product rendering
-        filterAndRenderProducts("Semua", false);
+        filterAndRenderSchoolProducts("Semua", false);
+        filterAndRenderRegularProducts("Semua", false);
     }
 
     private Component createMobileHeaderBar() {
@@ -104,7 +109,7 @@ public class HomeView extends VerticalLayout {
             .set("flex", "1");
 
         Icon searchIcon = VaadinIcon.SEARCH.create();
-        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px");
+        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px").set("cursor", "pointer");
 
         Input mobSearchInput = new Input();
         mobSearchInput.setPlaceholder("Cari barang thrift impianmu...");
@@ -119,18 +124,39 @@ public class HomeView extends VerticalLayout {
 
         mobSearchInput.getElement().addEventListener("keydown", e -> {
             UI.getCurrent().getPage().executeJs(
-                "return arguments[0].target ? arguments[0].target.value.trim() : ''", mobSearchInput.getElement()
+                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
             ).then(String.class, query -> {
-                if (query != null && !query.isBlank()) {
-                    UI.getCurrent().navigate("pasar-smkn24",
-                        new QueryParameters(java.util.Map.of("q", java.util.List.of(query))));
-                } else {
-                    UI.getCurrent().navigate("pasar-smkn24");
-                }
+                activeSearchKeyword = query != null ? query.toLowerCase() : "";
+                filterAndRenderSchoolProducts(activeCategoryFilter, true);
+                filterAndRenderRegularProducts(activeRegularCategory, false);
             });
         }).setFilter("event.key === 'Enter'");
 
+        searchIcon.addClickListener(e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
+            ).then(String.class, query -> {
+                activeSearchKeyword = query != null ? query.toLowerCase() : "";
+                filterAndRenderSchoolProducts(activeCategoryFilter, true);
+                filterAndRenderRegularProducts(activeRegularCategory, false);
+            });
+        });
+
         searchWrap.add(searchIcon, mobSearchInput);
+
+        Button filterBtn = new Button(VaadinIcon.SLIDERS.create());
+        filterBtn.addClassName("rw-mobile-filter-btn");
+        filterBtn.getElement().getStyle()
+            .set("background", "#F5C45E")
+            .set("color", "#001934")
+            .set("border", "none")
+            .set("border-radius", "10px")
+            .set("width", "38px")
+            .set("height", "38px")
+            .set("min-width", "38px")
+            .set("cursor", "pointer")
+            .set("flex-shrink", "0");
+        filterBtn.addClickListener(e -> openFilterDialog());
 
         Icon bellIcon = VaadinIcon.BELL_O.create();
         bellIcon.getElement().getStyle()
@@ -142,8 +168,69 @@ public class HomeView extends VerticalLayout {
             if (AuthGuard.requireLogin(UI.getCurrent())) UI.getCurrent().navigate("notifications");
         });
 
-        mobileHeaderBar.add(searchWrap, bellIcon);
+        mobileHeaderBar.add(searchWrap, filterBtn, bellIcon);
         return mobileHeaderBar;
+    }
+
+    private void openFilterDialog() {
+        com.vaadin.flow.component.dialog.Dialog dialog = new com.vaadin.flow.component.dialog.Dialog();
+        dialog.setHeaderTitle("Filter Produk");
+        dialog.setWidth("380px");
+
+        VerticalLayout layout = new VerticalLayout();
+        layout.setPadding(false);
+        layout.setSpacing(true);
+
+        com.vaadin.flow.component.combobox.ComboBox<String> catCombo = new com.vaadin.flow.component.combobox.ComboBox<>("Kategori");
+        List<Category> categories = categoryService.findAllSorted();
+        List<String> catOptions = new java.util.ArrayList<>();
+        catOptions.add("Semua Kategori");
+        for (Category c : categories) catOptions.add(c.getName());
+        catCombo.setItems(catOptions);
+        catCombo.setValue(activeRegularCategory != null && !activeRegularCategory.equalsIgnoreCase("Semua") ? activeRegularCategory : "Semua Kategori");
+        catCombo.setWidthFull();
+
+        com.vaadin.flow.component.combobox.ComboBox<String> condCombo = new com.vaadin.flow.component.combobox.ComboBox<>("Kondisi Barang");
+        condCombo.setItems("Semua Kondisi", "Seperti Baru", "Bekas (Preloved)", "Baru");
+        condCombo.setValue("Semua Kondisi");
+        condCombo.setWidthFull();
+
+        com.vaadin.flow.component.combobox.ComboBox<String> sortCombo = new com.vaadin.flow.component.combobox.ComboBox<>("Urutkan");
+        sortCombo.setItems("Terbaru", "Harga Termurah", "Harga Tertinggi", "Nama A-Z");
+        sortCombo.setValue("Terbaru");
+        sortCombo.setWidthFull();
+
+        layout.add(catCombo, condCombo, sortCombo);
+
+        Button btnApply = new Button("Terapkan Filter", e -> {
+            String selectedCat = catCombo.getValue();
+            if (selectedCat != null && !selectedCat.equalsIgnoreCase("Semua Kategori")) {
+                filterAndRenderRegularProducts(selectedCat, true);
+            } else {
+                filterAndRenderRegularProducts("Semua", true);
+            }
+            dialog.close();
+        });
+        btnApply.getElement().getStyle()
+            .set("background", "#001934")
+            .set("color", "#F5C45E")
+            .set("font-weight", "700")
+            .set("border-radius", "8px")
+            .set("border", "none")
+            .set("width", "100%");
+
+        Button btnReset = new Button("Reset Filter", e -> {
+            catCombo.setValue("Semua Kategori");
+            condCombo.setValue("Semua Kondisi");
+            sortCombo.setValue("Terbaru");
+            filterAndRenderRegularProducts("Semua", false);
+            dialog.close();
+        });
+        btnReset.getElement().getStyle().set("color", "#64748B");
+
+        dialog.getFooter().add(btnReset, btnApply);
+        dialog.add(layout);
+        dialog.open();
     }
 
     /* -----------------------------------------------------------------
@@ -151,27 +238,20 @@ public class HomeView extends VerticalLayout {
        ----------------------------------------------------------------- */
     private Component createHeroSection() {
         Div heroContainer = new Div();
-        heroContainer.addClassNames("hero-banner-section", "hero-banner");
-        heroContainer.setId("hero-section");
-        heroContainer.getElement().getStyle()
-            .set("border-radius", "0")
-            .set("margin", "0")
-            .set("padding", "0")
-            .set("width", "100%");
+        heroContainer.setWidthFull();
+        heroContainer.addClassName("hero-container");
 
-        Span badge = new Span("Sustainable Fashion");
+        Span badge = new Span("Platform Re-Wear SMKN 24");
         badge.addClassName("hero-badge");
 
-        H1 title = new H1("Thrift Local, Grow Global\nat SMKN 24");
+        H1 title = new H1("Jual Beli Barang Preloved & Seragam Sekolah");
         title.addClassName("hero-title");
-        title.getElement().getStyle().set("white-space", "pre-line");
 
-        Paragraph desc = new Paragraph(
-            "Temukan barang berkualitas dari komunitas sekolahmu. Lebih hemat, lebih hijau, dan mendukung ekonomi lokal.");
+        Paragraph desc = new Paragraph("Hemat, ramah lingkungan, dan terpercaya khusus komunitas SMKN 24 Jakarta & Umum.");
         desc.addClassName("hero-desc");
 
         Button btnBelanja = new Button("Mulai Belanja");
-        btnBelanja.addClassName("btn-gold");
+        btnBelanja.addClassName("btn-primary-yellow");
         btnBelanja.addClickListener(e ->
             UI.getCurrent().getPage().executeJs("var el = document.getElementById($0); if(el) el.scrollIntoView({behavior:'smooth'});", "pasar-section")
         );
@@ -185,7 +265,6 @@ public class HomeView extends VerticalLayout {
         Div btnLayout = new Div(btnBelanja, btnLearn);
         btnLayout.addClassName("hero-btns");
 
-        // Carousel Dot Indicators (Figma Exact)
         Div dots = new Div();
         dots.getElement().setProperty("innerHTML",
             "<div style='display:flex;gap:6px;margin-top:24px;'>" +
@@ -202,7 +281,7 @@ public class HomeView extends VerticalLayout {
     }
 
     /* -----------------------------------------------------------------
-       2. JELAJAHI KATEGORI SECTION
+       2. JELAJAHI KATEGORI SECTION (Produk Umum / Marketplace ReWear)
        ----------------------------------------------------------------- */
     private Component createCategorySection() {
         Div sectionWrapper = new Div();
@@ -219,14 +298,14 @@ public class HomeView extends VerticalLayout {
         Div titleGroup = new Div();
         H2 secTitle = new H2("Jelajahi Kategori");
         secTitle.addClassName("rw-section-title");
-        Paragraph secSub = new Paragraph("Temukan apa yang kamu cari dengan mudah");
+        Paragraph secSub = new Paragraph("Temukan produk thrift & umum yang kamu cari dengan mudah");
         secSub.addClassName("rw-section-sub");
         titleGroup.add(secTitle, secSub);
 
         Span linkMore = new Span("Lihat Semua");
         linkMore.addClassName("rw-link-more");
         linkMore.getElement().getStyle().set("cursor", "pointer");
-        linkMore.addClickListener(e -> filterAndRenderProducts("Semua", true));
+        linkMore.addClickListener(e -> filterAndRenderRegularProducts("Semua", true));
 
         headerRow.add(titleGroup, linkMore);
 
@@ -238,7 +317,27 @@ public class HomeView extends VerticalLayout {
             catGrid.add(createCategoryCard(cat));
         }
 
-        innerContainer.add(headerRow, catGrid);
+        Div regularGridTitleRow = new Div();
+        regularGridTitleRow.getElement().getStyle()
+            .set("display", "flex")
+            .set("justify-content", "space-between")
+            .set("align-items", "center")
+            .set("margin", "28px 0 16px 0");
+
+        H3 regTitle = new H3("Katalog Produk Pilihan");
+        regTitle.getElement().getStyle()
+            .set("color", "#001934")
+            .set("font-size", "18px")
+            .set("font-weight", "800")
+            .set("margin", "0");
+
+        regularGridTitleRow.add(regTitle);
+
+        regularCardsGrid.addClassName("products-grid-container");
+        regularCardsGrid.setWidthFull();
+        regularCardsGrid.setId("katalog-umum-grid");
+
+        innerContainer.add(headerRow, catGrid, regularGridTitleRow, regularCardsGrid);
         sectionWrapper.add(innerContainer);
         return sectionWrapper;
     }
@@ -295,7 +394,7 @@ public class HomeView extends VerticalLayout {
         titleSpan.addClassName("category-title");
 
         card.add(iconCircle, titleSpan);
-        card.addClickListener(e -> filterAndRenderProducts(cat.getName(), true));
+        card.addClickListener(e -> filterAndRenderRegularProducts(cat.getName(), true));
 
         return card;
     }
@@ -334,19 +433,7 @@ public class HomeView extends VerticalLayout {
             "</div>"
         );
 
-        // Live Search Input Box
-        com.vaadin.flow.component.textfield.TextField searchField = new com.vaadin.flow.component.textfield.TextField();
-        searchField.setPlaceholder("Cari produk di Pasar SMKN 24...");
-        searchField.setPrefixComponent(com.vaadin.flow.component.icon.VaadinIcon.SEARCH.create());
-        searchField.setClearButtonVisible(true);
-        searchField.setWidth("280px");
-        searchField.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
-        searchField.addValueChangeListener(e -> {
-            this.activeSearchKeyword = e.getValue() != null ? e.getValue().trim().toLowerCase() : "";
-            filterAndRenderProducts(this.activeCategoryFilter, false);
-        });
-
-        topRow.add(sectionHeader, searchField);
+        topRow.add(sectionHeader);
 
         // Filter Pills Row
         filterPillsContainer.setWidthFull();
@@ -365,24 +452,23 @@ public class HomeView extends VerticalLayout {
         return container;
     }
 
-    private void filterAndRenderProducts(String categoryName, boolean smoothScroll) {
+    // Filter Khusus Pasar SMKN 24 (HANYA produk dari seller terverifikasi sekolah)
+    private void filterAndRenderSchoolProducts(String categoryName, boolean smoothScroll) {
         this.activeCategoryFilter = categoryName;
 
         // 1. Re-render category pills
         renderCategoryFilterPills();
 
-        // 2. Fetch and filter products
+        // 2. Fetch and filter products (ONLY school verified sellers)
         User currentUser = AuthGuard.getCurrentUser();
-        List<Product> allProducts = productService.findActiveWithCategory();
-        if (currentUser != null && currentUser.getId() != null) {
-            allProducts = allProducts.stream()
-                .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
-                .toList();
-        }
+        List<Product> allSchoolProducts = productService.findSchoolMarketWithCategory().stream()
+            .filter(p -> p.getSeller() != null && userService.isSchoolVerified(p.getSeller()))
+            .filter(p -> currentUser == null || currentUser.getId() == null || !p.getSeller().getId().equals(currentUser.getId()))
+            .toList();
 
-        List<Product> filtered = allProducts;
+        List<Product> filtered = allSchoolProducts;
         if (!"Semua".equalsIgnoreCase(categoryName) && !"Semua Kategori".equalsIgnoreCase(categoryName)) {
-            filtered = allProducts.stream()
+            filtered = allSchoolProducts.stream()
                 .filter(p -> p.getCategory() != null && (
                     p.getCategory().getName().equalsIgnoreCase(categoryName) ||
                     (p.getCategory().getSlug() != null && p.getCategory().getSlug().equalsIgnoreCase(categoryName))
@@ -411,41 +497,139 @@ public class HomeView extends VerticalLayout {
             }
             cardsGrid.add(createProductCard(
                 p.getId(), p.getName(), imgUrl,
-                p.getPrice(), ratingStr, reviewCount, p.isSchoolMarket()
+                p.getPrice(), ratingStr, reviewCount, true
             ));
         }
 
         if (filtered.isEmpty()) {
             Div empty = new Div();
             empty.getElement().getStyle()
-                .set("padding", "36px 20px")
+                .set("padding", "40px 20px")
                 .set("text-align", "center")
                 .set("width", "100%")
+                .set("background", "#FFFFFF")
+                .set("border-radius", "16px")
+                .set("border", "1px solid #E2E8F0")
                 .set("grid-column", "1 / -1");
-            
-            H4 emptyTitle = new H4("Belum Ada Produk di Kategori Ini");
-            emptyTitle.getElement().getStyle().set("color", "#001934").set("margin-bottom", "8px");
-            Paragraph emptySub = new Paragraph("Coba jelajahi kategori lainnya atau reset filter untuk melihat semua barang.");
-            emptySub.getElement().getStyle().set("color", "#64748B").set("font-size", "14px");
 
-            Button btnReset = new Button("Tampilkan Semua Barang", e -> filterAndRenderProducts("Semua", false));
+            Div iconBox = new Div();
+            iconBox.getElement().setProperty("innerHTML",
+                "<svg width='44' height='44' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/><line x1='8' y1='11' x2='14' y2='11'/></svg>"
+            );
+            iconBox.getElement().getStyle().set("margin-bottom", "10px");
+
+            H3 emptyTitle = new H3("Tidak Menemukan Barang yang di Cari");
+            emptyTitle.getElement().getStyle().set("color", "#001934").set("font-size", "18px").set("font-weight", "800").set("margin", "0 0 8px 0");
+
+            Paragraph emptySub = new Paragraph("Belum ada produk Warga SMKN 24 yang sesuai dengan kata kunci atau kategori ini.");
+            emptySub.getElement().getStyle().set("color", "#64748B").set("font-size", "14px").set("margin", "0 0 16px 0");
+
+            Button btnReset = new Button("Tampilkan Semua Barang SMKN 24", e -> filterAndRenderSchoolProducts("Semua", false));
             btnReset.getElement().getStyle()
                 .set("background", "#001934")
                 .set("color", "#F5C45E")
                 .set("font-weight", "700")
-                .set("border-radius", "9999px")
+                .set("border-radius", "8px")
                 .set("border", "none")
                 .set("padding", "8px 20px")
-                .set("margin-top", "12px")
                 .set("cursor", "pointer");
 
-            empty.add(emptyTitle, emptySub, btnReset);
+            empty.add(iconBox, emptyTitle, emptySub, btnReset);
             cardsGrid.add(empty);
         }
 
         // 4. Smooth scroll if requested
         if (smoothScroll) {
             UI.getCurrent().getPage().executeJs("var el = document.getElementById('pasar-section'); if(el) el.scrollIntoView({behavior:'smooth'});");
+        }
+    }
+
+    // Filter Katalog Produk Umum / Reguler (Jelajahi Kategori)
+    private void filterAndRenderRegularProducts(String categoryName, boolean smoothScroll) {
+        this.activeRegularCategory = categoryName;
+
+        User currentUser = AuthGuard.getCurrentUser();
+        List<Product> allProducts = productService.findActiveWithCategory();
+        if (currentUser != null && currentUser.getId() != null) {
+            allProducts = allProducts.stream()
+                .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
+                .toList();
+        }
+
+        List<Product> filtered = allProducts;
+        if (!"Semua".equalsIgnoreCase(categoryName) && !"Semua Kategori".equalsIgnoreCase(categoryName)) {
+            filtered = allProducts.stream()
+                .filter(p -> p.getCategory() != null && (
+                    p.getCategory().getName().equalsIgnoreCase(categoryName) ||
+                    (p.getCategory().getSlug() != null && p.getCategory().getSlug().equalsIgnoreCase(categoryName))
+                ))
+                .toList();
+        }
+
+        if (activeSearchKeyword != null && !activeSearchKeyword.isBlank()) {
+            filtered = filtered.stream()
+                .filter(p -> (p.getName() != null && p.getName().toLowerCase().contains(activeSearchKeyword)) ||
+                             (p.getDescription() != null && p.getDescription().toLowerCase().contains(activeSearchKeyword)) ||
+                             (p.getCategory() != null && p.getCategory().getName() != null && p.getCategory().getName().toLowerCase().contains(activeSearchKeyword)))
+                .toList();
+        }
+
+        regularCardsGrid.removeAll();
+        for (Product p : filtered) {
+            String imgUrl = extractImgUrl(p.getImages(), "images/buku.jpeg");
+            List<Review> reviews = moderationService.getProductReviews(p);
+            String ratingStr = null;
+            int reviewCount = reviews.size();
+            if (reviewCount > 0) {
+                double avg = reviews.stream().mapToInt(Review::getRating).average().orElse(0.0);
+                ratingStr = String.format("%.1f", avg);
+            }
+            boolean isVerified = p.getSeller() != null && userService.isSchoolVerified(p.getSeller());
+            regularCardsGrid.add(createProductCard(
+                p.getId(), p.getName(), imgUrl,
+                p.getPrice(), ratingStr, reviewCount, isVerified
+            ));
+        }
+
+        if (filtered.isEmpty()) {
+            Div empty = new Div();
+            empty.getElement().getStyle()
+                .set("padding", "40px 20px")
+                .set("text-align", "center")
+                .set("width", "100%")
+                .set("background", "#FFFFFF")
+                .set("border-radius", "16px")
+                .set("border", "1px solid #E2E8F0")
+                .set("grid-column", "1 / -1");
+
+            Div iconBox = new Div();
+            iconBox.getElement().setProperty("innerHTML",
+                "<svg width='44' height='44' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/><line x1='8' y1='11' x2='14' y2='11'/></svg>"
+            );
+            iconBox.getElement().getStyle().set("margin-bottom", "10px");
+
+            H3 emptyTitle = new H3("Tidak Menemukan Barang yang di Cari");
+            emptyTitle.getElement().getStyle().set("color", "#001934").set("font-size", "18px").set("font-weight", "800").set("margin", "0 0 8px 0");
+
+            Paragraph emptySub = new Paragraph("Coba jelajahi kategori lainnya atau reset filter untuk melihat semua barang.");
+            emptySub.getElement().getStyle().set("color", "#64748B").set("font-size", "14px").set("margin", "0 0 16px 0");
+
+            Button btnReset = new Button("Tampilkan Semua Barang", e -> filterAndRenderRegularProducts("Semua", false));
+            btnReset.getElement().getStyle()
+                .set("background", "#001934")
+                .set("color", "#F5C45E")
+                .set("font-weight", "700")
+                .set("border-radius", "8px")
+                .set("border", "none")
+                .set("padding", "8px 20px")
+                .set("cursor", "pointer");
+
+            empty.add(iconBox, emptyTitle, emptySub, btnReset);
+            regularCardsGrid.add(empty);
+        }
+
+        if (smoothScroll) {
+            UI.getCurrent().getPage().executeJs("var el = document.getElementById('katalog-umum-grid'); if(el) el.scrollIntoView({behavior:'smooth'});");
         }
     }
 
@@ -485,7 +669,7 @@ public class HomeView extends VerticalLayout {
                     .set("border", "1px solid #E2E8F0");
             }
 
-            pill.addClickListener(e -> filterAndRenderProducts(opt, false));
+            pill.addClickListener(e -> filterAndRenderSchoolProducts(opt, false));
             filterPillsContainer.add(pill);
         }
     }

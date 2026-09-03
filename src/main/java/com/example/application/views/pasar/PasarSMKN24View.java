@@ -41,6 +41,7 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
     private final ProductService productService;
     private final CategoryService categoryService;
     private final ModerationService moderationService;
+    private final com.example.application.service.user.UserService userService;
 
     private static final String SVG_CHECK =
         "<svg width='11' height='11' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
@@ -63,10 +64,11 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
 
     private List<Product> allSchoolProducts;
 
-    public PasarSMKN24View(ProductService productService, CategoryService categoryService, ModerationService moderationService) {
+    public PasarSMKN24View(ProductService productService, CategoryService categoryService, ModerationService moderationService, com.example.application.service.user.UserService userService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.moderationService = moderationService;
+        this.userService = userService;
 
         setSpacing(false);
         setPadding(false);
@@ -136,7 +138,7 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
             .set("flex", "1");
 
         Icon searchIcon = VaadinIcon.SEARCH.create();
-        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px");
+        searchIcon.getElement().getStyle().set("color", "rgba(255,255,255,0.7)").set("width", "16px").set("height", "16px").set("cursor", "pointer");
 
         Input mobSearchInput = new Input();
         mobSearchInput.setPlaceholder("Cari barang di Pasar SMKN 24...");
@@ -159,6 +161,24 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
                 applyFilters();
             });
         }).setFilter("event.key === 'Enter'");
+
+        mobSearchInput.getElement().addEventListener("input", e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
+            ).then(String.class, query -> {
+                searchField.setValue(query != null ? query : "");
+                applyFilters();
+            });
+        });
+
+        searchIcon.addClickListener(e -> {
+            UI.getCurrent().getPage().executeJs(
+                "return arguments[0].value ? arguments[0].value.trim() : ''", mobSearchInput.getElement()
+            ).then(String.class, query -> {
+                searchField.setValue(query != null ? query : "");
+                applyFilters();
+            });
+        });
 
         searchWrap.add(searchIcon, mobSearchInput);
 
@@ -400,14 +420,13 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
     }
 
     private void loadProductsAndApplyFilters() {
-        // Ambil produk khusus pasar SMKN 24 dari DB (filter out produk milik seller yang sedang login)
+        // Ambil produk khusus pasar SMKN 24 dari DB (wajib seller terverifikasi WARGA 24 & filter out seller yang sedang login)
         User currentUser = AuthGuard.getCurrentUser();
         List<Product> list = productService.findSchoolMarketWithCategory();
-        if (currentUser != null && currentUser.getId() != null) {
-            list = list.stream()
-                .filter(p -> p.getSeller() == null || !p.getSeller().getId().equals(currentUser.getId()))
-                .toList();
-        }
+        list = list.stream()
+            .filter(p -> p.getSeller() != null && userService.isSchoolVerified(p.getSeller()))
+            .filter(p -> currentUser == null || currentUser.getId() == null || !p.getSeller().getId().equals(currentUser.getId()))
+            .toList();
         allSchoolProducts = list;
         applyFilters();
     }
@@ -462,13 +481,45 @@ public class PasarSMKN24View extends VerticalLayout implements BeforeEnterObserv
         totalCountBadge.setText(filtered.size() + " Produk Ditemukan");
 
         if (filtered.isEmpty()) {
-            Paragraph empty = new Paragraph("Belum ada produk Warga SMKN 24 yang sesuai dengan filter Anda.");
+            Div empty = new Div();
             empty.getElement().getStyle()
-                .set("color", "#94A3B8")
-                .set("font-size", "15px")
-                .set("padding", "40px 0")
+                .set("padding", "48px 20px")
                 .set("text-align", "center")
-                .set("width", "100%");
+                .set("width", "100%")
+                .set("background", "#FFFFFF")
+                .set("border-radius", "16px")
+                .set("border", "1px solid #E2E8F0")
+                .set("grid-column", "1 / -1");
+
+            Div iconBox = new Div();
+            iconBox.getElement().setProperty("innerHTML",
+                "<svg width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='#94A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/><line x1='8' y1='11' x2='14' y2='11'/></svg>"
+            );
+            iconBox.getElement().getStyle().set("margin-bottom", "12px");
+
+            H3 emptyTitle = new H3("Tidak Menemukan Barang yang di Cari");
+            emptyTitle.getElement().getStyle().set("color", "#001934").set("font-size", "18px").set("font-weight", "800").set("margin", "0 0 8px 0");
+
+            Paragraph emptySub = new Paragraph("Coba periksa kata kunci pencarian Anda atau sesuaikan filter kategori dan kondisi barang.");
+            emptySub.getElement().getStyle().set("color", "#64748B").set("font-size", "14px").set("margin", "0 0 16px 0");
+
+            Button btnReset = new Button("Reset Pencarian & Filter", e -> {
+                searchField.clear();
+                categoryRadio.setValue("Semua Kategori");
+                conditionRadio.setValue("Semua Kondisi");
+                sortCombo.setValue("Terbaru");
+                applyFilters();
+            });
+            btnReset.getElement().getStyle()
+                .set("background", "#001934")
+                .set("color", "#F5C45E")
+                .set("font-weight", "700")
+                .set("border-radius", "8px")
+                .set("border", "none")
+                .set("padding", "8px 20px")
+                .set("cursor", "pointer");
+
+            empty.add(iconBox, emptyTitle, emptySub, btnReset);
             cardsGrid.add(empty);
             return;
         }

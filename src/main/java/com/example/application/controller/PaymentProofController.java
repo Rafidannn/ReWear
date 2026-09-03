@@ -50,18 +50,24 @@ public class PaymentProofController {
             .filter(p -> p.getPaymentProofUrl() != null && p.getPaymentProofUrl().contains(filename))
             .findFirst();
 
-        // Otorisasi: hanya ADMIN/MODERATOR, BUYER pemilik pesanan, atau SELLER toko terkait
+        // Otorisasi:
+        // 1. ADMIN/MODERATOR selalu diizinkan
         boolean isAuthorized = currentUser.getRole() == Role.SUPER_ADMIN || currentUser.getRole() == Role.MODERATOR;
 
-        if (!isAuthorized && paymentOpt.isPresent()) {
-            Payment p = paymentOpt.get();
-            Order order = p.getOrder();
-            if (order != null) {
-                if (order.getBuyer() != null && order.getBuyer().getId().equals(currentUser.getId())) {
-                    isAuthorized = true;
-                } else if (order.getSeller() != null && order.getSeller().getId().equals(currentUser.getId())) {
-                    isAuthorized = true;
+        if (!isAuthorized) {
+            if (paymentOpt.isPresent()) {
+                Payment p = paymentOpt.get();
+                Order order = p.getOrder();
+                if (order != null) {
+                    if (order.getBuyer() != null && order.getBuyer().getId().equals(currentUser.getId())) {
+                        isAuthorized = true;
+                    } else if (order.getSeller() != null && order.getSeller().getId().equals(currentUser.getId())) {
+                        isAuthorized = true;
+                    }
                 }
+            } else {
+                // Berkas baru diunggah pada sesi checkout (belum tersimpan di entitas Payment) oleh user yang sudah login
+                isAuthorized = true;
             }
         }
 

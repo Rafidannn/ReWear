@@ -1739,41 +1739,37 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
 
         // Saldo Banner Hero Card
         Div cardHero = new Div();
-        cardHero.getElement().getStyle()
-            .set("background", "linear-gradient(135deg, #001934 0%, #002B5B 100%)")
-            .set("border-radius", "18px")
-            .set("padding", "28px")
-            .set("color", "#FFFFFF")
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("justify-content", "space-between")
-            .set("box-shadow", "0 4px 14px rgba(0,25,52,0.12)");
+        cardHero.addClassName("rw-wallet-hero-card");
 
         Div salLeft = new Div();
+        salLeft.addClassName("rw-wallet-hero-sal");
+
         Span lbl = new Span("Saldo ReWear Pay Aktif (Dapat Ditarik)");
         lbl.getElement().getStyle().set("font-size", "13px").set("opacity", "0.85").set("display", "block").set("margin-bottom", "4px");
 
         H3 val = new H3("Rp " + String.format("%,.0f", saldoReWearPay.doubleValue()));
-        val.getElement().getStyle().set("font-size", "32px").set("font-weight", "800").set("margin", "0 0 8px 0").set("color", "#F5C45E");
+        val.addClassName("rw-wallet-hero-val");
 
         Span escrowTxt = new Span("Dana Escrow Terikat Pesanan: Rp " + String.format("%,.0f", saldoEscrowTerikat.doubleValue()));
         escrowTxt.getElement().getStyle().set("font-size", "12px").set("opacity", "0.9").set("color", "#93C5FD");
 
         salLeft.add(lbl, val, escrowTxt);
 
-        HorizontalLayout btnGroup = new HorizontalLayout();
-        btnGroup.setSpacing(true);
+        Div btnGroup = new Div();
+        btnGroup.addClassName("rw-wallet-hero-actions");
 
         Button btnTopUp = new Button("Isi Saldo (Top-Up)", VaadinIcon.PLUS_CIRCLE.create());
+        btnTopUp.addClassName("rw-wallet-btn-topup");
         btnTopUp.getElement().getStyle()
             .set("background", "#2563EB").set("color", "#FFFFFF").set("font-weight", "800")
-            .set("border-radius", "8px").set("padding", "12px 20px").set("border", "none").set("cursor", "pointer");
+            .set("border-radius", "8px").set("border", "none").set("cursor", "pointer");
         btnTopUp.addClickListener(e -> openTopUpDialog());
 
         Button btnWithdraw = new Button("Tarik Saldo", VaadinIcon.MONEY_WITHDRAW.create());
+        btnWithdraw.addClassName("rw-wallet-btn-withdraw");
         btnWithdraw.getElement().getStyle()
             .set("background", "#F5C45E").set("color", "#001934").set("font-weight", "800")
-            .set("border-radius", "8px").set("padding", "12px 20px").set("border", "none").set("cursor", "pointer")
+            .set("border-radius", "8px").set("border", "none").set("cursor", "pointer")
             .set("box-shadow", "0 2px 8px rgba(245, 196, 94, 0.35)");
         btnWithdraw.addClickListener(e -> openWithdrawDialog(saldoReWearPay.doubleValue()));
 
@@ -1806,17 +1802,11 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
             table.getElement().getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "12px");
 
             for (SellerPayout p : payouts) {
-                HorizontalLayout row = new HorizontalLayout();
-                row.setWidthFull();
-                row.setAlignItems(FlexComponent.Alignment.CENTER);
-                row.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-                row.getElement().getStyle()
-                    .set("padding", "14px 16px")
-                    .set("background", "#F8FAFC")
-                    .set("border-radius", "10px")
-                    .set("border", "1px solid #E2E8F0");
+                Div row = new Div();
+                row.addClassName("rw-wallet-history-row");
 
                 Div leftInfo = new Div();
+                leftInfo.addClassName("rw-wallet-history-left");
                 Span refNo = new Span(p.getReferenceNumber() != null ? p.getReferenceNumber() : "WD-RW");
                 refNo.getElement().getStyle().set("font-weight", "700").set("color", "#001934").set("font-size", "13px");
 
@@ -1827,9 +1817,8 @@ public class ProfileView extends VerticalLayout implements HasUrlParameter<Long>
                 pSub.getElement().getStyle().set("font-size", "12px").set("color", "#64748B").set("margin", "2px 0 0 0");
                 leftInfo.add(refNo, pSub);
 
-                HorizontalLayout rightStatus = new HorizontalLayout();
-                rightStatus.setAlignItems(FlexComponent.Alignment.CENTER);
-                rightStatus.setSpacing(true);
+                Div rightStatus = new Div();
+                rightStatus.addClassName("rw-wallet-history-right");
 
                 Span amt = new Span("Rp " + String.format("%,.0f", p.getAmount() != null ? p.getAmount().doubleValue() : 0));
                 amt.getElement().getStyle().set("font-weight", "800").set("color", "#001934").set("font-size", "14px");
